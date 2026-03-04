@@ -1,0 +1,24 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
+
+[package]
+name = "edgefirst-tflite-sys"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Low-level FFI bindings for the TensorFlow Lite C API with runtime symbol loading"
+documentation = "https://docs.rs/edgefirst-tflite-sys"
+readme = "README.md"
+keywords = ["tflite", "tensorflow-lite", "ffi", "bindings", "machine-learning"]
+categories = ["external-ffi-bindings"]
+
+[dependencies]
+libloading = "0.8"
+log = "0.4"
+
+[lints]
+workspace = true

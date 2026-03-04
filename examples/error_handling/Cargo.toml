@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
+
+[package]
+name = "error-handling"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+edgefirst-tflite = { path = "../../crates/tflite", features = ["dmabuf"] }

@@ -1,0 +1,29 @@
+EdgeFirst TFLite Bindings
+Copyright 2025 Au-Zone Technologies
+
+This product includes software developed at Au-Zone Technologies
+(https://au-zone.com).
+
+================================================================================
+Third-Party Components
+================================================================================
+
+This software uses the following third-party libraries. Full license texts
+are available in the Software Bill of Materials (SBOM) generated during the
+release process.
+
+Rust Dependencies:
+- libloading (ISC) - Dynamic library loading
+- log (MIT/Apache-2.0) - Logging facade
+- num-derive (MIT/Apache-2.0) - Numeric trait derive macros
+- num-traits (MIT/Apache-2.0) - Numeric trait definitions
+- flatbuffers (Apache-2.0) - FlatBuffers serialization (optional)
+
+For a complete list of dependencies and their licenses, see the SBOM
+artifact published with each release.
+
+================================================================================
+Trademarks
+================================================================================
+
+EdgeFirst is a trademark of Au-Zone Technologies.

@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
+
+[package]
+name = "edgefirst-tflite"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Ergonomic Rust API for TensorFlow Lite with DMABUF zero-copy and NPU preprocessing"
+documentation = "https://docs.rs/edgefirst-tflite"
+readme = "README.md"
+keywords = ["tflite", "tensorflow-lite", "edgefirst", "inference", "edge-ai"]
+categories = ["computer-vision", "multimedia::video", "external-ffi-bindings"]
+
+[features]
+default = []
+metadata = ["dep:flatbuffers"]
+dmabuf = []
+camera_adaptor = []
+full = ["metadata", "dmabuf", "camera_adaptor"]
+
+[dependencies]
+edgefirst-tflite-sys.workspace = true
+libloading = "0.8"
+log = "0.4"
+num-derive = "0.4"
+num-traits = "0.2"
+
+# Optional: metadata feature
+flatbuffers = { version = "25.2", optional = true }
+
+[lints]
+workspace = true
