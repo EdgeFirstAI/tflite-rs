@@ -1,45 +1,128 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2025 Au-Zone Technologies
+#
+# Release workflow for edgefirst-tflite workspace
+#
+# This workflow orchestrates release publishing when a version tag is pushed:
+# - Waits for test.yml and sbom.yml workflows to complete
+# - Downloads SBOM artifact from the commit's sbom.yml run
+# - Publishes crates to crates.io via trusted publishing
+# - Creates GitHub Release with SBOM attached
+#
+# Release Process:
+# 1. Update version in Cargo.toml
+# 2. Update CHANGELOG.md with version entry
+# 3. Commit and push changes (triggers test.yml and sbom.yml)
+# 4. Create and push tag: git tag -s vX.Y.Z -m "vX.Y.Z" && git push --tags
+#    (release.yml waits for test.yml and sbom.yml to complete)
+#
+# Action Versions (hash-pinned):
+# - actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 (v4.2.2)
+# - lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c (v1.5.0)
+# - dawidd6/action-download-artifact@0bd50d53a6d7fb5cb921e607957e9cc12b4ce392 (v12)
+# - softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 (v2.2.2)
+# - dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0 (master)
+# - rust-lang/crates-io-auth-action@v1
 
 name: Release
 
 on:
   push:
     tags:
-      - 'v*'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+permissions:
+  contents: write
+  id-token: write
+  checks: read
+  actions: read
 
 env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  wait-for-checks:
-    name: Wait for Checks
+  prepare-release:
+    name: Prepare Release
+    runs-on: ubuntu-22.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+
+      - name: Extract version from tag
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Extracted version: $VERSION"
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+
+          if [ -f CHANGELOG.md ]; then
+            CHANGELOG=$(awk -v ver="$VERSION" '
+              /^## \['"$VERSION"'\]/ { found=1; next }
+              found && /^## \[/ { exit }
+              found { print }
+            ' CHANGELOG.md)
+          fi
+
+          if [ -z "$CHANGELOG" ]; then
+            echo "WARNING: No changelog entry found for version $VERSION"
+            CHANGELOG="See commit history for details."
+          fi
+
+          echo "changelog<<EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGELOG" >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+  wait-for-ci:
+    name: Wait for CI Workflows
+    needs: prepare-release
     runs-on: ubuntu-22.04
     steps:
-      - name: Wait for lint
-        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
+      - name: Wait for Lint
+        uses: lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c # v1.5.0
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.sha }}
           check-name: 'Lint'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
-      - name: Wait for build check
-        uses: lewagon/wait-on-check-action@ccfb013c15c8afb7bf2b7c028fb74dc5a068cccc # v1.3.4
+      - name: Wait for Build Check
+        uses: lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c # v1.5.0
         with:
-          ref: ${{ github.ref }}
+          ref: ${{ github.sha }}
           check-name: 'Build Check'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
-  generate-sbom:
-    name: Generate SBOM
-    needs: wait-for-checks
-    uses: ./.github/workflows/sbom.yml
+      - name: Wait for SBOM
+        uses: lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c # v1.5.0
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'Generate SBOM'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
+
+      - name: Wait for License Compliance
+        uses: lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c # v1.5.0
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'License Compliance'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 10
 
   publish-crates:
     name: Publish to crates.io
-    needs: wait-for-checks
+    needs: wait-for-ci
     runs-on: ubuntu-22.04
     environment: crates-io
     permissions:
@@ -72,34 +155,57 @@ jobs:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
   create-release:
-    name: Create Release
-    needs: [generate-sbom, publish-crates]
+    name: Create GitHub Release
+    needs:
+      - prepare-release
+      - wait-for-ci
+      - publish-crates
     runs-on: ubuntu-22.04
     permissions:
       contents: write
-    env:
-      TAG_NAME: ${{ github.ref_name }}
+      actions: read
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
-      - name: Download SBOM
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+      - name: Download SBOM artifact from commit
+        uses: dawidd6/action-download-artifact@0bd50d53a6d7fb5cb921e607957e9cc12b4ce392 # v12
         with:
+          workflow: sbom.yml
+          commit: ${{ github.sha }}
           name: sbom
-          path: release/
+          path: artifacts/sbom
 
-      - name: Extract changelog
-        id: changelog
+      - name: Organize release assets
+        env:
+          VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
-          VERSION="${TAG_NAME#v}"
-          sed -n "/^## \[${VERSION}\]/,/^## \[/p" CHANGELOG.md | head -n -1 > release_notes.md
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          mkdir -p release-assets
 
-      - name: Create Release
+          # Copy SBOM files with versioned naming
+          for f in artifacts/sbom/*.json; do
+            if [ -f "$f" ]; then
+              BASENAME=$(basename "$f" .json)
+              cp "$f" "release-assets/${BASENAME}-v${VERSION}.json"
+            fi
+          done
+
+          echo "Release assets prepared:"
+          ls -lh release-assets/
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
         with:
-          name: v${{ steps.changelog.outputs.version }}
-          body_path: release_notes.md
-          files: release/*
-          generate_release_notes: true
+          name: v${{ needs.prepare-release.outputs.version }}
+          body: |
+            ## What's Changed
+
+            ${{ needs.prepare-release.outputs.changelog }}
+
+            ---
+
+            **crates.io**: [edgefirst-tflite](https://crates.io/crates/edgefirst-tflite) | [edgefirst-tflite-sys](https://crates.io/crates/edgefirst-tflite-sys)
+          files: release-assets/*
+          draft: false
+          prerelease: ${{ contains(needs.prepare-release.outputs.version, '-') }}
+          fail_on_unmatched_files: false
