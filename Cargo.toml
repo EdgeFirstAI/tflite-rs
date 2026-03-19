@@ -3,7 +3,7 @@
 
 [workspace]
 resolver = "2"
-members = ["crates/tflite-sys", "crates/tflite", "examples/*"]
+members = ["crates/tflite-sys", "crates/tflite", "crates/python", "examples/*"]
 
 [workspace.package]
 version = "0.1.0"
@@ -32,3 +32,6 @@ multiple_crate_versions = "allow"
 [workspace.dependencies]
 edgefirst-tflite-sys = { version = "0.1.0", path = "crates/tflite-sys" }
 edgefirst-tflite = { version = "0.1.0", path = "crates/tflite" }
+half = "2"
+numpy = "0.24"
+pyo3 = "0.24"

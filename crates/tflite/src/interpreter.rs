@@ -167,6 +167,55 @@ impl<'lib> Interpreter<'lib> {
         })
     }
 
+    /// Re-allocate tensors after an input resize.
+    ///
+    /// This must be called after [`Interpreter::resize_input`] and before
+    /// [`Interpreter::invoke`]. Any previously obtained tensor slices or
+    /// pointers are invalidated.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the C API returns a non-OK status.
+    pub fn allocate_tensors(&mut self) -> Result<()> {
+        // SAFETY: `self.ptr` is a valid interpreter pointer.
+        let status = unsafe {
+            self.lib
+                .as_sys()
+                .TfLiteInterpreterAllocateTensors(self.ptr.as_ptr())
+        };
+        error::status_to_result(status)
+            .map_err(|e| e.with_context("TfLiteInterpreterAllocateTensors"))
+    }
+
+    /// Resize an input tensor's dimensions.
+    ///
+    /// After resizing, [`Interpreter::allocate_tensors`] must be called
+    /// before inference can proceed.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the C API returns a non-OK status (e.g., the
+    /// input index is out of range).
+    pub fn resize_input(&mut self, input_index: usize, shape: &[i32]) -> Result<()> {
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        let index = input_index as i32;
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        let dims_size = shape.len() as i32;
+        // SAFETY: `self.ptr` is a valid interpreter pointer. `shape` is a
+        // valid slice and `dims_size` is its length. The C API copies the
+        // shape data, so the slice only needs to be valid for this call.
+        let status = unsafe {
+            self.lib.as_sys().TfLiteInterpreterResizeInputTensor(
+                self.ptr.as_ptr(),
+                index,
+                shape.as_ptr(),
+                dims_size,
+            )
+        };
+        error::status_to_result(status)
+            .map_err(|e| e.with_context("TfLiteInterpreterResizeInputTensor"))
+    }
+
     /// Run model inference.
     ///
     /// # Errors

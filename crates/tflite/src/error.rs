@@ -143,6 +143,12 @@ impl Error {
         matches!(self.kind, ErrorKind::NullPointer)
     }
 
+    /// Returns `true` if this error is an invalid-argument error.
+    #[must_use]
+    pub fn is_invalid_argument(&self) -> bool {
+        matches!(self.kind, ErrorKind::InvalidArgument(_))
+    }
+
     /// Returns the `TFLite` [`StatusCode`] when the error originated from a
     /// non-OK C API status, or `None` otherwise.
     #[must_use]

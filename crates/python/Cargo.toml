@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
+
+[package]
+name = "edgefirst-tflite-python"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "edgefirst_tflite"
+crate-type = ["cdylib"]
+
+[dependencies]
+# "full" is required: the Python API unconditionally exposes dmabuf and
+# camera_adaptor methods which are feature-gated in the Rust crate.
+edgefirst-tflite = { workspace = true, features = ["full"] }
+half = { workspace = true }
+numpy = { workspace = true, features = ["half"] }
+pyo3 = { workspace = true, features = ["extension-module"] }
+
+[lints]
+workspace = true

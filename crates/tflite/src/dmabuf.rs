@@ -102,6 +102,15 @@ pub struct BufferDesc {
 pub struct BufferHandle(i32);
 
 impl BufferHandle {
+    /// Create a `BufferHandle` from a raw integer value.
+    ///
+    /// This is intended for FFI consumers (e.g., Python bindings) that need
+    /// to reconstruct a handle from a previously obtained raw value.
+    #[must_use]
+    pub fn from_raw(value: i32) -> Self {
+        Self(value)
+    }
+
     /// Returns the raw buffer handle value.
     #[must_use]
     pub fn raw(self) -> i32 {
