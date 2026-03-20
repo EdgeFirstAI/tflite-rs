@@ -646,12 +646,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Image: {img_w}x{img_h}");
 
     let dst_format = if use_camera_adaptor { RGBA } else { RGB };
-    let mut dst = TensorImage::new(in_w, in_h, dst_format, None)?;
-
     let letterbox = compute_letterbox(img_w, img_h, in_w, in_h);
 
     let t_pre = Instant::now();
+    // Use create_image() for optimal memory backend (DMA-buf > PBO > system).
     let mut processor = ImageProcessor::new()?;
+    let mut dst = processor.create_image(in_w, in_h, dst_format)?;
     processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
 
     // ── 5. Write preprocessed pixels to input tensor (once) ─────────

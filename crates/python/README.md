@@ -1,8 +1,15 @@
 # edgefirst-tflite
 
-Python API for TensorFlow Lite inference with EdgeFirst extensions for
-DMA-BUF zero-copy, NPU-accelerated camera preprocessing, and model metadata
-extraction.
+**Drop-in replacement** Python API for TensorFlow Lite inference with EdgeFirst
+extensions for DMA-BUF zero-copy, NPU-accelerated camera preprocessing, and
+model metadata extraction.
+
+The core inference API (`Interpreter`, `get_input_details`, `get_output_details`,
+`set_tensor`, `invoke`, `get_output_tensor`) is compatible with the standard
+`tflite_runtime.interpreter.Interpreter`, so existing TFLite Python code works
+with minimal changes. On top of the standard API, `edgefirst-tflite` exposes
+NXP i.MX platform extensions for DMA-BUF zero-copy and CameraAdaptor NPU
+preprocessing that require only a few extra lines of code.
 
 Built on the [edgefirst-tflite](https://github.com/EdgeFirstAI/tflite-rs)
 Rust crate with native performance via [PyO3](https://pyo3.rs).
@@ -45,7 +52,7 @@ print(output)
 
 ## TFLite API Compatibility
 
-The `Interpreter` class is designed to be familiar to users of
+The `Interpreter` class is designed as a drop-in replacement for
 `tflite_runtime.interpreter.Interpreter`. The core inference path is
 compatible:
 
@@ -237,6 +244,63 @@ view = accessor()  # Updated in-place — no copy needed
 The accessor is invalidated by `allocate_tensors()` or
 `resize_tensor_input()`. Call `tensor()` again to get a fresh one.
 
+## YOLOv8 Example
+
+A complete YOLOv8 detection and segmentation example is included at
+`examples/yolov8/python/yolov8.py`, demonstrating the full pipeline
+with `edgefirst-tflite` + `edgefirst-hal`:
+
+```bash
+# Detection on i.MX8MP with VxDelegate
+python yolov8.py yolov8n-int8.tflite zidane.jpg \
+    --delegate /usr/lib/libvx_delegate.so --warmup 3 --iters 10 --save
+
+# Segmentation on i.MX95 with Neutron
+python yolov8.py yolov8n-seg-int8.imx95.tflite zidane.jpg \
+    --delegate /usr/lib/libneutron_delegate.so --warmup 3 --iters 10 --save
+```
+
+The example supports `--warmup N` and `--iters N` for benchmarking with
+min/max/avg/p95/p99 statistics. Image loading and preprocessing run once;
+only inference, decoding, and rendering are timed per iteration.
+
+## Performance
+
+Benchmarked with YOLOv8n int8 models on `zidane.jpg` (1280x720).
+Both Rust and Python use the same underlying TFLite C API and NPU
+delegates — the Python overhead from PyO3 FFI is negligible.
+
+### i.MX 8M Plus (VxDelegate NPU)
+
+| Test | Rust | Python | Overhead |
+|------|------|--------|----------|
+| Detection (infer avg) | 69.9ms | 69.6ms | ~0% |
+| Segmentation (infer avg) | 84.2ms | 83.8ms | ~0% |
+| Detection CPU-only | 482.5ms | 484.9ms | ~0.5% |
+
+VxDelegate NPU speedup: **~7x** over CPU. DMA-BUF zero-copy and
+CameraAdaptor RGBA→RGB conversion active.
+
+### i.MX 95 (Neutron NPU)
+
+| Test | Rust | Python | Overhead |
+|------|------|--------|----------|
+| Detection (infer avg) | 46.2ms | 46.4ms | ~0.4% |
+| Segmentation (infer avg) | 49.9ms | 49.3ms | ~0% |
+| Detection CPU-only | 266.6ms | 266.1ms | ~0% |
+
+Neutron NPU speedup: **~5.8x** over CPU. No first-run compilation
+overhead (Neutron models are pre-compiled).
+
+### Key Observations
+
+- **Python overhead is negligible** — inference time is dominated by
+  TFLite/NPU execution, not the Python↔Rust FFI boundary
+- **Same detections** — both Rust and Python produce identical results
+  (2-3 objects: persons + tie in the reference image)
+- **10-iteration benchmarks** with 3 warmup iterations, `--save` enabled
+  (includes overlay rendering)
+
 ## Error Handling
 
 ```python
@@ -259,15 +323,13 @@ except TfLiteError as e:
 
 ## Platform Support
 
-| Platform | Architecture | Wheel |
-|----------|-------------|-------|
-| Linux | x86_64 | manylinux2014 |
-| Linux | aarch64 | manylinux2014 |
-| macOS | arm64 | native |
-| Windows | x86_64 | native |
-
-Primary target: NXP i.MX8M Plus, i.MX93, and i.MX95 (aarch64 Linux with
-VxDelegate for NPU acceleration).
+| Platform | Architecture | Delegate | DMA-BUF | CameraAdaptor |
+|----------|-------------|----------|---------|---------------|
+| i.MX 8M Plus | aarch64 | VxDelegate | Yes | Yes |
+| i.MX 95 | aarch64 | Neutron | No | No |
+| Linux | x86_64 | CPU only | No | No |
+| macOS | arm64 | CPU only | No | No |
+| Windows | x86_64 | CPU only | No | No |
 
 ## License
 

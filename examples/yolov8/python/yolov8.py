@@ -225,17 +225,18 @@ def main():
 
     # ── 4. Preprocess image (once) ───────────────────────────────────
     from edgefirst_hal import (
-        TensorImage, ImageProcessor, PixelFormat, Rotation, Flip, Rect,
+        Tensor, ImageProcessor, PixelFormat, Rotation, Flip, Rect,
     )
 
     t_pre = time.perf_counter()
 
-    src = TensorImage.load(args.image, PixelFormat.Rgba)
+    processor = ImageProcessor()
+
+    src = Tensor.load(args.image, PixelFormat.Rgba)
     img_w, img_h = src.width, src.height
     print(f"Image: {img_w}x{img_h}")
 
-    dst = TensorImage(in_w, in_h, PixelFormat.Rgb)
-    processor = ImageProcessor()
+    dst = processor.create_image(in_w, in_h, PixelFormat.Rgb)
 
     left, top, new_w, new_h = compute_letterbox(img_w, img_h, in_w, in_h)
     dst_crop = Rect(left, top, new_w, new_h)
@@ -262,7 +263,7 @@ def main():
     preprocess_time = (time.perf_counter() - t_pre) * 1000
 
     # Pre-allocate overlay for rendering (reused across iterations).
-    overlay = TensorImage.load(args.image, PixelFormat.Rgba) if args.save else None
+    overlay = Tensor.load(args.image, PixelFormat.Rgba) if args.save else None
 
     # ── 5. Iteration runner ──────────────────────────────────────────
     def run_iterations(n):
