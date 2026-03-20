@@ -1,14 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
 
-//! # `YOLOv8` Object Detection with `edgefirst-tflite`
+//! # `YOLOv8` Object Detection & Segmentation with `edgefirst-tflite`
 //!
 //! End-to-end `YOLOv8` inference using `edgefirst-tflite` for model execution
-//! and `edgefirst-hal` for image preprocessing, YOLO decoding, and overlay
-//! rendering.
+//! and `edgefirst-hal` for image preprocessing, YOLO decoding (via high-level
+//! `Decoder` API), and overlay rendering.
 //!
-//! Supports both i.MX8MP (`VxDelegate` with DMA-BUF zero-copy and
-//! `CameraAdaptor`) and i.MX95 (Neutron NPU delegate).
+//! Supports both detection-only (`yolov8n`) and instance segmentation
+//! (`yolov8n-seg`) models. The model type is auto-detected from output shapes:
+//! a 4D output tensor indicates segmentation prototype masks.
+//!
+//! Supports i.MX8MP (`VxDelegate` with DMA-BUF zero-copy and
+//! `CameraAdaptor`), i.MX95 (Neutron NPU delegate), and CPU-only inference.
 //!
 //! ## Usage
 //!
@@ -23,17 +27,23 @@
 //! cargo run -p yolov8 -- model.tflite image.jpg
 //!
 //! # i.MX8MP with VxDelegate
-//! yolov8 /opt/edgefirst/yolov8n_640x640.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --save
+//! yolov8 yolov8n.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --save
 //!
-//! # i.MX95 with Neutron NPU
-//! yolov8 /opt/edgefirst/yolov8n_640x640.imx95.tflite image.jpg --delegate /usr/lib/libneutron_delegate.so --save
+//! # i.MX95 with Neutron NPU (detection)
+//! yolov8 yolov8n-int8.imx95.tflite image.jpg --delegate /usr/lib/libneutron_delegate.so --save
+//!
+//! # i.MX95 with Neutron NPU (segmentation)
+//! yolov8 yolov8n-seg-int8.imx95.tflite image.jpg --delegate /usr/lib/libneutron_delegate.so --save
 //! ```
 
 use std::path::PathBuf;
 use std::time::Instant;
 
 use edgefirst_hal::{
-    decoder::{self, DetectBox, Nms},
+    decoder::{
+        configs, ArrayViewDQuantized, ConfigOutput, DecoderBuilder, DecoderVersion, DetectBox, Nms,
+        Segmentation,
+    },
     image::{
         Crop, Flip, ImageProcessor, ImageProcessorTrait as _, Rect, Rotation, TensorImage, RGB,
         RGBA,
@@ -41,7 +51,7 @@ use edgefirst_hal::{
     tensor::{TensorMapTrait as _, TensorTrait as _},
 };
 use edgefirst_tflite::{Delegate, Interpreter, Library, Model, TensorType};
-use ndarray::Array2;
+use ndarray::{ArrayViewD, IxDyn};
 
 // ── Arguments ────────────────────────────────────────────────────────────────
 
@@ -204,31 +214,74 @@ fn compute_letterbox(src_w: usize, src_h: usize, dst_w: usize, dst_h: usize) -> 
         .with_dst_color(Some([114, 114, 114, 255])) // YOLO gray
 }
 
-// ── Output decoding ──────────────────────────────────────────────────────────
+// ── Timing helper ────────────────────────────────────────────────────────────
 
-/// Dequantize a `TFLite` output tensor to f32.
-#[allow(clippy::cast_precision_loss)]
-fn dequantize_output(
-    tensor: &edgefirst_tflite::Tensor<'_>,
-) -> Result<Vec<f32>, Box<dyn std::error::Error>> {
-    let params = tensor.quantization_params();
-    match tensor.tensor_type() {
-        TensorType::Float32 => Ok(tensor.as_slice::<f32>()?.to_vec()),
-        TensorType::UInt8 => {
-            let data = tensor.as_slice::<u8>()?;
-            Ok(data
-                .iter()
-                .map(|&v| (f32::from(v) - params.zero_point as f32) * params.scale)
-                .collect())
+fn fmt_ms(d: std::time::Duration) -> String {
+    format!("{:.1}ms", d.as_secs_f64() * 1000.0)
+}
+
+// ── Output classification ────────────────────────────────────────────────────
+
+/// Build a `ConfigOutput` for a `TFLite` output tensor based on its shape.
+///
+/// Classification heuristics for `YOLOv8` output tensors:
+/// - 4D tensor → `Protos` (segmentation prototype mask tensor)
+/// - 3D tensor with feature dim == 4 → `Boxes` (split detection boxes)
+/// - 3D tensor with feature dim == `proto_channels` (when split + seg) →
+///   `MaskCoefficients`
+/// - 3D tensor in split model → `Scores`
+/// - 3D tensor in combined model → `Detection` (boxes + scores fused)
+fn classify_output(
+    shape: &[usize],
+    quant: Option<configs::QuantTuple>,
+    has_split_boxes: bool,
+    has_protos: bool,
+    proto_channels: usize,
+) -> ConfigOutput {
+    if shape.len() == 4 {
+        return ConfigOutput::Protos(configs::Protos {
+            decoder: configs::DecoderType::Ultralytics,
+            quantization: quant,
+            shape: shape.to_vec(),
+            dshape: Vec::new(),
+        });
+    }
+
+    let feat_dim = if shape.len() == 3 { shape[1] } else { shape[0] };
+
+    if has_split_boxes {
+        if feat_dim == 4 {
+            ConfigOutput::Boxes(configs::Boxes {
+                decoder: configs::DecoderType::Ultralytics,
+                quantization: quant,
+                shape: shape.to_vec(),
+                dshape: Vec::new(),
+                normalized: None,
+            })
+        } else if has_protos && proto_channels > 0 && feat_dim == proto_channels {
+            ConfigOutput::MaskCoefficients(configs::MaskCoefficients {
+                decoder: configs::DecoderType::Ultralytics,
+                quantization: quant,
+                shape: shape.to_vec(),
+                dshape: Vec::new(),
+            })
+        } else {
+            ConfigOutput::Scores(configs::Scores {
+                decoder: configs::DecoderType::Ultralytics,
+                quantization: quant,
+                shape: shape.to_vec(),
+                dshape: Vec::new(),
+            })
         }
-        TensorType::Int8 => {
-            let data = tensor.as_slice::<i8>()?;
-            Ok(data
-                .iter()
-                .map(|&v| (f32::from(v) - params.zero_point as f32) * params.scale)
-                .collect())
-        }
-        other => Err(format!("unsupported output tensor type: {other:?}").into()),
+    } else {
+        ConfigOutput::Detection(configs::Detection {
+            decoder: configs::DecoderType::Ultralytics,
+            quantization: quant,
+            shape: shape.to_vec(),
+            anchors: None,
+            dshape: Vec::new(),
+            normalized: None,
+        })
     }
 }
 
@@ -238,14 +291,24 @@ fn dequantize_output(
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = parse_args();
 
-    // ── 1. Load TFLite library (auto-discover) ──────────────────────────
-    let lib = Library::new()?;
+    // ── 1. Load TFLite library, model, delegate, interpreter ────────
+    let t_load = Instant::now();
 
-    // ── 2. Load model ───────────────────────────────────────────────────
+    let lib = Library::new()?;
     let model = Model::from_file(&lib, args.model.to_str().unwrap_or("model.tflite"))?;
     println!("Model: {}", args.model.display());
 
-    // ── 3. Optionally load delegate and configure NPU features ──────────
+    // Optionally load delegate and probe NPU features.
+    //
+    // --- Optimized path (i.MX8MP VxDelegate) ---
+    // When CameraAdaptor is available, the delegate handles RGBA→RGB conversion
+    // on the NPU.  Combined with DMA-BUF, the entire input path is zero-copy:
+    //   camera RGBA buffer → DMA-BUF → NPU (format convert + inference)
+    //
+    // --- Fallback path (delegates without DMA-BUF/CameraAdaptor) ---
+    // Without DMA-BUF, we copy preprocessed pixels into the TFLite input tensor.
+    // Without CameraAdaptor, HAL ImageProcessor handles format conversion via
+    // GPU (OpenGL), G2D hardware accelerator, or CPU — in that priority order.
     let mut use_camera_adaptor = false;
     let use_dmabuf;
 
@@ -253,7 +316,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let d = Delegate::load(delegate_path)?;
         println!("Delegate: {}", delegate_path.display());
 
-        // Probe CameraAdaptor: set RGBA format before building interpreter.
         if d.has_camera_adaptor() {
             if let Some(adaptor) = d.camera_adaptor() {
                 adaptor.set_format(0, "rgba")?;
@@ -273,24 +335,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         None
     };
 
-    // ── 4. Build interpreter ────────────────────────────────────────────
     let mut builder = Interpreter::builder(&lib)?.num_threads(4);
     if let Some(d) = delegate {
         builder = builder.delegate(d);
     }
     let mut interpreter = builder.build(&model)?;
 
+    let load_time = t_load.elapsed();
+
     println!("Inputs:  {}", interpreter.input_count());
     println!("Outputs: {}", interpreter.output_count());
 
-    // ── 5. Inspect input tensor ─────────────────────────────────────────
+    // ── 2. Inspect input tensor ─────────────────────────────────────
     let (in_h, in_w, input_type, input_quant) = {
         let inputs = interpreter.inputs()?;
         let input = &inputs[0];
         let shape = input.shape()?;
         let tt = input.tensor_type();
         let qp = input.quantization_params();
-        // Expect NHWC: [batch, height, width, channels]
         let h = shape[1];
         let w = shape[2];
         println!(
@@ -300,20 +362,73 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         (h, w, tt, qp)
     };
 
-    // ── 6. Inspect output tensors ───────────────────────────────────────
-    let output_count = interpreter.output_count();
-    {
+    // ── 3. Inspect outputs, auto-detect model type, build Decoder ───
+    // The Decoder handles all post-processing: dequantization, DFL decoding,
+    // NMS, coordinate normalization, and (for seg models) mask generation.
+    let is_segmentation;
+    let decoder = {
         let outputs = interpreter.outputs()?;
+
+        // First pass: probe for protos (4D) and split boxes (feature_dim==4).
+        let mut has_protos = false;
+        let mut proto_channels = 0usize;
+        let mut has_split_boxes = false;
+
+        for tensor in &outputs {
+            let shape = tensor.shape()?;
+            if shape.len() == 4 {
+                has_protos = true;
+                proto_channels = *shape[1..].iter().min().unwrap_or(&0);
+            } else if shape.len() >= 2 {
+                let feat_dim = if shape.len() == 3 { shape[1] } else { shape[0] };
+                if feat_dim == 4 {
+                    has_split_boxes = true;
+                }
+            }
+        }
+
+        is_segmentation = has_protos;
+
+        // Second pass: classify each output and add to DecoderBuilder.
+        let mut dec_builder = DecoderBuilder::default()
+            .with_score_threshold(args.threshold)
+            .with_iou_threshold(args.iou)
+            .with_nms(Some(Nms::ClassAgnostic));
+
         for (i, tensor) in outputs.iter().enumerate() {
+            let shape = tensor.shape()?;
             let qp = tensor.quantization_params();
             println!(
                 "  output[{i}]: {} (scale={}, zero_point={})",
                 tensor, qp.scale, qp.zero_point
             );
+
+            let quant = if tensor.tensor_type() == TensorType::Float32 {
+                None
+            } else {
+                Some(configs::QuantTuple(qp.scale, qp.zero_point))
+            };
+
+            dec_builder = dec_builder.add_output(classify_output(
+                &shape,
+                quant,
+                has_split_boxes,
+                has_protos,
+                proto_channels,
+            ));
         }
+
+        dec_builder = dec_builder.with_decoder_version(DecoderVersion::Yolov8);
+        dec_builder.build()?
+    };
+
+    if is_segmentation {
+        println!("  Mode: segmentation");
+    } else {
+        println!("  Mode: detection");
     }
 
-    // ── 7. Load and preprocess image ────────────────────────────────────
+    // ── 4. Load and preprocess image ────────────────────────────────
     let image_bytes = std::fs::read(&args.image)?;
     let src = TensorImage::load(&image_bytes, Some(RGBA), None)?;
     let (img_w, img_h) = (src.width(), src.height());
@@ -328,7 +443,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut processor = ImageProcessor::new()?;
     processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
 
-    // ── 8. Write preprocessed pixels to input tensor / DMA-BUF ─────────
+    // ── 5. Write preprocessed pixels to input tensor / DMA-BUF ──────
     #[allow(unused_variables)]
     let dmabuf_handle = if use_camera_adaptor && use_dmabuf {
         // CameraAdaptor + DMA-BUF: write raw RGBA bytes to DMA-BUF.
@@ -431,147 +546,96 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let preprocess_time = t_pre.elapsed();
 
-    // ── 10. Run inference ───────────────────────────────────────────────
+    // ── 6. Run inference ────────────────────────────────────────────
     let t_inf = Instant::now();
     interpreter.invoke()?;
     let inference_time = t_inf.elapsed();
 
-    // ── 11. Sync DMA-BUF back to CPU ────────────────────────────────────
+    // ── 7. Sync DMA-BUF back to CPU ────────────────────────────────
     if let Some(handle) = dmabuf_handle {
         let delegate_ref = interpreter.delegate(0).expect("delegate not found");
         let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
         dmabuf.sync_for_cpu(handle)?;
     }
 
-    // ── 12. Read outputs and decode YOLO detections ─────────────────────
+    // ── 8. Decode outputs via Decoder ───────────────────────────────
+    // The Decoder handles dequantization, DFL box decoding, NMS, and
+    // (for segmentation models) mask coefficient → prototype multiplication.
     let t_post = Instant::now();
     let mut detections: Vec<DetectBox> = Vec::with_capacity(100);
+    let mut masks: Vec<Segmentation> = Vec::with_capacity(100);
 
-    let outputs = interpreter.outputs()?;
+    {
+        let outputs = interpreter.outputs()?;
+        let is_float = outputs
+            .iter()
+            .all(|t| t.tensor_type() == TensorType::Float32);
 
+        if is_float {
+            // Float path: wrap each output tensor as ArrayViewD<f32>.
+            let shapes: Vec<Vec<usize>> = outputs
+                .iter()
+                .map(edgefirst_tflite::Tensor::shape)
+                .collect::<Result<Vec<_>, _>>()?;
+            let slices: Vec<&[f32]> = outputs
+                .iter()
+                .map(|t| t.as_slice::<f32>())
+                .collect::<Result<Vec<_>, _>>()?;
+            let views: Vec<ArrayViewD<f32>> = shapes
+                .iter()
+                .zip(slices.iter())
+                .map(|(shape, data)| ArrayViewD::from_shape(IxDyn(shape), data))
+                .collect::<Result<Vec<_>, _>>()?;
+            decoder.decode_float(&views, &mut detections, &mut masks)?;
+        } else {
+            // Quantized path: wrap each output as ArrayViewDQuantized.
+            // Handles mixed integer types (e.g., one output i8, another u8).
+            let shapes: Vec<Vec<usize>> = outputs
+                .iter()
+                .map(edgefirst_tflite::Tensor::shape)
+                .collect::<Result<Vec<_>, _>>()?;
+            let views: Vec<ArrayViewDQuantized> = outputs
+                .iter()
+                .zip(shapes.iter())
+                .map(|(t, shape)| match t.tensor_type() {
+                    TensorType::UInt8 => Ok(ArrayViewDQuantized::UInt8(ArrayViewD::from_shape(
+                        IxDyn(shape),
+                        t.as_slice::<u8>()?,
+                    )?)),
+                    TensorType::Int8 => Ok(ArrayViewDQuantized::Int8(ArrayViewD::from_shape(
+                        IxDyn(shape),
+                        t.as_slice::<i8>()?,
+                    )?)),
+                    other => Err(format!("unsupported output type: {other:?}").into()),
+                })
+                .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+            decoder.decode_quantized(&views, &mut detections, &mut masks)?;
+        }
+    }
+
+    // Normalize box coordinates to [0,1] if the decoder output is in pixel
+    // space (common with quantized Neutron models where coordinates are not
+    // pre-normalized by the model).
     #[allow(clippy::cast_precision_loss)]
-    if output_count == 1 {
-        // Single combined output: [1, 84, 8400] or [84, 8400]
-        let tensor = &outputs[0];
-        let shape = tensor.shape()?;
-        let data = dequantize_output(tensor)?;
-
-        // Strip batch dimension if present.
-        let (rows, cols) = if shape.len() == 3 {
-            (shape[1], shape[2])
-        } else {
-            (shape[0], shape[1])
-        };
-
-        // Auto-detect whether box values are in pixel space or already
-        // normalized to [0,1]. Quantized models (e.g., i.MX95 Neutron) may
-        // output already-normalized coordinates.
-        let box_max = data[..4 * cols].iter().copied().fold(0.0f32, f32::max);
-        let needs_norm = box_max > 2.0;
-
-        let normalized = if needs_norm {
-            let mut out = Vec::with_capacity(data.len());
-            for row in 0..rows {
-                for col in 0..cols {
-                    let val = data[row * cols + col];
-                    let norm = if row < 4 {
-                        if row == 0 || row == 2 {
-                            val / in_w as f32
-                        } else {
-                            val / in_h as f32
-                        }
-                    } else {
-                        val
-                    };
-                    out.push(norm);
-                }
-            }
-            out
-        } else {
-            data
-        };
-
-        let arr = Array2::from_shape_vec((rows, cols), normalized)?;
-        decoder::yolo::decode_yolo_det_float(
-            arr.view(),
-            args.threshold,
-            args.iou,
-            Some(Nms::ClassAgnostic),
-            &mut detections,
-        );
-    } else {
-        // Split outputs: find boxes (shape[0]==4) and scores tensors
-        let mut boxes_idx = None;
-        let mut scores_idx = None;
-
-        for (i, tensor) in outputs.iter().enumerate() {
-            let shape = tensor.shape()?;
-            if shape[0] == 4 {
-                boxes_idx = Some(i);
-            } else if scores_idx.is_none() {
-                scores_idx = Some(i);
+    if decoder.normalized_boxes() != Some(true) {
+        let needs_norm = detections
+            .iter()
+            .any(|d| d.bbox.xmax > 2.0 || d.bbox.ymax > 2.0);
+        if needs_norm {
+            let iw = in_w as f32;
+            let ih = in_h as f32;
+            for det in &mut detections {
+                det.bbox.xmin /= iw;
+                det.bbox.ymin /= ih;
+                det.bbox.xmax /= iw;
+                det.bbox.ymax /= ih;
             }
         }
-
-        let bi = boxes_idx.ok_or("cannot identify boxes output (shape[0]==4)")?;
-        let si = scores_idx.ok_or("cannot identify scores output")?;
-
-        let scores_shape = outputs[si].shape()?;
-        let num_classes = scores_shape[0];
-        let num_boxes = scores_shape[1];
-
-        // Dequantize boxes and auto-detect pixel vs normalized coordinates.
-        let boxes_raw = dequantize_output(&outputs[bi])?;
-        let box_max = boxes_raw[..4 * num_boxes]
-            .iter()
-            .copied()
-            .fold(0.0f32, f32::max);
-        let boxes_f32 = if box_max > 2.0 {
-            // Pixel space: normalize per-axis to [0,1].
-            let mut out = Vec::with_capacity(4 * num_boxes);
-            for row in 0..4_usize {
-                let div = if row == 0 || row == 2 {
-                    in_w as f32
-                } else {
-                    in_h as f32
-                };
-                for col in 0..num_boxes {
-                    out.push(boxes_raw[row * num_boxes + col] / div);
-                }
-            }
-            out
-        } else {
-            boxes_raw[..4 * num_boxes].to_vec()
-        };
-        let boxes_arr = Array2::from_shape_vec((4, num_boxes), boxes_f32)?;
-
-        let scores_f32 = dequantize_output(&outputs[si])?;
-        let scores_arr = Array2::from_shape_vec(
-            (num_classes, num_boxes),
-            scores_f32[..num_classes * num_boxes].to_vec(),
-        )?;
-
-        decoder::yolo::decode_yolo_split_det_float(
-            boxes_arr.view(),
-            scores_arr.view(),
-            args.threshold,
-            args.iou,
-            Some(Nms::ClassAgnostic),
-            &mut detections,
-        );
     }
+
     let postprocess_time = t_post.elapsed();
 
-    // ── 13. Print results ───────────────────────────────────────────────
-    println!("\n--- Timing ---");
-    println!("  Preprocess:  {preprocess_time:?}");
-    println!("  Inference:   {inference_time:?}");
-    println!("  Postprocess: {postprocess_time:?}");
-    println!(
-        "  Total:       {:?}",
-        preprocess_time + inference_time + postprocess_time
-    );
-
+    // ── 9. Print detections ─────────────────────────────────────────
     println!("\n--- Detections ({}) ---", detections.len());
     #[allow(clippy::cast_precision_loss)]
     for det in &detections {
@@ -591,19 +655,35 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // ── 14. Save overlay ────────────────────────────────────────────────
-    if args.save {
+    // ── 10. Optionally save overlay ─────────────────────────────────
+    let render_time = if args.save {
         let t_render = Instant::now();
         let mut overlay = TensorImage::load(&image_bytes, Some(RGBA), None)?;
-        processor.render_to_image(&mut overlay, &detections, &[])?;
+        processor.draw_masks(&mut overlay, &detections, &masks)?;
 
         let stem = args.image.file_stem().unwrap_or_default().to_string_lossy();
         let out_path = args.image.with_file_name(format!("{stem}_overlay.jpg"));
         overlay.save_jpeg(out_path.to_str().unwrap(), 95)?;
 
-        println!("\n  Render:      {:?}", t_render.elapsed());
-        println!("  Saved:       {}", out_path.display());
+        let elapsed = t_render.elapsed();
+        println!("\n  Saved: {}", out_path.display());
+        Some(elapsed)
+    } else {
+        None
+    };
+
+    // ── 11. Print timing ────────────────────────────────────────────
+    println!("\n--- Timing ---");
+    println!("  Load:        {}", fmt_ms(load_time));
+    println!("  Preprocess:  {}", fmt_ms(preprocess_time));
+    println!("  Inference:   {}", fmt_ms(inference_time));
+    println!("  Postprocess: {}", fmt_ms(postprocess_time));
+    let mut total = load_time + preprocess_time + inference_time + postprocess_time;
+    if let Some(rt) = render_time {
+        println!("  Render:      {}", fmt_ms(rt));
+        total += rt;
     }
+    println!("  Total:       {}", fmt_ms(total));
 
     Ok(())
 }
