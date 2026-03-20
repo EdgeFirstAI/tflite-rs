@@ -19,7 +19,7 @@ crate-type = ["cdylib"]
 edgefirst-tflite = { workspace = true, features = ["full"] }
 half = { workspace = true }
 numpy = { workspace = true, features = ["half"] }
-pyo3 = { workspace = true, features = ["extension-module"] }
+pyo3 = { workspace = true, features = ["extension-module", "abi3-py38"] }
 
 [lints]
 workspace = true

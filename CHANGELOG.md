@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-20
+
+### Changed
+
+- Python wheels now use PyO3 `abi3-py38` stable ABI, producing a single
+  portable wheel per platform that works on Python 3.8+ instead of
+  requiring a separate wheel per Python version.
+
 ## [0.2.0] - 2026-03-20
 
 ### Added
@@ -67,6 +75,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/EdgeFirstAI/tflite-rs/releases/tag/v0.1.0
