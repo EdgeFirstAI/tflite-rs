@@ -25,15 +25,15 @@
 #   Owner: EdgeFirstAI, Repository: tflite-rs, Workflow: release.yml, Environment: crates-io
 #
 # Action Versions (hash-pinned):
-# - actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 (v4.2.2)
-# - actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 (v5)
-# - actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 (v4)
-# - actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 (v4)
+# - actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd (v6.0.2)
+# - actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 (v6.2.0)
+# - actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f (v7.0.0)
+# - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c (v8.0.1)
 # - lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c (v1.5.0)
-# - dawidd6/action-download-artifact@0bd50d53a6d7fb5cb921e607957e9cc12b4ce392 (v12)
-# - softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 (v2.2.2)
-# - dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0 (master)
-# - rust-lang/crates-io-auth-action@v1
+# - dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927 (v19)
+# - softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe (v2.6.1)
+# - dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 (master (2026-03-20))
+# - rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec (v1.0.3)
 # - pypa/gh-action-pypi-publish@ed0c53931b1dc9bd32cbe73a98c7f6766f8a527e (release/v1)
 
 name: Release
@@ -62,7 +62,7 @@ jobs:
       changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
 
@@ -159,15 +159,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0 # master
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
         with:
           toolchain: stable
 
       - name: Set up Python
-        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.11'
 
@@ -178,7 +178,7 @@ jobs:
         run: maturin build --release -m crates/python/Cargo.toml ${{ matrix.maturin-args }}
 
       - name: Upload wheels
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: wheels-${{ matrix.name }}
           path: target/wheels/*
@@ -193,16 +193,16 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@56f84321dbccf38fb67ce29ab63e4754056677e0 # master
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
         with:
           toolchain: stable
 
       - name: Authenticate with crates.io
         id: auth
-        uses: rust-lang/crates-io-auth-action@v1
+        uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # v1.0.3
 
       - name: Publish edgefirst-tflite-sys
         run: cargo publish -p edgefirst-tflite-sys
@@ -229,7 +229,7 @@ jobs:
 
     steps:
       - name: Download wheel artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: wheels-*
           path: dist
@@ -253,10 +253,10 @@ jobs:
       actions: read
     steps:
       - name: Checkout
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Download SBOM artifact from commit
-        uses: dawidd6/action-download-artifact@0bd50d53a6d7fb5cb921e607957e9cc12b4ce392 # v12
+        uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927 # v19
         with:
           workflow: sbom.yml
           commit: ${{ github.sha }}
@@ -264,7 +264,7 @@ jobs:
           path: artifacts/sbom
 
       - name: Download wheel artifacts
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           pattern: wheels-*
           path: artifacts/wheels
@@ -291,7 +291,7 @@ jobs:
           ls -lh release-assets/
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
         with:
           name: v${{ needs.prepare-release.outputs.version }}
           body: |
