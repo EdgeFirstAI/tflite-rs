@@ -17,7 +17,8 @@
 //! ## Usage
 //!
 //! ```text
-//! yolov8 <model.tflite> <image.jpg> [--delegate <path>] [--save] [--threshold N] [--iou N]
+//! yolov8 <model.tflite> <image.jpg> [--delegate <path>] [--save]
+//!        [--threshold N] [--iou N] [--warmup N] [--iters N]
 //! ```
 //!
 //! ## Examples
@@ -26,18 +27,12 @@
 //! # CPU-only inference
 //! cargo run -p yolov8 -- model.tflite image.jpg
 //!
-//! # i.MX8MP with VxDelegate
-//! yolov8 yolov8n.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --save
-//!
-//! # i.MX95 with Neutron NPU (detection)
-//! yolov8 yolov8n-int8.imx95.tflite image.jpg --delegate /usr/lib/libneutron_delegate.so --save
-//!
-//! # i.MX95 with Neutron NPU (segmentation)
-//! yolov8 yolov8n-seg-int8.imx95.tflite image.jpg --delegate /usr/lib/libneutron_delegate.so --save
+//! # Benchmark with 5 warmup + 100 iterations
+//! yolov8 model.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --warmup 5 --iters 100 --save
 //! ```
 
 use std::path::PathBuf;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use edgefirst_hal::{
     decoder::{
@@ -62,13 +57,16 @@ struct Args {
     save: bool,
     threshold: f32,
     iou: f32,
+    warmup: usize,
+    iters: usize,
 }
 
 fn parse_args() -> Args {
     let args: Vec<String> = std::env::args().collect();
     if args.len() < 3 {
         eprintln!(
-            "Usage: {} <model.tflite> <image.jpg> [--delegate <path>] [--save] [--threshold N] [--iou N]",
+            "Usage: {} <model.tflite> <image.jpg> [--delegate <path>] [--save] \
+             [--threshold N] [--iou N] [--warmup N] [--iters N]",
             args[0]
         );
         std::process::exit(1);
@@ -77,6 +75,8 @@ fn parse_args() -> Args {
     let mut threshold = 0.25;
     let mut iou = 0.45;
     let mut save = false;
+    let mut warmup = 0;
+    let mut iters = 1;
     let mut i = 3;
     while i < args.len() {
         match args[i].as_str() {
@@ -93,6 +93,14 @@ fn parse_args() -> Args {
                 i += 1;
                 iou = args[i].parse().expect("invalid --iou value");
             }
+            "--warmup" => {
+                i += 1;
+                warmup = args[i].parse().expect("invalid --warmup value");
+            }
+            "--iters" => {
+                i += 1;
+                iters = args[i].parse().expect("invalid --iters value");
+            }
             other => eprintln!("Unknown argument: {other}"),
         }
         i += 1;
@@ -104,6 +112,8 @@ fn parse_args() -> Args {
         save,
         threshold,
         iou,
+        warmup,
+        iters,
     }
 }
 
@@ -214,10 +224,79 @@ fn compute_letterbox(src_w: usize, src_h: usize, dst_w: usize, dst_h: usize) -> 
         .with_dst_color(Some([114, 114, 114, 255])) // YOLO gray
 }
 
-// ── Timing helper ────────────────────────────────────────────────────────────
+// ── Timing / statistics ─────────────────────────────────────────────────────
 
-fn fmt_ms(d: std::time::Duration) -> String {
-    format!("{:.1}ms", d.as_secs_f64() * 1000.0)
+fn ms(d: Duration) -> f64 {
+    d.as_secs_f64() * 1000.0
+}
+
+/// Collected per-iteration timings for a pipeline run.
+struct IterTimings {
+    infer: Vec<f64>,
+    decode: Vec<f64>,
+    render: Vec<f64>,
+    total: Vec<f64>,
+}
+
+impl IterTimings {
+    fn with_capacity(n: usize) -> Self {
+        Self {
+            infer: Vec::with_capacity(n),
+            decode: Vec::with_capacity(n),
+            render: Vec::with_capacity(n),
+            total: Vec::with_capacity(n),
+        }
+    }
+
+    fn print_stats(&self, label: &str) {
+        let n = self.total.len();
+        if n == 0 {
+            return;
+        }
+        if n == 1 {
+            println!("--- {label} ---");
+            println!("  Infer:   {:.1}ms", self.infer[0]);
+            println!("  Decode:  {:.1}ms", self.decode[0]);
+            if !self.render.is_empty() {
+                println!("  Render:  {:.1}ms", self.render[0]);
+            }
+            println!("  Total:   {:.1}ms", self.total[0]);
+            return;
+        }
+        println!("--- {label} ({n} iterations) ---");
+        println!("               min      max      avg      p95      p99");
+        print_row("Infer", &self.infer);
+        print_row("Decode", &self.decode);
+        if !self.render.is_empty() {
+            print_row("Render", &self.render);
+        }
+        print_row("Total", &self.total);
+    }
+}
+
+#[allow(
+    clippy::cast_precision_loss,
+    clippy::cast_possible_truncation,
+    clippy::cast_sign_loss
+)]
+fn percentile(sorted: &[f64], p: f64) -> f64 {
+    if sorted.len() == 1 {
+        return sorted[0];
+    }
+    let idx = ((sorted.len() as f64 - 1.0) * p).ceil() as usize;
+    sorted[idx.min(sorted.len() - 1)]
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn print_row(label: &str, values: &[f64]) {
+    let mut sorted = values.to_vec();
+    sorted.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    let min = sorted[0];
+    let max = sorted[sorted.len() - 1];
+    let avg = sorted.iter().sum::<f64>() / sorted.len() as f64;
+    let p95 = percentile(&sorted, 0.95);
+    let p99 = percentile(&sorted, 0.99);
+    println!("  {label:<8} {min:>7.1} {max:>8.1} {avg:>8.1} {p95:>8.1} {p99:>8.1} ms");
 }
 
 // ── Output classification ────────────────────────────────────────────────────
@@ -283,6 +362,139 @@ fn classify_output(
             normalized: None,
         })
     }
+}
+
+// ── Decode helper ────────────────────────────────────────────────────────────
+
+/// Read outputs from the interpreter and decode via the `Decoder`.
+fn decode_outputs(
+    interpreter: &Interpreter<'_>,
+    decoder: &edgefirst_hal::decoder::Decoder,
+    detections: &mut Vec<DetectBox>,
+    masks: &mut Vec<Segmentation>,
+    in_w: usize,
+    in_h: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let outputs = interpreter.outputs()?;
+    let is_float = outputs
+        .iter()
+        .all(|t| t.tensor_type() == TensorType::Float32);
+
+    if is_float {
+        let shapes: Vec<Vec<usize>> = outputs
+            .iter()
+            .map(edgefirst_tflite::Tensor::shape)
+            .collect::<Result<Vec<_>, _>>()?;
+        let slices: Vec<&[f32]> = outputs
+            .iter()
+            .map(|t| t.as_slice::<f32>())
+            .collect::<Result<Vec<_>, _>>()?;
+        let views: Vec<ArrayViewD<f32>> = shapes
+            .iter()
+            .zip(slices.iter())
+            .map(|(shape, data)| ArrayViewD::from_shape(IxDyn(shape), data))
+            .collect::<Result<Vec<_>, _>>()?;
+        decoder.decode_float(&views, detections, masks)?;
+    } else {
+        let shapes: Vec<Vec<usize>> = outputs
+            .iter()
+            .map(edgefirst_tflite::Tensor::shape)
+            .collect::<Result<Vec<_>, _>>()?;
+        let views: Vec<ArrayViewDQuantized> = outputs
+            .iter()
+            .zip(shapes.iter())
+            .map(|(t, shape)| match t.tensor_type() {
+                TensorType::UInt8 => Ok(ArrayViewDQuantized::UInt8(ArrayViewD::from_shape(
+                    IxDyn(shape),
+                    t.as_slice::<u8>()?,
+                )?)),
+                TensorType::Int8 => Ok(ArrayViewDQuantized::Int8(ArrayViewD::from_shape(
+                    IxDyn(shape),
+                    t.as_slice::<i8>()?,
+                )?)),
+                other => Err(format!("unsupported output type: {other:?}").into()),
+            })
+            .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
+        decoder.decode_quantized(&views, detections, masks)?;
+    }
+
+    // Normalize box coordinates to [0,1] if in pixel space.
+    #[allow(clippy::cast_precision_loss)]
+    if decoder.normalized_boxes() != Some(true) {
+        let needs_norm = detections
+            .iter()
+            .any(|d| d.bbox.xmax > 2.0 || d.bbox.ymax > 2.0);
+        if needs_norm {
+            let iw = in_w as f32;
+            let ih = in_h as f32;
+            for det in detections {
+                det.bbox.xmin /= iw;
+                det.bbox.ymin /= ih;
+                det.bbox.xmax /= iw;
+                det.bbox.ymax /= ih;
+            }
+        }
+    }
+
+    Ok(())
+}
+
+// ── Pipeline iteration ───────────────────────────────────────────────────────
+
+/// Run n iterations of invoke → decode → draw, collecting per-stage timings.
+#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+fn run_iterations(
+    n: usize,
+    interpreter: &mut Interpreter<'_>,
+    decoder: &edgefirst_hal::decoder::Decoder,
+    processor: &mut ImageProcessor,
+    mut overlay: Option<&mut TensorImage>,
+    dmabuf_handle: Option<edgefirst_tflite::dmabuf::BufferHandle>,
+    in_w: usize,
+    in_h: usize,
+) -> Result<(Vec<DetectBox>, Vec<Segmentation>, IterTimings), Box<dyn std::error::Error>> {
+    let mut timings = IterTimings::with_capacity(n);
+    let mut detections = Vec::with_capacity(100);
+    let mut masks = Vec::with_capacity(100);
+
+    for _ in 0..n {
+        let t_total = Instant::now();
+
+        // Infer
+        let t_inf = Instant::now();
+        interpreter.invoke()?;
+        timings.infer.push(ms(t_inf.elapsed()));
+
+        // DMA-BUF sync
+        if let Some(handle) = dmabuf_handle {
+            let delegate_ref = interpreter.delegate(0).expect("delegate not found");
+            let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
+            dmabuf.sync_for_cpu(handle)?;
+        }
+
+        // Decode
+        let t_dec = Instant::now();
+        decode_outputs(
+            interpreter,
+            decoder,
+            &mut detections,
+            &mut masks,
+            in_w,
+            in_h,
+        )?;
+        timings.decode.push(ms(t_dec.elapsed()));
+
+        // Render (if --save)
+        if let Some(ref mut ov) = overlay {
+            let t_render = Instant::now();
+            processor.draw_masks(ov, &detections, &masks)?;
+            timings.render.push(ms(t_render.elapsed()));
+        }
+
+        timings.total.push(ms(t_total.elapsed()));
+    }
+
+    Ok((detections, masks, timings))
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────
@@ -363,13 +575,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     // ── 3. Inspect outputs, auto-detect model type, build Decoder ───
-    // The Decoder handles all post-processing: dequantization, DFL decoding,
-    // NMS, coordinate normalization, and (for seg models) mask generation.
-    let is_segmentation;
     let decoder = {
         let outputs = interpreter.outputs()?;
 
-        // First pass: probe for protos (4D) and split boxes (feature_dim==4).
         let mut has_protos = false;
         let mut proto_channels = 0usize;
         let mut has_split_boxes = false;
@@ -387,9 +595,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        is_segmentation = has_protos;
-
-        // Second pass: classify each output and add to DecoderBuilder.
         let mut dec_builder = DecoderBuilder::default()
             .with_score_threshold(args.threshold)
             .with_iou_threshold(args.iou)
@@ -422,13 +627,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         dec_builder.build()?
     };
 
-    if is_segmentation {
-        println!("  Mode: segmentation");
-    } else {
-        println!("  Mode: detection");
-    }
+    println!(
+        "  Mode: {}",
+        if format!("{:?}", decoder.model_type())
+            .to_lowercase()
+            .contains("seg")
+        {
+            "segmentation"
+        } else {
+            "detection"
+        }
+    );
 
-    // ── 4. Load and preprocess image ────────────────────────────────
+    // ── 4. Load and preprocess image (once) ─────────────────────────
     let image_bytes = std::fs::read(&args.image)?;
     let src = TensorImage::load(&image_bytes, Some(RGBA), None)?;
     let (img_w, img_h) = (src.width(), src.height());
@@ -443,11 +654,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut processor = ImageProcessor::new()?;
     processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
 
-    // ── 5. Write preprocessed pixels to input tensor / DMA-BUF ──────
+    // ── 5. Write preprocessed pixels to input tensor (once) ─────────
     #[allow(unused_variables)]
     let dmabuf_handle = if use_camera_adaptor && use_dmabuf {
-        // CameraAdaptor + DMA-BUF: write raw RGBA bytes to DMA-BUF.
-        // The NPU handles RGBA→RGB conversion and quantization in-graph.
         let map = dst.tensor().map()?;
         let pixels = map.as_slice();
 
@@ -458,7 +667,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             dmabuf.request(0, edgefirst_tflite::dmabuf::Ownership::Delegate, buf_size)?;
         dmabuf.bind_to_tensor(handle, 0)?;
 
-        // Get or create a CPU-writable mapping for the DMA-BUF.
         let (ptr, needs_munmap) = if let Some(p) = desc.map_ptr {
             (p.cast::<u8>(), false)
         } else {
@@ -493,7 +701,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  DMA-BUF + CameraAdaptor: RGBA input (zero-copy)");
         Some(handle)
     } else {
-        // Write type-converted pixels to the input tensor.
         {
             let map = dst.tensor().map()?;
             let pixels = map.as_slice();
@@ -510,7 +717,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     input.copy_from_slice(pixels)?;
                 }
                 TensorType::Int8 => {
-                    // Shift uint8 [0,255] to int8 [-128,127]: subtract 128.
                     #[allow(clippy::cast_possible_wrap)]
                     let i8_data: Vec<i8> =
                         pixels.iter().map(|&v| v.wrapping_sub(128) as i8).collect();
@@ -526,7 +732,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
 
-        // Optionally set up DMA-BUF for zero-copy inference.
         if use_dmabuf {
             let delegate_ref = interpreter.delegate(0).expect("delegate not found");
             let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
@@ -546,96 +751,43 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
     let preprocess_time = t_pre.elapsed();
 
-    // ── 6. Run inference ────────────────────────────────────────────
-    let t_inf = Instant::now();
-    interpreter.invoke()?;
-    let inference_time = t_inf.elapsed();
+    // Pre-allocate overlay for rendering (reused across iterations).
+    let mut overlay = if args.save {
+        Some(TensorImage::load(&image_bytes, Some(RGBA), None)?)
+    } else {
+        None
+    };
 
-    // ── 7. Sync DMA-BUF back to CPU ────────────────────────────────
-    if let Some(handle) = dmabuf_handle {
-        let delegate_ref = interpreter.delegate(0).expect("delegate not found");
-        let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
-        dmabuf.sync_for_cpu(handle)?;
+    // ── 6. Warmup iterations ────────────────────────────────────────
+    if args.warmup > 0 {
+        println!("\nRunning {} warmup iterations...", args.warmup);
+        let (_, _, warmup_timings) = run_iterations(
+            args.warmup,
+            &mut interpreter,
+            &decoder,
+            &mut processor,
+            overlay.as_mut(),
+            dmabuf_handle,
+            in_w,
+            in_h,
+        )?;
+        println!();
+        warmup_timings.print_stats("Warmup");
     }
 
-    // ── 8. Decode outputs via Decoder ───────────────────────────────
-    // The Decoder handles dequantization, DFL box decoding, NMS, and
-    // (for segmentation models) mask coefficient → prototype multiplication.
-    let t_post = Instant::now();
-    let mut detections: Vec<DetectBox> = Vec::with_capacity(100);
-    let mut masks: Vec<Segmentation> = Vec::with_capacity(100);
+    // ── 7. Benchmark iterations ─────────────────────────────────────
+    let (detections, _masks, bench_timings) = run_iterations(
+        args.iters,
+        &mut interpreter,
+        &decoder,
+        &mut processor,
+        overlay.as_mut(),
+        dmabuf_handle,
+        in_w,
+        in_h,
+    )?;
 
-    {
-        let outputs = interpreter.outputs()?;
-        let is_float = outputs
-            .iter()
-            .all(|t| t.tensor_type() == TensorType::Float32);
-
-        if is_float {
-            // Float path: wrap each output tensor as ArrayViewD<f32>.
-            let shapes: Vec<Vec<usize>> = outputs
-                .iter()
-                .map(edgefirst_tflite::Tensor::shape)
-                .collect::<Result<Vec<_>, _>>()?;
-            let slices: Vec<&[f32]> = outputs
-                .iter()
-                .map(|t| t.as_slice::<f32>())
-                .collect::<Result<Vec<_>, _>>()?;
-            let views: Vec<ArrayViewD<f32>> = shapes
-                .iter()
-                .zip(slices.iter())
-                .map(|(shape, data)| ArrayViewD::from_shape(IxDyn(shape), data))
-                .collect::<Result<Vec<_>, _>>()?;
-            decoder.decode_float(&views, &mut detections, &mut masks)?;
-        } else {
-            // Quantized path: wrap each output as ArrayViewDQuantized.
-            // Handles mixed integer types (e.g., one output i8, another u8).
-            let shapes: Vec<Vec<usize>> = outputs
-                .iter()
-                .map(edgefirst_tflite::Tensor::shape)
-                .collect::<Result<Vec<_>, _>>()?;
-            let views: Vec<ArrayViewDQuantized> = outputs
-                .iter()
-                .zip(shapes.iter())
-                .map(|(t, shape)| match t.tensor_type() {
-                    TensorType::UInt8 => Ok(ArrayViewDQuantized::UInt8(ArrayViewD::from_shape(
-                        IxDyn(shape),
-                        t.as_slice::<u8>()?,
-                    )?)),
-                    TensorType::Int8 => Ok(ArrayViewDQuantized::Int8(ArrayViewD::from_shape(
-                        IxDyn(shape),
-                        t.as_slice::<i8>()?,
-                    )?)),
-                    other => Err(format!("unsupported output type: {other:?}").into()),
-                })
-                .collect::<Result<Vec<_>, Box<dyn std::error::Error>>>()?;
-            decoder.decode_quantized(&views, &mut detections, &mut masks)?;
-        }
-    }
-
-    // Normalize box coordinates to [0,1] if the decoder output is in pixel
-    // space (common with quantized Neutron models where coordinates are not
-    // pre-normalized by the model).
-    #[allow(clippy::cast_precision_loss)]
-    if decoder.normalized_boxes() != Some(true) {
-        let needs_norm = detections
-            .iter()
-            .any(|d| d.bbox.xmax > 2.0 || d.bbox.ymax > 2.0);
-        if needs_norm {
-            let iw = in_w as f32;
-            let ih = in_h as f32;
-            for det in &mut detections {
-                det.bbox.xmin /= iw;
-                det.bbox.ymin /= ih;
-                det.bbox.xmax /= iw;
-                det.bbox.ymax /= ih;
-            }
-        }
-    }
-
-    let postprocess_time = t_post.elapsed();
-
-    // ── 9. Print detections ─────────────────────────────────────────
+    // ── 8. Print detections (from last iteration) ───────────────────
     println!("\n--- Detections ({}) ---", detections.len());
     #[allow(clippy::cast_precision_loss)]
     for det in &detections {
@@ -655,35 +807,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         );
     }
 
-    // ── 10. Optionally save overlay ─────────────────────────────────
-    let render_time = if args.save {
-        let t_render = Instant::now();
-        let mut overlay = TensorImage::load(&image_bytes, Some(RGBA), None)?;
-        processor.draw_masks(&mut overlay, &detections, &masks)?;
-
+    // ── 9. Save overlay (once) ──────────────────────────────────────
+    if let Some(ref ov) = overlay {
         let stem = args.image.file_stem().unwrap_or_default().to_string_lossy();
         let out_path = args.image.with_file_name(format!("{stem}_overlay.jpg"));
-        overlay.save_jpeg(out_path.to_str().unwrap(), 95)?;
-
-        let elapsed = t_render.elapsed();
-        println!("\n  Saved: {}", out_path.display());
-        Some(elapsed)
-    } else {
-        None
-    };
-
-    // ── 11. Print timing ────────────────────────────────────────────
-    println!("\n--- Timing ---");
-    println!("  Load:        {}", fmt_ms(load_time));
-    println!("  Preprocess:  {}", fmt_ms(preprocess_time));
-    println!("  Inference:   {}", fmt_ms(inference_time));
-    println!("  Postprocess: {}", fmt_ms(postprocess_time));
-    let mut total = load_time + preprocess_time + inference_time + postprocess_time;
-    if let Some(rt) = render_time {
-        println!("  Render:      {}", fmt_ms(rt));
-        total += rt;
+        ov.save_jpeg(out_path.to_str().unwrap(), 95)?;
+        println!("  Saved: {}", out_path.display());
     }
-    println!("  Total:       {}", fmt_ms(total));
+
+    // ── 10. Print timing ────────────────────────────────────────────
+    println!();
+    println!("  Load:       {:.1}ms", ms(load_time));
+    println!("  Preprocess: {:.1}ms", ms(preprocess_time));
+    println!();
+    bench_timings.print_stats(&format!("Benchmark (iters={})", args.iters));
 
     Ok(())
 }

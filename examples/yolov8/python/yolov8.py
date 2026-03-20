@@ -8,10 +8,6 @@ End-to-end YOLOv8 inference using edgefirst-tflite for model execution and
 edgefirst-hal for image preprocessing, YOLO decoding (via high-level Decoder
 API), and overlay rendering.
 
-Supports both detection-only (yolov8n) and instance segmentation (yolov8n-seg)
-models.  The model type is auto-detected from output shapes: a 4D output tensor
-indicates segmentation prototype masks.
-
 Usage:
     python yolov8.py <model.tflite> <image.jpg> [options]
 
@@ -19,12 +15,9 @@ Examples:
     # CPU-only detection
     python yolov8.py yolov8n.tflite image.jpg
 
-    # i.MX8MP with VxDelegate
-    python yolov8.py yolov8n.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --save
-
-    # i.MX95 Neutron (segmentation)
-    python yolov8.py yolov8n-seg-int8.imx95.tflite image.jpg \
-        --delegate /usr/lib/libneutron_delegate.so --save
+    # Benchmark with 5 warmup + 100 iterations
+    python yolov8.py model.tflite image.jpg --delegate /usr/lib/libvx_delegate.so \
+        --warmup 5 --iters 100 --save
 
 Requirements:
     pip install edgefirst-tflite edgefirst-hal numpy
@@ -60,18 +53,9 @@ COCO = [
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def classify_outputs(output_details: list[dict]) -> list:
-    """Classify TFLite output tensors into edgefirst-hal Output objects.
+    """Classify TFLite output tensors into edgefirst-hal Output objects."""
+    from edgefirst_hal import Output
 
-    Heuristics mirror the Rust example:
-      - 4D tensor  → Protos (segmentation prototypes)
-      - 3D, dim[1]==4 → Boxes (split detection)
-      - 3D, dim[1]==proto_channels when split+seg → MaskCoefficients
-      - 3D in split model → Scores
-      - 3D in combined model → Detection (fused boxes+scores)
-    """
-    from edgefirst_hal import Output, DecoderType
-
-    # First pass: probe shapes.
     has_protos = False
     proto_channels = 0
     has_split_boxes = False
@@ -86,7 +70,6 @@ def classify_outputs(output_details: list[dict]) -> list:
             if feat == 4:
                 has_split_boxes = True
 
-    # Second pass: build Output objects.
     outputs = []
     for det in output_details:
         shape = list(det["shape"])
@@ -128,8 +111,40 @@ def compute_letterbox(src_w, src_h, dst_w, dst_h):
     return left, top, new_w, new_h
 
 
-def fmt_ms(seconds: float) -> str:
-    return f"{seconds * 1000:.1f}ms"
+def percentile(values, p):
+    """Compute percentile from a sorted array."""
+    idx = min(int(np.ceil((len(values) - 1) * p)), len(values) - 1)
+    return values[idx]
+
+
+def print_stats(label, timings):
+    """Print timing statistics for a set of iterations."""
+    n = len(timings["total"])
+    if n == 0:
+        return
+
+    if n == 1:
+        print(f"--- {label} ---")
+        print(f"  Infer:   {timings['infer'][0]:.1f}ms")
+        print(f"  Decode:  {timings['decode'][0]:.1f}ms")
+        if timings["render"]:
+            print(f"  Render:  {timings['render'][0]:.1f}ms")
+        print(f"  Total:   {timings['total'][0]:.1f}ms")
+        return
+
+    print(f"--- {label} ({n} iterations) ---")
+    print("               min      max      avg      p95      p99")
+    for name in ("infer", "decode", "render", "total"):
+        vals = timings[name]
+        if not vals:
+            continue
+        s = sorted(vals)
+        mn, mx = s[0], s[-1]
+        avg = sum(s) / len(s)
+        p95 = percentile(s, 0.95)
+        p99 = percentile(s, 0.99)
+        lbl = name.capitalize()
+        print(f"  {lbl:<8} {mn:>7.1f} {mx:>8.1f} {avg:>8.1f} {p95:>8.1f} {p99:>8.1f} ms")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -146,35 +161,25 @@ def main():
                         help="Score threshold (default: 0.25)")
     parser.add_argument("--iou", type=float, default=0.45,
                         help="IoU threshold for NMS (default: 0.45)")
+    parser.add_argument("--warmup", type=int, default=0,
+                        help="Number of warmup iterations (default: 0)")
+    parser.add_argument("--iters", type=int, default=1,
+                        help="Number of benchmark iterations (default: 1)")
     args = parser.parse_args()
 
     # ── 1. Load library, model, delegate, interpreter ────────────────
     t_load = time.perf_counter()
 
-    from edgefirst_tflite import Interpreter, Delegate, load_delegate
+    from edgefirst_tflite import Interpreter, load_delegate
 
     delegates = []
     if args.delegate:
         delegate = load_delegate(args.delegate)
         print(f"Delegate: {args.delegate}")
-
-        # --- Optimized path (i.MX8MP VxDelegate) ---
-        # When CameraAdaptor is available, the delegate handles RGBA→RGB
-        # conversion on the NPU.  Combined with DMA-BUF, the entire input
-        # path is zero-copy:
-        #   camera RGBA buffer → DMA-BUF → NPU (format convert + inference)
-        #
-        # --- Fallback path (delegates without DMA-BUF/CameraAdaptor) ---
-        # Without DMA-BUF, we copy preprocessed pixels into the TFLite
-        # input tensor.  Without CameraAdaptor, HAL ImageProcessor handles
-        # format conversion via GPU (OpenGL), G2D hardware accelerator, or
-        # CPU — in that priority order.
-
         if delegate.has_dmabuf:
             print("  DMA-BUF: available")
         if delegate.has_camera_adaptor:
             print("  CameraAdaptor: available")
-
         delegates.append(delegate)
 
     interpreter = Interpreter(
@@ -183,7 +188,7 @@ def main():
         num_threads=4,
     )
 
-    load_time = time.perf_counter() - t_load
+    load_time = (time.perf_counter() - t_load) * 1000
     print(f"Model: {args.model}")
 
     # ── 2. Inspect tensors ───────────────────────────────────────────
@@ -208,10 +213,7 @@ def main():
     hal_outputs = classify_outputs(output_details)
 
     is_segmentation = any(len(d["shape"]) == 4 for d in output_details)
-    if is_segmentation:
-        print("  Mode: segmentation")
-    else:
-        print("  Mode: detection")
+    print(f"  Mode: {'segmentation' if is_segmentation else 'detection'}")
 
     decoder = Decoder.new_from_outputs(
         hal_outputs,
@@ -221,7 +223,7 @@ def main():
         decoder_version=DecoderVersion.Yolov8,
     )
 
-    # ── 4. Preprocess image ──────────────────────────────────────────
+    # ── 4. Preprocess image (once) ───────────────────────────────────
     from edgefirst_hal import (
         TensorImage, ImageProcessor, PixelFormat, Rotation, Flip, Rect,
     )
@@ -245,7 +247,7 @@ def main():
         dst_color=[114, 114, 114, 255],
     )
 
-    # Write preprocessed pixels to input tensor.
+    # Write preprocessed pixels to input tensor (once).
     input_array = np.zeros((in_h, in_w, 3), dtype=np.uint8)
     dst.normalize_to_numpy(input_array)
 
@@ -257,32 +259,61 @@ def main():
         input_data = input_array
 
     interpreter.set_tensor(0, input_data)
-    preprocess_time = time.perf_counter() - t_pre
+    preprocess_time = (time.perf_counter() - t_pre) * 1000
 
-    # ── 5. Run inference ─────────────────────────────────────────────
-    t_inf = time.perf_counter()
-    interpreter.invoke()
-    inference_time = time.perf_counter() - t_inf
+    # Pre-allocate overlay for rendering (reused across iterations).
+    overlay = TensorImage.load(args.image, PixelFormat.Rgba) if args.save else None
 
-    # ── 6. Read outputs and decode via Decoder ───────────────────────
-    # The Decoder handles dequantization, DFL box decoding, NMS, and
-    # (for segmentation models) mask coefficient → prototype multiplication.
-    t_post = time.perf_counter()
+    # ── 5. Iteration runner ──────────────────────────────────────────
+    def run_iterations(n):
+        timings = {"infer": [], "decode": [], "render": [], "total": []}
+        boxes = scores = classes = masks = None
 
-    model_outputs = [
-        interpreter.get_output_tensor(i) for i in range(len(output_details))
-    ]
-    boxes, scores, classes, masks = decoder.decode(model_outputs)
-    num_detections = len(scores)
+        for _ in range(n):
+            t_total = time.perf_counter()
 
-    # Normalize box coordinates to [0,1] if in pixel space.
-    if num_detections > 0 and np.max(boxes) > 2.0:
-        boxes[:, [0, 2]] /= in_w
-        boxes[:, [1, 3]] /= in_h
+            # Infer
+            t0 = time.perf_counter()
+            interpreter.invoke()
+            timings["infer"].append((time.perf_counter() - t0) * 1000)
 
-    postprocess_time = time.perf_counter() - t_post
+            # Decode
+            t0 = time.perf_counter()
+            model_outputs = [
+                interpreter.get_output_tensor(i)
+                for i in range(len(output_details))
+            ]
+            boxes, scores, classes, masks = decoder.decode(model_outputs)
 
-    # ── 7. Print detections ──────────────────────────────────────────
+            # Normalize if in pixel space
+            if len(scores) > 0 and np.max(boxes) > 2.0:
+                boxes[:, [0, 2]] /= in_w
+                boxes[:, [1, 3]] /= in_h
+
+            timings["decode"].append((time.perf_counter() - t0) * 1000)
+
+            # Render (if --save)
+            if overlay is not None:
+                t0 = time.perf_counter()
+                processor.draw_masks(overlay, boxes, scores, classes, masks)
+                timings["render"].append((time.perf_counter() - t0) * 1000)
+
+            timings["total"].append((time.perf_counter() - t_total) * 1000)
+
+        return boxes, scores, classes, masks, timings
+
+    # ── 6. Warmup ────────────────────────────────────────────────────
+    if args.warmup > 0:
+        print(f"\nRunning {args.warmup} warmup iterations...")
+        _, _, _, _, warmup_timings = run_iterations(args.warmup)
+        print()
+        print_stats("Warmup", warmup_timings)
+
+    # ── 7. Benchmark ─────────────────────────────────────────────────
+    boxes, scores, classes, masks, bench_timings = run_iterations(args.iters)
+
+    # ── 8. Print detections (from last iteration) ────────────────────
+    num_detections = len(scores) if scores is not None else 0
     print(f"\n--- Detections ({num_detections}) ---")
     for i in range(num_detections):
         label = int(classes[i])
@@ -292,34 +323,23 @@ def main():
         y1 = max(0.0, float(boxes[i, 1]) * img_h)
         x2 = min(float(img_w), float(boxes[i, 2]) * img_w)
         y2 = min(float(img_h), float(boxes[i, 3]) * img_h)
-        print(f"  {name:>12} ({label:2d}): {score:5.1f}%  [{x1:.0f}, {y1:.0f}, {x2:.0f}, {y2:.0f}]")
+        print(f"  {name:>12} ({label:2d}): {score:5.1f}%  "
+              f"[{x1:.0f}, {y1:.0f}, {x2:.0f}, {y2:.0f}]")
 
-    # ── 8. Optionally save overlay ───────────────────────────────────
-    render_time = None
-    if args.save:
-        t_render = time.perf_counter()
-        overlay = TensorImage.load(args.image, PixelFormat.Rgba)
-        processor.draw_masks(overlay, boxes, scores, classes, masks)
-
+    # ── 9. Save overlay (once) ───────────────────────────────────────
+    if overlay is not None:
         stem, _ext = os.path.splitext(os.path.basename(args.image))
         out_dir = os.path.dirname(args.image) or "."
         out_path = os.path.join(out_dir, f"{stem}_overlay.jpg")
         overlay.save_jpeg(out_path, 95)
+        print(f"  Saved: {out_path}")
 
-        render_time = time.perf_counter() - t_render
-        print(f"\n  Saved: {out_path}")
-
-    # ── 9. Print timing ──────────────────────────────────────────────
-    total = load_time + preprocess_time + inference_time + postprocess_time
-    print("\n--- Timing ---")
-    print(f"  Load:        {fmt_ms(load_time)}")
-    print(f"  Preprocess:  {fmt_ms(preprocess_time)}")
-    print(f"  Inference:   {fmt_ms(inference_time)}")
-    print(f"  Postprocess: {fmt_ms(postprocess_time)}")
-    if render_time is not None:
-        total += render_time
-        print(f"  Render:      {fmt_ms(render_time)}")
-    print(f"  Total:       {fmt_ms(total)}")
+    # ── 10. Print timing ─────────────────────────────────────────────
+    print()
+    print(f"  Load:       {load_time:.1f}ms")
+    print(f"  Preprocess: {preprocess_time:.1f}ms")
+    print()
+    print_stats(f"Benchmark (iters={args.iters})", bench_timings)
 
 
 if __name__ == "__main__":
