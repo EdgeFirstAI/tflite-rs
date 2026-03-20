@@ -75,7 +75,7 @@ jobs:
           if [ "$IS_MACOS" = "true" ]; then
             extra_flags='-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
           fi
-          cmake -S tensorflow/lite/c -B build \
+          cmake -S tensorflow/lite/c -B _build \
             -DCMAKE_BUILD_TYPE=Release \
             -DTFLITE_C_BUILD_SHARED_LIBS=ON \
             -DTFLITE_ENABLE_XNNPACK=ON \
@@ -84,18 +84,18 @@ jobs:
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
         run: >
-          cmake -S tensorflow/lite/c -B build
+          cmake -S tensorflow/lite/c -B _build
           -DTFLITE_C_BUILD_SHARED_LIBS=ON
           -DTFLITE_ENABLE_XNNPACK=ON
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        run: cmake --build _build --config Release --parallel
 
       - name: Package artifact (Unix)
         if: runner.os != 'Windows'
         run: |
           mkdir -p pkg/include/tensorflow/lite/c
-          cp build/${{ matrix.lib_name }} pkg/
+          cp _build/${{ matrix.lib_name }} pkg/
 
           # Headers live under tensorflow/lite/core/c/ in TF 2.14+,
           # fall back to tensorflow/lite/c/ for older versions.
@@ -113,8 +113,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path pkg/include/tensorflow/lite/c -Force
-          Copy-Item build/Release/${{ matrix.lib_name }} pkg/
-          Copy-Item build/Release/tensorflowlite_c.lib pkg/ -ErrorAction SilentlyContinue
+          Copy-Item _build/Release/${{ matrix.lib_name }} pkg/
+          Copy-Item _build/Release/tensorflowlite_c.lib pkg/ -ErrorAction SilentlyContinue
           foreach ($h in @("c_api.h","c_api_types.h","common.h","builtin_op_data.h")) {
             $core = "tensorflow/lite/core/c/$h"
             $legacy = "tensorflow/lite/c/$h"
