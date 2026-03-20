@@ -107,7 +107,7 @@ fn platform_artifact() -> (&'static str, &'static str) {
             "libtensorflowlite_c.so",
         ),
         ("macos", _) => (
-            "libtensorflowlite_c-macos-universal.tar.gz",
+            "libtensorflowlite_c-macos-arm64.tar.gz",
             "libtensorflowlite_c.dylib",
         ),
         ("windows", "x86_64") => (

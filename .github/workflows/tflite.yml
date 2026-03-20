@@ -48,9 +48,9 @@ jobs:
             runner: ubuntu-22.04-arm
             artifact: libtensorflowlite_c-aarch64-linux
             lib_name: "libtensorflowlite_c.so"
-          - name: macos-universal
+          - name: macos-arm64
             runner: macos-latest
-            artifact: libtensorflowlite_c-macos-universal
+            artifact: libtensorflowlite_c-macos-arm64
             lib_name: "libtensorflowlite_c.dylib"
           - name: windows-x86_64
             runner: windows-latest
@@ -68,29 +68,18 @@ jobs:
       - name: Configure CMake (Unix)
         if: runner.os != 'Windows'
         shell: bash
-        env:
-          IS_MACOS: ${{ runner.os == 'macOS' && 'true' || 'false' }}
         run: |
-          extra_flags=""
-          xnnpack="ON"
-          if [ "$IS_MACOS" = "true" ]; then
-            # XNNPACK does not support universal (multi-arch) builds.
-            # Disable it for macOS universal; NPU delegates handle acceleration.
-            extra_flags='-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
-            xnnpack="OFF"
-          fi
           cmake -S tensorflow/lite/c -B _build \
             -DCMAKE_BUILD_TYPE=Release \
             -DTFLITE_C_BUILD_SHARED_LIBS=ON \
-            -DTFLITE_ENABLE_XNNPACK="$xnnpack" \
-            $extra_flags
+            -DTFLITE_ENABLE_XNNPACK=OFF
 
       - name: Configure CMake (Windows)
         if: runner.os == 'Windows'
         run: >
           cmake -S tensorflow/lite/c -B _build
           -DTFLITE_C_BUILD_SHARED_LIBS=ON
-          -DTFLITE_ENABLE_XNNPACK=ON
+          -DTFLITE_ENABLE_XNNPACK=OFF
 
       - name: Build
         run: cmake --build _build --config Release --parallel
@@ -167,7 +156,7 @@ jobs:
             |---------|----------|---------|
             | `libtensorflowlite_c-x86_64-linux.tar.gz` | Linux x86_64 | `libtensorflowlite_c.so` |
             | `libtensorflowlite_c-aarch64-linux.tar.gz` | Linux aarch64 | `libtensorflowlite_c.so` |
-            | `libtensorflowlite_c-macos-universal.tar.gz` | macOS (arm64 + x86_64) | `libtensorflowlite_c.dylib` |
+            | `libtensorflowlite_c-macos-arm64.tar.gz` | macOS arm64 | `libtensorflowlite_c.dylib` |
             | `libtensorflowlite_c-windows-x86_64.zip` | Windows x86_64 | `tensorflowlite_c.dll` + `.lib` |
 
             Built from [tensorflow/tensorflow v${{ env.TFLITE_VERSION }}](https://github.com/tensorflow/tensorflow/releases/tag/v${{ env.TFLITE_VERSION }}).
