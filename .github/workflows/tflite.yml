@@ -82,7 +82,10 @@ jobs:
           -DTFLITE_ENABLE_XNNPACK=OFF
 
       - name: Build
-        run: cmake --build _build --config Release --parallel
+        # Limit parallelism to 2 jobs to avoid OOM on GitHub-hosted runners.
+        # TFLite C++ compilation is memory-intensive; --parallel without a
+        # limit exhausts the runner's RAM and triggers SIGTERM/OOM kills.
+        run: cmake --build _build --config Release --parallel 2
 
       - name: Package artifact (Unix)
         if: runner.os != 'Windows'
