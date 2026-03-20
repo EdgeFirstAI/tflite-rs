@@ -20,5 +20,14 @@ categories = ["external-ffi-bindings"]
 libloading = "0.8"
 log = "0.4"
 
+[features]
+vendored = []
+
+[build-dependencies]
+ureq = { version = "2", default-features = false, features = ["tls"] }
+flate2 = "1"
+tar = "0.4"
+zip = { version = "2", default-features = false, features = ["deflate"] }
+
 [lints]
 workspace = true

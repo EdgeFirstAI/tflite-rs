@@ -1,0 +1,175 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright 2025 Au-Zone Technologies
+#
+# On-demand workflow to build the TensorFlow Lite C API shared library.
+#
+# Builds libtensorflowlite_c for Linux (x86_64, aarch64), macOS (universal),
+# and Windows (x86_64). Publishes artifacts as a tflite-vX.Y.Z GitHub Release
+# that build.rs (vendored feature) and edgefirst-tflite-library can fetch.
+#
+# Usage:
+#   gh workflow run tflite.yml -f tflite_version=2.19.0
+#
+# Action Versions (hash-pinned):
+# - actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 (v4.2.2)
+# - actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 (v4)
+# - actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 (v4)
+# - softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 (v2.2.2)
+
+name: TFLite Library
+
+on:
+  workflow_dispatch:
+    inputs:
+      tflite_version:
+        description: 'TensorFlow Lite version (e.g. 2.19.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  TFLITE_VERSION: ${{ inputs.tflite_version }}
+
+jobs:
+  build:
+    name: Build (${{ matrix.name }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: x86_64-linux
+            runner: ubuntu-22.04
+            artifact: libtensorflowlite_c-x86_64-linux
+            lib_name: "libtensorflowlite_c.so"
+          - name: aarch64-linux
+            runner: ubuntu-22.04-arm
+            artifact: libtensorflowlite_c-aarch64-linux
+            lib_name: "libtensorflowlite_c.so"
+          - name: macos-universal
+            runner: macos-latest
+            artifact: libtensorflowlite_c-macos-universal
+            lib_name: "libtensorflowlite_c.dylib"
+          - name: windows-x86_64
+            runner: windows-latest
+            artifact: libtensorflowlite_c-windows-x86_64
+            lib_name: "tensorflowlite_c.dll"
+
+    steps:
+      - name: Checkout TensorFlow
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: tensorflow/tensorflow
+          ref: v${{ env.TFLITE_VERSION }}
+          fetch-depth: 1
+
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        env:
+          IS_MACOS: ${{ runner.os == 'macOS' && 'true' || 'false' }}
+        run: |
+          extra_flags=""
+          if [ "$IS_MACOS" = "true" ]; then
+            extra_flags='-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+          fi
+          cmake -S tensorflow/lite/c -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DTFLITE_C_BUILD_SHARED_LIBS=ON \
+            -DTFLITE_ENABLE_XNNPACK=ON \
+            $extra_flags
+
+      - name: Configure CMake (Windows)
+        if: runner.os == 'Windows'
+        run: >
+          cmake -S tensorflow/lite/c -B build
+          -DTFLITE_C_BUILD_SHARED_LIBS=ON
+          -DTFLITE_ENABLE_XNNPACK=ON
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Package artifact (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p pkg/include/tensorflow/lite/c
+          cp build/${{ matrix.lib_name }} pkg/
+
+          # Headers live under tensorflow/lite/core/c/ in TF 2.14+,
+          # fall back to tensorflow/lite/c/ for older versions.
+          for h in c_api.h c_api_types.h common.h builtin_op_data.h; do
+            if [ -f tensorflow/lite/core/c/$h ]; then
+              cp tensorflow/lite/core/c/$h pkg/include/tensorflow/lite/c/
+            elif [ -f tensorflow/lite/c/$h ]; then
+              cp tensorflow/lite/c/$h pkg/include/tensorflow/lite/c/
+            fi
+          done
+          tar -czf ${{ matrix.artifact }}.tar.gz -C pkg .
+
+      - name: Package artifact (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path pkg/include/tensorflow/lite/c -Force
+          Copy-Item build/Release/${{ matrix.lib_name }} pkg/
+          Copy-Item build/Release/tensorflowlite_c.lib pkg/ -ErrorAction SilentlyContinue
+          foreach ($h in @("c_api.h","c_api_types.h","common.h","builtin_op_data.h")) {
+            $core = "tensorflow/lite/core/c/$h"
+            $legacy = "tensorflow/lite/c/$h"
+            if (Test-Path $core) { Copy-Item $core pkg/include/tensorflow/lite/c/ }
+            elseif (Test-Path $legacy) { Copy-Item $legacy pkg/include/tensorflow/lite/c/ }
+          }
+          Compress-Archive -Path pkg/* -DestinationPath "${{ matrix.artifact }}.zip"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.artifact }}.*
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: List release assets
+        run: ls -lhR artifacts/
+
+      - name: Create Release
+        uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631 # v2.2.2
+        with:
+          tag_name: tflite-v${{ env.TFLITE_VERSION }}
+          name: TFLite Library ${{ env.TFLITE_VERSION }}
+          body: |
+            Pre-built TensorFlow Lite C API shared libraries (v${{ env.TFLITE_VERSION }}).
+
+            Use with `edgefirst-tflite`:
+            - **Rust**: Enable the `vendored` feature — `build.rs` downloads automatically
+            - **Python**: `pip install edgefirst-tflite-library`
+            - **Manual**: Download the archive for your platform and place the library
+              where your linker can find it (e.g. `/usr/local/lib`)
+
+            ## Contents
+
+            | Archive | Platform | Library |
+            |---------|----------|---------|
+            | `libtensorflowlite_c-x86_64-linux.tar.gz` | Linux x86_64 | `libtensorflowlite_c.so` |
+            | `libtensorflowlite_c-aarch64-linux.tar.gz` | Linux aarch64 | `libtensorflowlite_c.so` |
+            | `libtensorflowlite_c-macos-universal.tar.gz` | macOS (arm64 + x86_64) | `libtensorflowlite_c.dylib` |
+            | `libtensorflowlite_c-windows-x86_64.zip` | Windows x86_64 | `tensorflowlite_c.dll` + `.lib` |
+
+            Built from [tensorflow/tensorflow v${{ env.TFLITE_VERSION }}](https://github.com/tensorflow/tensorflow/releases/tag/v${{ env.TFLITE_VERSION }}).
+            License: Apache-2.0
+
+            > The Windows `.lib` import library is included for convenience but is not
+            > required by `edgefirst-tflite`, which uses runtime `LoadLibrary`.
+          files: artifacts/*
+          draft: false
