@@ -72,13 +72,17 @@ jobs:
           IS_MACOS: ${{ runner.os == 'macOS' && 'true' || 'false' }}
         run: |
           extra_flags=""
+          xnnpack="ON"
           if [ "$IS_MACOS" = "true" ]; then
+            # XNNPACK does not support universal (multi-arch) builds.
+            # Disable it for macOS universal; NPU delegates handle acceleration.
             extra_flags='-DCMAKE_OSX_ARCHITECTURES=arm64;x86_64'
+            xnnpack="OFF"
           fi
           cmake -S tensorflow/lite/c -B _build \
             -DCMAKE_BUILD_TYPE=Release \
             -DTFLITE_C_BUILD_SHARED_LIBS=ON \
-            -DTFLITE_ENABLE_XNNPACK=ON \
+            -DTFLITE_ENABLE_XNNPACK="$xnnpack" \
             $extra_flags
 
       - name: Configure CMake (Windows)
