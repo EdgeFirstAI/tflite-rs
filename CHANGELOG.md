@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-20
+
+### Added
+
+- Python bindings (`edgefirst-tflite` on PyPI) via PyO3 with
+  `tflite_runtime.interpreter.Interpreter`-compatible API.
+- Python `load_delegate()` function for hardware accelerator delegates.
+- Python `DmaBuf`, `CameraAdaptor`, and `Metadata` extension classes.
+- Python zero-copy tensor views via `Interpreter.tensor()`.
+- YOLOv8 detection and segmentation example (Rust + Python) using
+  `edgefirst-hal` 0.9 high-level Decoder API.
+- Auto-detection of detection vs segmentation from output tensor shapes.
+- Support for split output models (Neutron/onnx2tf format).
+- `--warmup` and `--iters` benchmarking with min/max/avg/p95/p99 stats.
+- `vendored` feature on `edgefirst-tflite-sys` for downloading pre-built
+  TFLite C API from GitHub Releases at build time.
+- `TFLITE_LIBRARY_PATH` environment variable for explicit library override.
+- Platform-conditional library discovery (macOS `.dylib`, Windows `.dll`).
+- `tflite.yml` GitHub Actions workflow for building TFLite C API shared
+  libraries for Linux (x86_64, aarch64), macOS (arm64), and Windows.
+- `edgefirst-tflite-library` Python package structure for shipping
+  pre-built TFLite shared libraries via PyPI.
+- YOLOv8 int8 test models for i.MX8MP (VxDelegate) and i.MX95 (Neutron).
+- README.md, TESTING.md, and ARCHITECTURE.md documentation.
+
+### Changed
+
+- Updated `edgefirst-hal` dependency from 0.8 to 0.9.
+- YOLOv8 example refactored from manual YOLO decoding to high-level
+  `DecoderBuilder` API with `add_output()` for all model formats.
+- Overlay rendering uses `draw_masks()` (renamed from `render_to_image()`).
+- Image tensor allocation uses `ImageProcessor::create_image()` for
+  optimal memory backend selection (DMA-buf > PBO > system memory).
+- GitHub Actions updated to Node.js 24 (all actions pinned to latest).
+
 ## [0.1.0] - 2026-03-03
 
 ### Added
@@ -32,5 +67,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/EdgeFirstAI/tflite-rs/releases/tag/v0.1.0
