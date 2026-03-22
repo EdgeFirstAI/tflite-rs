@@ -236,30 +236,53 @@ def main():
     img_w, img_h = src.width, src.height
     print(f"Image: {img_w}x{img_h}")
 
-    dst = processor.create_image(in_w, in_h, PixelFormat.Rgb)
-
+    dst_dtype = "int8" if in_dtype == "int8" else "uint8"
     left, top, new_w, new_h = compute_letterbox(img_w, img_h, in_w, in_h)
     dst_crop = Rect(left, top, new_w, new_h)
-    processor.convert(
-        src, dst,
-        rotation=Rotation.Rotate0,
-        flip=Flip.NoFlip,
-        dst_crop=dst_crop,
-        dst_color=[114, 114, 114, 255],
-    )
 
     # Write preprocessed pixels to input tensor (once).
-    input_array = np.zeros((in_h, in_w, 3), dtype=np.uint8)
-    dst.normalize_to_numpy(input_array)
-
-    if in_dtype == "float32":
-        input_data = input_array.astype(np.float32) / 255.0
-    elif in_dtype == "int8":
-        input_data = (input_array.astype(np.int16) - 128).astype(np.int8)
+    #
+    # Path A: DMA-BUF + integer model → zero-copy GPU → NPU
+    # Path B: No DMA-BUF → copy via normalize_to_numpy + set_tensor
+    dmabuf = interpreter.dmabuf()
+    if dmabuf is not None and in_dtype != "float32":
+        # Path A: GPU renders directly into VxDelegate's DMA-BUF.
+        buf_size = in_h * in_w * 3
+        handle, desc = dmabuf.request(0, "delegate", buf_size)
+        dmabuf.bind_to_tensor(handle, 0)
+        dst = processor.create_image_from_fd(desc["fd"], in_w, in_h, PixelFormat.Rgb, dst_dtype)
+        processor.convert(
+            src, dst,
+            rotation=Rotation.Rotate0,
+            flip=Flip.NoFlip,
+            dst_crop=dst_crop,
+            dst_color=[114, 114, 114, 255],
+        )
+        dmabuf.sync_for_device(handle)
+        print("  DMA-BUF: zero-copy GPU → NPU")
     else:
-        input_data = input_array
-
-    interpreter.set_tensor(0, input_data)
+        # Path B: Copy into TFLite arena.
+        dst = processor.create_image(in_w, in_h, PixelFormat.Rgb, dst_dtype)
+        processor.convert(
+            src, dst,
+            rotation=Rotation.Rotate0,
+            flip=Flip.NoFlip,
+            dst_crop=dst_crop,
+            dst_color=[114, 114, 114, 255],
+        )
+        if in_dtype == "int8":
+            input_array = np.zeros((in_h, in_w, 3), dtype=np.int8)
+            dst.normalize_to_numpy(input_array)
+            input_data = input_array
+        elif in_dtype == "float32":
+            input_array = np.zeros((in_h, in_w, 3), dtype=np.uint8)
+            dst.normalize_to_numpy(input_array)
+            input_data = input_array.astype(np.float32) / 255.0
+        else:
+            input_array = np.zeros((in_h, in_w, 3), dtype=np.uint8)
+            dst.normalize_to_numpy(input_array)
+            input_data = input_array
+        interpreter.set_tensor(0, input_data)
     preprocess_time = (time.perf_counter() - t_pre) * 1000
 
     # Pre-allocate overlay for rendering (reused across iterations).

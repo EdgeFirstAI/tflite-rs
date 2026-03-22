@@ -15,7 +15,7 @@ edgefirst-tflite = { path = "../../crates/tflite", features = [
     "camera_adaptor",
     "metadata",
 ] }
-edgefirst-hal = "0.9"
+edgefirst-hal = "0.11"
 libc = "0.2"
 ndarray = "0.16"
 

@@ -31,6 +31,7 @@
 //! yolov8 model.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --warmup 5 --iters 100 --save
 //! ```
 
+use std::os::fd::BorrowedFd;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -40,10 +41,9 @@ use edgefirst_hal::{
         Segmentation,
     },
     image::{
-        Crop, Flip, ImageProcessor, ImageProcessorTrait as _, Rect, Rotation, TensorImage, RGB,
-        RGBA,
+        load_image, save_jpeg, Crop, Flip, ImageProcessor, ImageProcessorTrait as _, Rect, Rotation,
     },
-    tensor::{TensorMapTrait as _, TensorTrait as _},
+    tensor::{DType, PixelFormat, TensorDyn, TensorMapTrait as _, TensorTrait as _},
 };
 use edgefirst_tflite::{Delegate, Interpreter, Library, Model, TensorType};
 use ndarray::{ArrayViewD, IxDyn};
@@ -448,7 +448,7 @@ fn run_iterations(
     interpreter: &mut Interpreter<'_>,
     decoder: &edgefirst_hal::decoder::Decoder,
     processor: &mut ImageProcessor,
-    mut overlay: Option<&mut TensorImage>,
+    mut overlay: Option<&mut TensorDyn>,
     dmabuf_handle: Option<edgefirst_tflite::dmabuf::BufferHandle>,
     in_w: usize,
     in_h: usize,
@@ -458,6 +458,8 @@ fn run_iterations(
     let mut masks = Vec::with_capacity(100);
 
     for _ in 0..n {
+        detections.clear();
+        masks.clear();
         let t_total = Instant::now();
 
         // Infer
@@ -641,41 +643,93 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // ── 4. Load and preprocess image (once) ─────────────────────────
     let image_bytes = std::fs::read(&args.image)?;
-    let src = TensorImage::load(&image_bytes, Some(RGBA), None)?;
-    let (img_w, img_h) = (src.width(), src.height());
+    let src = load_image(&image_bytes, Some(PixelFormat::Rgba), None)?;
+    let img_w = src.width().expect("loaded image must have width");
+    let img_h = src.height().expect("loaded image must have height");
     println!("Image: {img_w}x{img_h}");
 
-    let dst_format = if use_camera_adaptor { RGBA } else { RGB };
+    let dst_format = if use_camera_adaptor {
+        PixelFormat::Rgba
+    } else {
+        PixelFormat::Rgb
+    };
     let letterbox = compute_letterbox(img_w, img_h, in_w, in_h);
 
     let t_pre = Instant::now();
-    // Use create_image() for optimal memory backend (DMA-buf > PBO > system).
     let mut processor = ImageProcessor::new()?;
-    let mut dst = processor.create_image(in_w, in_h, dst_format)?;
-    processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
+    let dst_dtype = if input_type == TensorType::Int8 && !use_camera_adaptor {
+        DType::I8
+    } else {
+        DType::U8
+    };
 
-    // ── 5. Write preprocessed pixels to input tensor (once) ─────────
+    // ── 5. Preprocess and write input tensor (once) ───────────────────
+    //
+    // Three paths, selected by hardware capability:
+    //
+    // A. DMA-BUF + integer model: GPU renders directly into VxDelegate's
+    //    DMA-BUF via create_image_from_fd() — zero CPU copies.
+    // B. DMA-BUF + float32 model: GPU renders u8, then normalize f32
+    //    directly into DMA-BUF via mmap — one unavoidable transform.
+    // C. No DMA-BUF (i.MX95, CPU-only): copy into TFLite arena.
     #[allow(unused_variables)]
-    let dmabuf_handle = if use_camera_adaptor && use_dmabuf {
-        let map = dst.tensor().map()?;
-        let pixels = map.as_slice();
-
+    let dmabuf_handle = if use_dmabuf && input_type != TensorType::Float32 {
+        // ── Path A: Zero-copy GPU → DMA-BUF → NPU ────────────────────
         let delegate_ref = interpreter.delegate(0).expect("delegate not found");
         let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
-        let buf_size = in_h * in_w * 4;
+
+        let (buf_size, buf_format, buf_dtype) = if use_camera_adaptor {
+            (in_h * in_w * 4, PixelFormat::Rgba, DType::U8)
+        } else {
+            (in_h * in_w * 3, dst_format, dst_dtype)
+        };
+
+        // VxDelegate allocates DMA-BUF from NPU-preferred CMA heap.
         let (handle, desc) =
             dmabuf.request(0, edgefirst_tflite::dmabuf::Ownership::Delegate, buf_size)?;
         dmabuf.bind_to_tensor(handle, 0)?;
 
+        // HAL wraps VxDelegate's DMA-BUF as GPU render target.
+        // SAFETY: `desc.fd` is a valid DMA-BUF fd owned by VxDelegate
+        // and remains alive for the duration of this scope.
+        let vx_fd = unsafe { BorrowedFd::borrow_raw(desc.fd) };
+        let mut dst = processor.create_image_from_fd(vx_fd, in_w, in_h, buf_format, buf_dtype)?;
+
+        // GPU renders letterboxed image directly into the DMA-BUF.
+        processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
+
+        dmabuf.sync_for_device(handle)?;
+        if use_camera_adaptor {
+            println!("  DMA-BUF + CameraAdaptor: zero-copy GPU → NPU");
+        } else {
+            println!("  DMA-BUF: zero-copy GPU → NPU");
+        }
+        Some(handle)
+    } else if use_dmabuf {
+        // ── Path B: DMA-BUF + float32 — u8→f32 into DMA-BUF ──────────
+        let mut dst = processor.create_image(in_w, in_h, dst_format, DType::U8, None)?;
+        processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
+
+        let t = dst.as_u8().expect("dst must be u8 for float32");
+        let map = t.map()?;
+        let pixels = map.as_slice();
+
+        let delegate_ref = interpreter.delegate(0).expect("delegate not found");
+        let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
+        let f32_size = in_h * in_w * 3 * std::mem::size_of::<f32>();
+        let (handle, desc) =
+            dmabuf.request(0, edgefirst_tflite::dmabuf::Ownership::Delegate, f32_size)?;
+        dmabuf.bind_to_tensor(handle, 0)?;
+
+        // mmap the DMA-BUF and normalize u8→f32 directly into it.
         let (ptr, needs_munmap) = if let Some(p) = desc.map_ptr {
             (p.cast::<u8>(), false)
         } else {
-            // SAFETY: `desc.fd` is a valid DMA-BUF file descriptor returned by
-            // the delegate. We map it as shared + writable for CPU access.
+            // SAFETY: `desc.fd` is a valid DMA-BUF fd from VxDelegate.
             let p = unsafe {
                 libc::mmap(
                     std::ptr::null_mut(),
-                    buf_size,
+                    f32_size,
                     libc::PROT_READ | libc::PROT_WRITE,
                     libc::MAP_SHARED,
                     desc.fd,
@@ -686,74 +740,66 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             (p.cast::<u8>(), true)
         };
 
-        // SAFETY: `ptr` points to `buf_size` bytes of mapped DMA-BUF memory.
-        // `pixels` contains exactly `buf_size` bytes of RGBA data.
-        unsafe {
-            std::ptr::copy_nonoverlapping(pixels.as_ptr(), ptr, pixels.len());
+        // SAFETY: `ptr` points to `f32_size` bytes of DMA-BUF memory.
+        // DMA-BUF mmap'd pointers are page-aligned (≥4096), satisfying f32's
+        // 4-byte alignment requirement.
+        #[allow(clippy::cast_ptr_alignment)]
+        let f32_slice =
+            unsafe { std::slice::from_raw_parts_mut(ptr.cast::<f32>(), in_h * in_w * 3) };
+        for (d, &s) in f32_slice.iter_mut().zip(pixels.iter()) {
+            *d = f32::from(s) / 255.0;
         }
 
         if needs_munmap {
-            // SAFETY: `ptr` was obtained from mmap with size `buf_size`.
-            unsafe { libc::munmap(ptr.cast(), buf_size) };
+            // SAFETY: `ptr` was obtained from mmap with size `f32_size`.
+            unsafe { libc::munmap(ptr.cast(), f32_size) };
         }
 
         dmabuf.sync_for_device(handle)?;
-        println!("  DMA-BUF + CameraAdaptor: RGBA input (zero-copy)");
+        println!("  DMA-BUF: f32 normalize into DMA-BUF");
         Some(handle)
     } else {
-        {
-            let map = dst.tensor().map()?;
-            let pixels = map.as_slice();
-            let mut inputs = interpreter.inputs_mut()?;
-            let input = &mut inputs[0];
+        // ── Path C: No DMA-BUF — copy into TFLite arena ──────────────
+        let mut dst = processor.create_image(in_w, in_h, dst_format, dst_dtype, None)?;
+        processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
 
-            match input_type {
-                TensorType::Float32 => {
-                    let float_data: Vec<f32> =
-                        pixels.iter().map(|&v| f32::from(v) / 255.0).collect();
-                    input.copy_from_slice(&float_data)?;
-                }
-                TensorType::UInt8 => {
-                    input.copy_from_slice(pixels)?;
-                }
-                TensorType::Int8 => {
-                    #[allow(clippy::cast_possible_wrap)]
-                    let i8_data: Vec<i8> =
-                        pixels.iter().map(|&v| v.wrapping_sub(128) as i8).collect();
-                    input.copy_from_slice(&i8_data)?;
-                }
-                _ => {
-                    return Err(format!(
-                        "unsupported input type: {input_type:?} (scale={}, zp={})",
-                        input_quant.scale, input_quant.zero_point
-                    )
-                    .into());
+        let mut inputs = interpreter.inputs_mut()?;
+        let input = &mut inputs[0];
+
+        match input_type {
+            TensorType::Int8 => {
+                let t = dst.as_i8().expect("dst must be i8 for int8 model");
+                let map = t.map()?;
+                input.copy_from_slice(map.as_slice())?;
+            }
+            TensorType::UInt8 => {
+                let t = dst.as_u8().expect("dst must be u8");
+                let map = t.map()?;
+                input.copy_from_slice(map.as_slice())?;
+            }
+            TensorType::Float32 => {
+                let t = dst.as_u8().expect("dst must be u8 for float32");
+                let map = t.map()?;
+                let f32_slice = input.as_mut_slice::<f32>()?;
+                for (d, &s) in f32_slice.iter_mut().zip(map.as_slice().iter()) {
+                    *d = f32::from(s) / 255.0;
                 }
             }
+            _ => {
+                return Err(format!(
+                    "unsupported input type: {input_type:?} (scale={}, zp={})",
+                    input_quant.scale, input_quant.zero_point
+                )
+                .into());
+            }
         }
-
-        if use_dmabuf {
-            let delegate_ref = interpreter.delegate(0).expect("delegate not found");
-            let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
-            let byte_size = {
-                let inputs = interpreter.inputs()?;
-                inputs[0].byte_size()
-            };
-            let (handle, _desc) =
-                dmabuf.request(0, edgefirst_tflite::dmabuf::Ownership::Delegate, byte_size)?;
-            dmabuf.bind_to_tensor(handle, 0)?;
-            dmabuf.sync_for_device(handle)?;
-            println!("  DMA-BUF: bound to input tensor (zero-copy)");
-            Some(handle)
-        } else {
-            None
-        }
+        None
     };
     let preprocess_time = t_pre.elapsed();
 
     // Pre-allocate overlay for rendering (reused across iterations).
     let mut overlay = if args.save {
-        Some(TensorImage::load(&image_bytes, Some(RGBA), None)?)
+        Some(load_image(&image_bytes, Some(PixelFormat::Rgba), None)?)
     } else {
         None
     };
@@ -811,7 +857,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(ref ov) = overlay {
         let stem = args.image.file_stem().unwrap_or_default().to_string_lossy();
         let out_path = args.image.with_file_name(format!("{stem}_overlay.jpg"));
-        ov.save_jpeg(out_path.to_str().unwrap(), 95)?;
+        save_jpeg(ov, out_path.to_str().unwrap(), 95)?;
         println!("  Saved: {}", out_path.display());
     }
 
