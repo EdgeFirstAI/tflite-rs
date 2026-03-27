@@ -37,9 +37,14 @@ Low-level FFI plumbing. No safe wrappers.
 - **`ffi.rs`** -- `bindgen`-generated struct with 164 function pointers,
   loaded at runtime via `libloading` (`--dynamic-loading`).
 - **`discovery.rs`** -- Library discovery with 4-step priority chain (see below).
-- **`vx_ffi.rs`** -- Function pointer structs for the `VxDelegate` DMA-BUF
-  and `CameraAdaptor` C APIs. These are probed separately from the delegate
-  `.so` because they are extension APIs not part of the standard TFLite C API.
+- **`hal_ffi.rs`** -- Function pointer structs for the HAL Delegate DMA-BUF
+  and CameraAdaptor C APIs (`hal_dmabuf_*`, `hal_camera_adaptor_*`), as
+  defined in `edgefirst-hal-capi` (`hal.h`). Also defines `HalDtype`,
+  `HalDmabufTensorInfo`, and `HalCameraAdaptorFormatInfo` — the stable C ABI
+  types shared across all delegate implementations.
+- **`vx_ffi.rs`** -- Function pointer structs for the legacy `VxDelegate`
+  DMA-BUF and `CameraAdaptor` C APIs. These are probed as a fallback for
+  delegates that have not yet adopted the HAL API.
 
 ### `edgefirst-tflite`
 
@@ -51,7 +56,7 @@ Ergonomic, safe Rust API. This is the primary user-facing crate.
   `Interpreter` for running inference.
 - **`tensor.rs`** -- `Tensor` / `TensorMut` for type-safe tensor access.
 - **`delegate.rs`** -- `Delegate` loads hardware acceleration delegates and
-  probes for `VxDelegate` extensions.
+  probes for HAL Delegate and legacy `VxDelegate` extension APIs.
 - **`dmabuf.rs`** -- `DmaBuf` for zero-copy DMA-BUF operations (feature-gated).
 - **`camera_adaptor.rs`** -- `CameraAdaptor` for NPU preprocessing (feature-gated).
 - **`metadata.rs`** -- `Metadata` extraction from model files (feature-gated).
@@ -200,48 +205,101 @@ Each C object has a corresponding RAII wrapper with `impl Drop`:
 `Delegate` also owns the `libloading::Library` for the delegate `.so` as a
 private field (`_lib`), keeping it resident for the delegate's full lifetime.
 
-## VxDelegate Extension Probing
+## Delegate Extension Probing (HAL and VxDelegate)
 
-When a `Delegate` is loaded, the crate probes the delegate `.so` for optional
-VxDelegate symbols (e.g., `VxDelegateRegisterDmaBuf`,
-`VxCameraAdaptorSetFormat`). If found, the function pointers are stored
-alongside the delegate and exposed through `delegate.dmabuf()` and
-`delegate.camera_adaptor()`.
+When a `Delegate` is loaded via `Delegate::load_with_options`, the crate
+immediately probes the delegate `.so` for two independent sets of optional
+extension symbols — the HAL Delegate API (primary) and the legacy `VxDelegate`
+API (deprecated fallback):
+
+```
+tflite_plugin_create_delegate()          ← required (standard TFLite plugin ABI)
+  │
+  ├── HalDmaBufFunctions::try_load()     ← probes hal_dmabuf_* symbols
+  │     └── hal_dmabuf_get_instance()    ← obtains opaque hal_delegate_t handle
+  │
+  ├── HalCameraAdaptorFunctions::try_load()  ← probes hal_camera_adaptor_* symbols
+  │
+  ├── VxDmaBufFunctions::try_load()      ← probes VxDelegate DMA-BUF symbols (legacy)
+  │
+  └── VxCameraAdaptorFunctions::try_load()  ← probes VxDelegate CameraAdaptor symbols (legacy)
+```
+
+All four symbol sets are stored as `Option<T>` fields on `Delegate`. Missing
+symbols produce `None` — probing never fails the load.
+
+**HAL Delegate API** (`hal_ffi.rs`):
+- Defined in `edgefirst-hal-capi` (`hal.h`); stable ABI shared across delegate
+  implementations (e.g., Neutron NPU delegate).
+- `hal_dmabuf_get_instance()` returns an opaque `hal_delegate_t` (`*mut c_void`)
+  handle that is *distinct* from the outer `TfLiteDelegate*`. All subsequent HAL
+  calls pass this inner handle. Both `DmaBuf` and `CameraAdaptor` share the same
+  instance handle — there is no separate `hal_camera_adaptor_get_instance`.
+- DMA-BUF functions operate directly by **tensor index**: `hal_dmabuf_is_supported`,
+  `hal_dmabuf_get_tensor_info`, `hal_dmabuf_sync_for_device`,
+  `hal_dmabuf_sync_for_cpu`.
+- CameraAdaptor functions query format metadata: `hal_camera_adaptor_is_supported`,
+  `hal_camera_adaptor_get_format_info`.
+
+**VxDelegate API** (`vx_ffi.rs`, deprecated):
+- Buffer lifecycle model: explicit register/unregister/request/release cycle,
+  plus `bind_to_tensor`, `set_active`, `begin_cpu_access`, `end_cpu_access`.
+- CameraAdaptor: `set_format`, `set_format_ex`, `set_formats`, `set_fourcc` —
+  configuration-only; no structured format query.
+- All VxDelegate methods on `DmaBuf` and `CameraAdaptor` are marked
+  `#[deprecated]` and will be removed in a future release.
+
+`delegate.dmabuf()` returns `Some(DmaBuf)` if either HAL or VxDelegate DMA-BUF
+symbols were found. `delegate.camera_adaptor()` returns `Some(CameraAdaptor)`
+if either CameraAdaptor symbol set was found. The HAL API is always preferred
+when both are available.
 
 ## DMA-BUF Zero-Copy Data Flow
 
+The HAL Delegate DMA-BUF API operates by tensor index. The delegate owns the
+DMA-BUF allocation; the application only controls cache coherency:
+
 ```
-Camera (V4L2)                    NPU (TIM-VX)
+Camera (V4L2)                    NPU (TIM-VX / Neutron)
   │                                  ▲
-  │  DMA-BUF fd                      │  DMA-BUF fd
+  │  DMA-BUF fd (kernel-allocated)   │  DMA-BUF fd
   ▼                                  │
 ┌──────────────────────────────────────┐
 │             DMA-BUF                  │
 │         (shared memory)              │
 └──────────────────────────────────────┘
-  │                                  ▲
-  │  register + bind_to_tensor       │  sync_for_device
-  ▼                                  │
+           │              ▲
+           │              │
+           ▼              │
 ┌──────────────────────────────────────┐
 │         edgefirst-tflite             │
-│    DmaBuf::register(fd, size, sync) │
-│    DmaBuf::bind_to_tensor(h, idx)   │
-│    Interpreter::invoke()             │
+│    dmabuf.tensor_info(idx)           │  ← query fd, shape, dtype from delegate
+│    dmabuf.sync_for_device(idx)       │  ← flush CPU caches (HAL: by tensor index)
+│    interpreter.invoke()              │
+│    dmabuf.sync_for_cpu(idx)          │  ← invalidate CPU caches after NPU writes
 └──────────────────────────────────────┘
 ```
 
-1. Camera produces frames into DMA-BUF buffers.
-2. Application registers the buffer fd with `DmaBuf::register()`.
-3. Buffer is bound to an input tensor with `DmaBuf::bind_to_tensor()`.
-4. `sync_for_device()` ensures cache coherency before NPU access.
-5. `Interpreter::invoke()` runs inference using the bound buffer directly.
-6. `sync_for_cpu()` ensures output data is visible to the CPU.
+**HAL DMA-BUF flow (primary):**
+1. Delegate allocates DMA-BUF buffers internally during `AllocateTensors`.
+2. Application calls `DmaBuf::tensor_info(index)` to retrieve the fd, shape, dtype,
+   and byte size for a tensor.
+3. `DmaBuf::sync_for_device(index)` flushes CPU caches before NPU reads input.
+4. `Interpreter::invoke()` runs inference; the NPU accesses buffers directly.
+5. `DmaBuf::sync_for_cpu(index)` invalidates CPU caches before reading output.
 
-No `memcpy` occurs between camera capture and NPU inference.
+**VxDelegate DMA-BUF flow (legacy, deprecated):**
+Buffer lifecycle must be managed explicitly: `register` → `bind_to_tensor` →
+`sync_for_device` / `sync_for_cpu` → `unregister`. Or delegate-allocated:
+`request` → `bind_to_tensor` → ... → `release`. These methods are deprecated
+and will be removed in a future release.
+
+No `memcpy` occurs between camera capture and NPU inference with either path.
 
 ## CameraAdaptor NPU Preprocessing
 
-The `CameraAdaptor` API injects preprocessing nodes into the TIM-VX graph:
+The `CameraAdaptor` API injects preprocessing nodes into the NPU inference graph
+(TIM-VX / Neutron), so format conversion and resize run on the NPU rather than the CPU:
 
 ```
 Camera (RGBA) ──► CameraAdaptor (NPU) ──► Model Input (RGB 224x224)
@@ -251,8 +309,27 @@ Camera (RGBA) ──► CameraAdaptor (NPU) ──► Model Input (RGB 224x224)
                     └── Letterbox (optional)
 ```
 
-These operations run on the NPU as part of the inference graph, avoiding CPU
-preprocessing overhead.
+**HAL CameraAdaptor API (primary):**
+- `CameraAdaptor::is_format_supported(format)` — checks whether the delegate
+  supports a named format (e.g., `"rgba"`, `"nv12"`).
+- `CameraAdaptor::format_info(format)` — returns a `FormatInfo` with
+  `input_channels`, `output_channels`, and the V4L2 `FourCC` code. Backed by
+  `hal_camera_adaptor_get_format_info`; falls back to assembling the result
+  from individual `VxDelegate` query functions when HAL is unavailable.
+
+**VxDelegate CameraAdaptor API (legacy, deprecated):**
+- `set_format(tensor_index, format)` — configure a single format string.
+- `set_format_ex(tensor_index, format, width, height, letterbox, letterbox_color)` —
+  configure with explicit resize and letterbox parameters.
+- `set_formats(tensor_index, camera_format, model_format)` — configure explicit
+  camera and model format pair.
+- `set_fourcc(tensor_index, fourcc)` — configure by raw V4L2 `FourCC` code.
+- All `set_*` methods are deprecated and will be removed in a future release.
+
+The HAL API does not expose format *configuration* methods — format selection is
+handled inside the delegate during graph compilation. The application only needs
+to query supported formats via `is_format_supported` / `format_info` and supply
+the appropriate DMA-BUF to the input tensor.
 
 ## Error Handling
 
