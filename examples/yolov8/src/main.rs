@@ -442,7 +442,7 @@ fn decode_outputs(
 // ── Pipeline iteration ───────────────────────────────────────────────────────
 
 /// Run n iterations of invoke → decode → draw, collecting per-stage timings.
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
+#[allow(clippy::too_many_arguments, clippy::type_complexity, deprecated)]
 fn run_iterations(
     n: usize,
     interpreter: &mut Interpreter<'_>,
@@ -468,10 +468,10 @@ fn run_iterations(
         timings.infer.push(ms(t_inf.elapsed()));
 
         // DMA-BUF sync
-        if let Some(handle) = dmabuf_handle {
+        if dmabuf_handle.is_some() {
             let delegate_ref = interpreter.delegate(0).expect("delegate not found");
             let dmabuf = delegate_ref.dmabuf().expect("DMA-BUF not available");
-            dmabuf.sync_for_cpu(handle)?;
+            dmabuf.sync_for_cpu(0)?;
         }
 
         // Decode
@@ -532,6 +532,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         if d.has_camera_adaptor() {
             if let Some(adaptor) = d.camera_adaptor() {
+                #[allow(deprecated)]
                 adaptor.set_format(0, "rgba")?;
                 use_camera_adaptor = true;
                 println!("  CameraAdaptor: enabled (RGBA -> RGB on NPU)");
@@ -672,7 +673,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // B. DMA-BUF + float32 model: GPU renders u8, then normalize f32
     //    directly into DMA-BUF via mmap — one unavoidable transform.
     // C. No DMA-BUF (i.MX95, CPU-only): copy into TFLite arena.
-    #[allow(unused_variables)]
+    #[allow(unused_variables, deprecated)]
     let dmabuf_handle = if use_dmabuf && input_type != TensorType::Float32 {
         // ── Path A: Zero-copy GPU → DMA-BUF → NPU ────────────────────
         let delegate_ref = interpreter.delegate(0).expect("delegate not found");
@@ -698,7 +699,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // GPU renders letterboxed image directly into the DMA-BUF.
         processor.convert(&src, &mut dst, Rotation::None, Flip::None, letterbox)?;
 
-        dmabuf.sync_for_device(handle)?;
+        dmabuf.sync_for_device(0)?;
         if use_camera_adaptor {
             println!("  DMA-BUF + CameraAdaptor: zero-copy GPU → NPU");
         } else {
@@ -755,7 +756,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             unsafe { libc::munmap(ptr.cast(), f32_size) };
         }
 
-        dmabuf.sync_for_device(handle)?;
+        dmabuf.sync_for_device(0)?;
         println!("  DMA-BUF: f32 normalize into DMA-BUF");
         Some(handle)
     } else {

@@ -3,8 +3,8 @@
 
 //! DMA-BUF zero-copy inference example.
 //!
-//! Demonstrates loading a VxDelegate, registering a DMA-BUF, binding it to
-//! an input tensor, and running inference without CPU-side memory copies.
+//! Demonstrates loading a delegate, querying DMA-BUF tensor metadata via the
+//! HAL Delegate API, and running inference with zero-copy cache synchronization.
 //!
 //! ```sh
 //! cargo run -p dmabuf-zero-copy -- model.tflite libvx_delegate.so
@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let lib = Library::new()?;
     let model = Model::from_file(&lib, &model_path)?;
 
-    // Load the VxDelegate for NPU acceleration.
+    // Load the delegate for NPU acceleration.
     let delegate = Delegate::load(&delegate_path)?;
 
     // Check for DMA-BUF support.
@@ -47,21 +47,33 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("DMA-BUF is_supported: {}", dmabuf.is_supported());
 
+    // Query tensor DMA-BUF metadata via the HAL Delegate API.
+    match dmabuf.tensor_info(0) {
+        Ok(info) => {
+            println!("Input tensor[0] DMA-BUF info:");
+            println!("  fd:     {}", info.fd);
+            println!("  size:   {} bytes", info.size);
+            println!("  offset: {}", info.offset);
+            println!("  shape:  {:?}", info.shape);
+            println!("  dtype:  {}", info.dtype);
+        }
+        Err(e) => {
+            println!("tensor_info not available: {e}");
+        }
+    }
+
     // In a real application, you would get a DMA-BUF fd from V4L2, DRM, etc.
-    // Here we show the API workflow:
+    // Here we show the HAL API workflow:
     //
-    //   let handle = dmabuf.register(camera_fd, buffer_size, SyncMode::None)?;
-    //   dmabuf.bind_to_tensor(handle, 0)?;
+    //   // Query input tensor DMA-BUF info
+    //   let info = dmabuf.tensor_info(0)?;
+    //   // ... write data into the DMA-BUF via info.fd ...
     //
     //   // For each frame:
-    //   dmabuf.sync_for_device(handle)?;
+    //   dmabuf.sync_for_device(0)?;    // flush CPU caches for NPU
     //   interpreter.invoke()?;
-    //   dmabuf.sync_for_cpu(handle)?;
+    //   dmabuf.sync_for_cpu(0)?;       // invalidate caches for CPU
     //   // ... read output tensors ...
-    //
-    //   dmabuf.unregister(handle)?;
-
-    println!("Graph compiled: {}", dmabuf.is_graph_compiled());
 
     // Run inference.
     interpreter.invoke()?;

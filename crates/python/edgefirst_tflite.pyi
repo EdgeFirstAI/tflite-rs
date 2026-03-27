@@ -25,6 +25,11 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+try:
+    from typing import deprecated
+except ImportError:
+    from typing_extensions import deprecated
+
 import numpy as np
 import numpy.typing as npt
 
@@ -329,20 +334,56 @@ def load_delegate(
 # ---------------------------------------------------------------------------
 
 class DmaBuf:
-    """DMA-BUF zero-copy interface for VxDelegate.
+    """DMA-BUF zero-copy interface for TFLite delegates.
 
-    Enables zero-copy inference by binding DMA-BUF file descriptors
-    directly to TFLite tensors, avoiding CPU-side memory copies.
+    Uses the HAL Delegate DMA-BUF API as the primary backend, with
+    legacy VxDelegate methods available as deprecated fallbacks.
 
     Obtained via ``interp.dmabuf()`` or ``delegate_ref.dmabuf()``.
     """
+
+    # --- Primary API (HAL Delegate DMA-BUF) ---
 
     def is_supported(self) -> bool:
         """Check if DMA-BUF zero-copy is supported by the hardware."""
         ...
 
+    def tensor_info(self, tensor_index: int) -> dict[str, object]:
+        """Get DMA-BUF tensor information for a given tensor index.
+
+        Returns a dict with keys:
+            - ``fd`` (int): DMA-BUF file descriptor (borrowed, do NOT close).
+            - ``size`` (int): Buffer size in bytes.
+            - ``offset`` (int): Byte offset within the DMA-BUF.
+            - ``shape`` (list[int]): Tensor dimensions.
+            - ``dtype`` (str): Element data type (e.g., ``"u8"``, ``"f32"``).
+
+        Requires the HAL Delegate DMA-BUF API.
+        """
+        ...
+
+    def sync_for_device(self, tensor_index: int) -> None:
+        """Sync tensor buffer for device (NPU) access by tensor index.
+
+        Flushes CPU caches so the device can read the buffer contents.
+        """
+        ...
+
+    def sync_for_cpu(self, tensor_index: int) -> None:
+        """Sync tensor buffer for CPU access by tensor index.
+
+        Invalidates CPU caches so the CPU sees device-written data.
+        """
+        ...
+
+    # --- Legacy VxDelegate API (deprecated) ---
+
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def register(self, fd: int, size: int, sync_mode: str = "none") -> int:
         """Register an externally-allocated DMA-BUF (import mode).
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
 
         Args:
             fd: DMA-BUF file descriptor.
@@ -355,10 +396,16 @@ class DmaBuf:
         """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def unregister(self, handle: int) -> None:
-        """Unregister a previously registered DMA-BUF."""
+        """Unregister a previously registered DMA-BUF.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def request(
         self,
         tensor_index: int,
@@ -366,6 +413,9 @@ class DmaBuf:
         size: int = 0,
     ) -> tuple[int, dict[str, object]]:
         """Request the delegate to allocate a DMA-BUF (export mode).
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
 
         Args:
             tensor_index: Tensor to allocate a buffer for.
@@ -378,48 +428,103 @@ class DmaBuf:
         """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def release(self, handle: int) -> None:
-        """Release a delegate-allocated DMA-BUF."""
+        """Release a delegate-allocated DMA-BUF.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def bind_to_tensor(self, handle: int, tensor_index: int) -> None:
-        """Bind a DMA-BUF to a tensor for zero-copy inference."""
+        """Bind a DMA-BUF to a tensor for zero-copy inference.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, use tensor_info() instead; will be removed in a future release")
     def fd(self, handle: int) -> int:
-        """Get the file descriptor for a buffer handle."""
+        """Get the file descriptor for a buffer handle.
+
+        .. deprecated::
+            VxDelegate-specific, use ``tensor_info()`` instead.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, use sync_for_cpu() instead; will be removed in a future release")
     def begin_cpu_access(self, handle: int, mode: str = "read") -> None:
-        """Begin CPU access to a DMA-BUF (ensure cache coherency)."""
+        """Begin CPU access to a DMA-BUF (ensure cache coherency).
+
+        .. deprecated::
+            VxDelegate-specific, use ``sync_for_cpu()`` instead.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, use sync_for_device() instead; will be removed in a future release")
     def end_cpu_access(self, handle: int, mode: str = "read") -> None:
-        """End CPU access to a DMA-BUF (flush caches)."""
+        """End CPU access to a DMA-BUF (flush caches).
+
+        .. deprecated::
+            VxDelegate-specific, use ``sync_for_device()`` instead.
+        """
         ...
 
-    def sync_for_device(self, handle: int) -> None:
-        """Sync buffer for device (NPU) access."""
+    @deprecated("VxDelegate-specific, use sync_for_device(tensor_index) instead; will be removed in a future release")
+    def sync_for_device_by_handle(self, handle: int) -> None:
+        """Sync buffer for device (NPU) access by buffer handle.
+
+        .. deprecated::
+            VxDelegate-specific, use ``sync_for_device(tensor_index)`` instead.
+        """
         ...
 
-    def sync_for_cpu(self, handle: int) -> None:
-        """Sync buffer for CPU access."""
+    @deprecated("VxDelegate-specific, use sync_for_cpu(tensor_index) instead; will be removed in a future release")
+    def sync_for_cpu_by_handle(self, handle: int) -> None:
+        """Sync buffer for CPU access by buffer handle.
+
+        .. deprecated::
+            VxDelegate-specific, use ``sync_for_cpu(tensor_index)`` instead.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def set_active(self, tensor_index: int, handle: int) -> None:
-        """Set the active DMA-BUF for a tensor (buffer pool cycling)."""
+        """Set the active DMA-BUF for a tensor (buffer pool cycling).
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def active_buffer(self, tensor_index: int) -> int | None:
-        """Get the currently active buffer handle for a tensor."""
+        """Get the currently active buffer handle for a tensor.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def invalidate_graph(self) -> None:
-        """Invalidate the compiled graph (forces recompilation on next invoke)."""
+        """Invalidate the compiled graph (forces recompilation on next invoke).
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def is_graph_compiled(self) -> bool:
-        """Check if the graph has been compiled."""
+        """Check if the graph has been compiled.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
 # ---------------------------------------------------------------------------
@@ -427,17 +532,47 @@ class DmaBuf:
 # ---------------------------------------------------------------------------
 
 class CameraAdaptor:
-    """NPU-accelerated camera format conversion via VxDelegate.
+    """NPU-accelerated camera format conversion.
 
-    Configures the delegate to inject format conversion operations
-    (e.g., RGBA to RGB) into the TIM-VX graph, running them on the NPU
-    instead of the CPU.
+    Uses the HAL Delegate Camera Adaptor API as the primary backend,
+    with legacy VxDelegate methods available as deprecated fallbacks.
 
     Obtained via ``interp.camera_adaptor()`` or ``delegate_ref.camera_adaptor()``.
     """
 
+    # --- Primary API (HAL Delegate Camera Adaptor) ---
+
+    def is_format_supported(self, format: str) -> bool:
+        """Check if a format string is supported by this delegate.
+
+        Uses the HAL API when available, falling back to VxDelegate.
+
+        Args:
+            format: Format string (e.g., ``"rgba"``, ``"bgra"``).
+        """
+        ...
+
+    def format_info(self, format: str) -> dict[str, object]:
+        """Get format information for a camera format string.
+
+        Returns a dict with keys:
+            - ``input_channels`` (int): Number of input channels.
+            - ``output_channels`` (int): Number of output channels.
+            - ``fourcc`` (str): V4L2 FourCC code string.
+
+        Args:
+            format: Format string (e.g., ``"rgba"``).
+        """
+        ...
+
+    # --- Legacy VxDelegate API (deprecated) ---
+
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def set_format(self, tensor_index: int, format: str) -> None:
         """Set the camera format for an input tensor.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
 
         Args:
             tensor_index: Input tensor index.
@@ -445,6 +580,7 @@ class CameraAdaptor:
         """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def set_format_ex(
         self,
         tensor_index: int,
@@ -456,6 +592,9 @@ class CameraAdaptor:
     ) -> None:
         """Set camera format with resize and letterbox options.
 
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+
         Args:
             tensor_index: Input tensor index.
             format: Format string.
@@ -466,6 +605,7 @@ class CameraAdaptor:
         """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def set_formats(
         self,
         tensor_index: int,
@@ -474,6 +614,9 @@ class CameraAdaptor:
     ) -> None:
         """Set explicit camera and model formats.
 
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+
         Args:
             tensor_index: Input tensor index.
             camera_format: Input format from camera (e.g., ``"rgba"``).
@@ -481,8 +624,12 @@ class CameraAdaptor:
         """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def set_fourcc(self, tensor_index: int, fourcc: int) -> None:
         """Set camera format using a V4L2 FourCC code.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
 
         Args:
             tensor_index: Input tensor index.
@@ -490,28 +637,58 @@ class CameraAdaptor:
         """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def format(self, tensor_index: int) -> str | None:
-        """Get the current format for an input tensor."""
+        """Get the current format for an input tensor.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, use is_format_supported() instead; will be removed in a future release")
     def is_supported(self, format: str) -> bool:
-        """Check if a format string is supported."""
+        """Check if a format string is supported.
+
+        .. deprecated::
+            VxDelegate-specific, use ``is_format_supported()`` instead.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, use format_info() instead; will be removed in a future release")
     def input_channels(self, format: str) -> int:
-        """Get the number of input channels for a format."""
+        """Get the number of input channels for a format.
+
+        .. deprecated::
+            VxDelegate-specific, use ``format_info()`` instead.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, use format_info() instead; will be removed in a future release")
     def output_channels(self, format: str) -> int:
-        """Get the number of output channels for a format."""
+        """Get the number of output channels for a format.
+
+        .. deprecated::
+            VxDelegate-specific, use ``format_info()`` instead.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, use format_info() instead; will be removed in a future release")
     def fourcc(self, format: str) -> str | None:
-        """Get the FourCC code string for a format."""
+        """Get the FourCC code string for a format.
+
+        .. deprecated::
+            VxDelegate-specific, use ``format_info()`` instead.
+        """
         ...
 
+    @deprecated("VxDelegate-specific, will be removed in a future release")
     def from_fourcc(self, fourcc: str) -> str | None:
-        """Convert a FourCC code to a format string."""
+        """Convert a FourCC code to a format string.
+
+        .. deprecated::
+            VxDelegate-specific, will be removed in a future release.
+        """
         ...
 
 # ---------------------------------------------------------------------------

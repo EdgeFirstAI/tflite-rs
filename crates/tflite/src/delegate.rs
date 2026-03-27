@@ -7,7 +7,7 @@
 //! common delegate for i.MX platforms is the `VxDelegate`, which offloads
 //! operations to the NPU.
 
-use std::ffi::CString;
+use std::ffi::{c_void, CString};
 use std::path::Path;
 use std::ptr::{self, NonNull};
 
@@ -16,7 +16,13 @@ use edgefirst_tflite_sys::TfLiteDelegate;
 use crate::error::{Error, Result};
 
 #[cfg(feature = "dmabuf")]
+use edgefirst_tflite_sys::hal_ffi::HalDmaBufFunctions;
+
+#[cfg(feature = "dmabuf")]
 use edgefirst_tflite_sys::vx_ffi::VxDmaBufFunctions;
+
+#[cfg(feature = "camera_adaptor")]
+use edgefirst_tflite_sys::hal_ffi::HalCameraAdaptorFunctions;
 
 #[cfg(feature = "camera_adaptor")]
 use edgefirst_tflite_sys::vx_ffi::VxCameraAdaptorFunctions;
@@ -91,11 +97,38 @@ pub struct Delegate {
     _lib: libloading::Library,
 
     #[cfg(feature = "dmabuf")]
+    hal_dmabuf_fns: Option<HalDmaBufFunctions>,
+
+    /// Inner delegate handle returned by `hal_dmabuf_get_instance()`.
+    ///
+    /// This is the opaque `hal_delegate_t` (`*mut c_void`) that HAL API
+    /// functions expect as their first argument. It is distinct from the
+    /// `TfLiteDelegate*` outer pointer and must be used for all HAL calls.
+    /// Both `DmaBuf` and `CameraAdaptor` share this same handle.
+    #[cfg(feature = "dmabuf")]
+    hal_delegate_handle: Option<*mut c_void>,
+
+    #[cfg(feature = "dmabuf")]
     dmabuf_fns: Option<VxDmaBufFunctions>,
+
+    #[cfg(feature = "camera_adaptor")]
+    hal_camera_fns: Option<HalCameraAdaptorFunctions>,
 
     #[cfg(feature = "camera_adaptor")]
     camera_adaptor_fns: Option<VxCameraAdaptorFunctions>,
 }
+
+// SAFETY: `hal_delegate_handle` is a raw pointer obtained from
+// `hal_dmabuf_get_instance()`. The HAL contract guarantees this pointer
+// is valid and stable for the lifetime of the loaded delegate library.
+// `Delegate` is the sole owner and never shares the handle concurrently.
+#[cfg(feature = "dmabuf")]
+// SAFETY: See above — the handle is stable and not concurrently accessed.
+unsafe impl Send for Delegate {}
+#[cfg(feature = "dmabuf")]
+// SAFETY: All HAL API methods take `&self` and the underlying C functions
+// are thread-safe per the HAL contract.
+unsafe impl Sync for Delegate {}
 
 impl Delegate {
     /// Load an external delegate from a shared library with default options.
@@ -193,11 +226,38 @@ impl Delegate {
         // Copy the destroy function pointer before lib is stored.
         let free = *destroy_fn;
 
-        // Probe for VxDelegate extensions.
+        // Probe for delegate DMA-BUF extensions.
         #[cfg(feature = "dmabuf")]
         // SAFETY: `lib` is a valid loaded library. `try_load` resolves
         // optional symbols; missing symbols return `None`, not UB.
+        let hal_dmabuf_fns = unsafe { HalDmaBufFunctions::try_load(&lib) };
+
+        // Call `hal_dmabuf_get_instance()` to obtain the inner delegate handle.
+        // This is the opaque `hal_delegate_t` pointer that all HAL API calls
+        // expect. A null result means HAL is not available on this device.
+        #[cfg(feature = "dmabuf")]
+        let hal_delegate_handle: Option<*mut c_void> = hal_dmabuf_fns.as_ref().and_then(|fns| {
+            // SAFETY: `get_instance` is a valid function pointer loaded from
+            // the delegate library. It takes no arguments and returns an opaque
+            // handle that is valid for the lifetime of the library.
+            let ptr = unsafe { (fns.get_instance)() };
+            if ptr.is_null() {
+                None
+            } else {
+                Some(ptr)
+            }
+        });
+
+        #[cfg(feature = "dmabuf")]
+        // SAFETY: Same as above — resolves optional VxDelegate DMA-BUF
+        // symbols as a fallback for delegates that haven't adopted the
+        // HAL DMA-BUF API yet.
         let dmabuf_fns = unsafe { VxDmaBufFunctions::try_load(&lib) };
+
+        #[cfg(feature = "camera_adaptor")]
+        // SAFETY: Same as above — resolves optional HAL Camera Adaptor
+        // symbols from the loaded library.
+        let hal_camera_fns = unsafe { HalCameraAdaptorFunctions::try_load(&lib) };
 
         #[cfg(feature = "camera_adaptor")]
         // SAFETY: Same as `VxDmaBufFunctions::try_load` above — resolves
@@ -209,7 +269,13 @@ impl Delegate {
             free,
             _lib: lib,
             #[cfg(feature = "dmabuf")]
+            hal_dmabuf_fns,
+            #[cfg(feature = "dmabuf")]
+            hal_delegate_handle,
+            #[cfg(feature = "dmabuf")]
             dmabuf_fns,
+            #[cfg(feature = "camera_adaptor")]
+            hal_camera_fns,
             #[cfg(feature = "camera_adaptor")]
             camera_adaptor_fns,
         })
@@ -225,35 +291,66 @@ impl Delegate {
     }
 
     /// Access DMA-BUF extensions if available on this delegate.
+    ///
+    /// Returns `Some` if the delegate exports either the HAL Delegate
+    /// DMA-BUF API (`hal_dmabuf_*`) or the legacy `VxDelegate` DMA-BUF API.
+    /// The HAL API is preferred when both are available.
     #[cfg(feature = "dmabuf")]
     #[must_use]
     pub fn dmabuf(&self) -> Option<crate::dmabuf::DmaBuf<'_>> {
-        self.dmabuf_fns
-            .as_ref()
-            .map(|fns| crate::dmabuf::DmaBuf::new(self.delegate, fns))
+        if self.hal_dmabuf_fns.is_some() || self.dmabuf_fns.is_some() {
+            Some(crate::dmabuf::DmaBuf::new(
+                self.delegate,
+                self.hal_delegate_handle,
+                self.hal_dmabuf_fns.as_ref(),
+                self.dmabuf_fns.as_ref(),
+            ))
+        } else {
+            None
+        }
     }
 
     /// Returns `true` if this delegate supports DMA-BUF zero-copy.
     #[cfg(feature = "dmabuf")]
     #[must_use]
     pub fn has_dmabuf(&self) -> bool {
-        self.dmabuf_fns.is_some()
+        self.hal_dmabuf_fns.is_some() || self.dmabuf_fns.is_some()
     }
 
     /// Access `CameraAdaptor` extensions if available on this delegate.
+    ///
+    /// Returns `Some` if the delegate exports either the HAL Delegate
+    /// Camera Adaptor API (`hal_camera_adaptor_*`) or the legacy
+    /// `VxDelegate` `CameraAdaptor` API. The HAL API is preferred when
+    /// both are available.
     #[cfg(feature = "camera_adaptor")]
     #[must_use]
     pub fn camera_adaptor(&self) -> Option<crate::camera_adaptor::CameraAdaptor<'_>> {
-        self.camera_adaptor_fns
-            .as_ref()
-            .map(|fns| crate::camera_adaptor::CameraAdaptor::new(self.delegate, fns))
+        if self.hal_camera_fns.is_some() || self.camera_adaptor_fns.is_some() {
+            // The CameraAdaptor HAL API reuses the same inner delegate handle
+            // as the DMA-BUF HAL API — there is no separate
+            // `hal_camera_adaptor_get_instance`.
+            #[cfg(feature = "dmabuf")]
+            let hal_handle = self.hal_delegate_handle;
+            #[cfg(not(feature = "dmabuf"))]
+            let hal_handle: Option<*mut std::ffi::c_void> = None;
+
+            Some(crate::camera_adaptor::CameraAdaptor::new(
+                self.delegate,
+                hal_handle,
+                self.hal_camera_fns.as_ref(),
+                self.camera_adaptor_fns.as_ref(),
+            ))
+        } else {
+            None
+        }
     }
 
     /// Returns `true` if this delegate supports `CameraAdaptor`.
     #[cfg(feature = "camera_adaptor")]
     #[must_use]
     pub fn has_camera_adaptor(&self) -> bool {
-        self.camera_adaptor_fns.is_some()
+        self.hal_camera_fns.is_some() || self.camera_adaptor_fns.is_some()
     }
 }
 
@@ -264,10 +361,22 @@ impl std::fmt::Debug for Delegate {
         d.field("ptr", &self.delegate);
 
         #[cfg(feature = "dmabuf")]
-        d.field("has_dmabuf", &self.dmabuf_fns.is_some());
+        d.field("has_hal_dmabuf", &self.hal_dmabuf_fns.is_some());
+
+        #[cfg(feature = "dmabuf")]
+        d.field(
+            "has_hal_delegate_handle",
+            &self.hal_delegate_handle.is_some(),
+        );
+
+        #[cfg(feature = "dmabuf")]
+        d.field("has_vx_dmabuf", &self.dmabuf_fns.is_some());
 
         #[cfg(feature = "camera_adaptor")]
-        d.field("has_camera_adaptor", &self.camera_adaptor_fns.is_some());
+        d.field("has_hal_camera_adaptor", &self.hal_camera_fns.is_some());
+
+        #[cfg(feature = "camera_adaptor")]
+        d.field("has_vx_camera_adaptor", &self.camera_adaptor_fns.is_some());
 
         d.finish_non_exhaustive()
     }

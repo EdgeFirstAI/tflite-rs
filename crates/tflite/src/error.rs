@@ -243,6 +243,23 @@ impl From<libloading::Error> for Error {
 }
 
 // ---------------------------------------------------------------------------
+// hal_to_result
+// ---------------------------------------------------------------------------
+
+/// Convert a HAL DMA-BUF return code to a [`Result`].
+///
+/// HAL functions return `0` on success and `-1` on error (with `errno` set).
+/// On failure, the errno value is captured via [`std::io::Error::last_os_error`]
+/// and included in the error context.
+pub(crate) fn hal_to_result(ret: std::ffi::c_int, context: &str) -> Result<()> {
+    if ret == 0 {
+        return Ok(());
+    }
+    let os_err = std::io::Error::last_os_error();
+    Err(Error::status(StatusCode::DelegateError).with_context(format!("{context}: {os_err}")))
+}
+
+// ---------------------------------------------------------------------------
 // status_to_result
 // ---------------------------------------------------------------------------
 

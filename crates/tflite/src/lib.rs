@@ -30,7 +30,7 @@
 //!
 //! | Feature | Description |
 //! |---------|-------------|
-//! | `dmabuf` | DMA-BUF zero-copy inference via `VxDelegate` |
+//! | `dmabuf` | DMA-BUF zero-copy inference via HAL Delegate API |
 //! | `camera_adaptor` | NPU-accelerated format conversion |
 //! | `metadata` | `TFLite` model metadata extraction |
 //! | `full` | Enables all optional features |

@@ -4,11 +4,12 @@
 //! Python `CameraAdaptor` class for NPU-accelerated preprocessing.
 
 use pyo3::prelude::*;
+use pyo3::types::PyDict;
 
 use crate::error::{self, TfLiteError};
 use crate::interpreter::PyInterpreter;
 
-/// `CameraAdaptor` interface for `VxDelegate` NPU format conversion.
+/// `CameraAdaptor` interface for delegate NPU format conversion.
 ///
 /// Obtained via `interp.delegate(0)` and accessing `CameraAdaptor` methods.
 /// The interpreter must remain alive while this object is in use.
@@ -27,7 +28,7 @@ impl std::fmt::Debug for PyCameraAdaptor {
 }
 
 impl PyCameraAdaptor {
-    /// Helper: borrow interpreter → delegate → `camera_adaptor`, call `f`.
+    /// Helper: borrow interpreter -> delegate -> `camera_adaptor`, call `f`.
     fn with_adaptor<F, R>(&self, py: Python<'_>, f: F) -> PyResult<R>
     where
         F: FnOnce(&edgefirst_tflite::camera_adaptor::CameraAdaptor<'_>) -> PyResult<R>,
@@ -43,7 +44,36 @@ impl PyCameraAdaptor {
 }
 
 #[pymethods]
+#[allow(deprecated)]
 impl PyCameraAdaptor {
+    // =======================================================================
+    // Primary API (HAL Delegate Camera Adaptor)
+    // =======================================================================
+
+    /// Check if a format string is supported by this delegate.
+    fn is_format_supported(&self, py: Python<'_>, format: &str) -> PyResult<bool> {
+        self.with_adaptor(py, |a| Ok(a.is_format_supported(format)))
+    }
+
+    /// Get format information for a camera format string.
+    ///
+    /// Returns a dict with keys: ``input_channels`` (int),
+    /// ``output_channels`` (int), ``fourcc`` (str).
+    fn format_info<'py>(&self, py: Python<'py>, format: &str) -> PyResult<Bound<'py, PyDict>> {
+        self.with_adaptor(py, |a| {
+            let info = a.format_info(format).map_err(error::to_py_err)?;
+            let dict = PyDict::new(py);
+            dict.set_item("input_channels", info.input_channels)?;
+            dict.set_item("output_channels", info.output_channels)?;
+            dict.set_item("fourcc", info.fourcc)?;
+            Ok(dict)
+        })
+    }
+
+    // =======================================================================
+    // Legacy `VxDelegate` API (deprecated)
+    // =======================================================================
+
     /// Set the camera format for an input tensor.
     fn set_format(&self, py: Python<'_>, tensor_index: i32, format: &str) -> PyResult<()> {
         self.with_adaptor(py, |a| {

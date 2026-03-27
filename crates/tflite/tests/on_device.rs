@@ -25,6 +25,10 @@
 //!     VX_DELEGATE_LIB=/usr/lib/libvx_delegate.so ./on_device-*'
 //! ```
 
+// Allow deprecated VxDelegate API usage in on-device tests until
+// the test suite is migrated to the HAL Delegate API.
+#![allow(deprecated)]
+
 mod common;
 
 // ---------------------------------------------------------------------------
@@ -235,7 +239,7 @@ mod dmabuf_export {
         );
 
         // Verify fd matches via get_fd
-        let queried_fd = dmabuf.fd(handle).expect("get_fd failed");
+        let queried_fd = dmabuf.buffer_fd(handle).expect("get_fd failed");
         assert_eq!(queried_fd, desc.fd);
     }
 
@@ -455,17 +459,15 @@ mod dmabuf_sync {
         let inputs = interp.inputs().unwrap();
         let in_size = inputs[0].byte_size();
 
-        let (handle, _desc) = dmabuf
+        let (_handle, _desc) = dmabuf
             .request(0, Ownership::Delegate, in_size)
             .expect("request failed");
 
         // Sync for device (flush CPU writes before NPU reads)
-        dmabuf
-            .sync_for_device(handle)
-            .expect("sync_for_device failed");
+        dmabuf.sync_for_device(0).expect("sync_for_device failed");
 
         // Sync for CPU (invalidate cache before CPU reads NPU output)
-        dmabuf.sync_for_cpu(handle).expect("sync_for_cpu failed");
+        dmabuf.sync_for_cpu(0).expect("sync_for_cpu failed");
     }
 }
 
@@ -802,9 +804,7 @@ mod camera_adaptor_integration {
         // 5. Sync and invoke
         let delegate = interp.delegate(0).unwrap();
         let dmabuf = delegate.dmabuf().unwrap();
-        dmabuf
-            .sync_for_device(in_handle)
-            .expect("sync_for_device failed");
+        dmabuf.sync_for_device(0).expect("sync_for_device failed");
 
         interp.invoke().expect("invoke failed");
 
@@ -1072,9 +1072,7 @@ mod real_model {
             .expect("bind input failed");
 
         // 4. Sync and invoke
-        dmabuf
-            .sync_for_device(in_handle)
-            .expect("sync_for_device failed");
+        dmabuf.sync_for_device(0).expect("sync_for_device failed");
 
         // Zero-fill input via CPU tensor
         {
@@ -1090,7 +1088,7 @@ mod real_model {
         // 5. Read output
         let delegate = interp.delegate(0).unwrap();
         let dmabuf = delegate.dmabuf().unwrap();
-        dmabuf.sync_for_cpu(in_handle).expect("sync_for_cpu failed");
+        dmabuf.sync_for_cpu(0).expect("sync_for_cpu failed");
 
         let outputs = interp.outputs().unwrap();
         for (i, output) in outputs.iter().enumerate() {

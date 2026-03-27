@@ -14,11 +14,14 @@
 //! Use [`discovery::discover`] to automatically find and load the `TFLite`
 //! shared library, or [`discovery::load`] to load from a specific path.
 //!
-//! # `VxDelegate` Extensions
+//! # Delegate Extensions
+//!
+//! The [`hal_ffi`] module provides function pointer structs for the
+//! HAL Delegate DMA-BUF API (the standard, delegate-agnostic interface).
 //!
 //! The [`vx_ffi`] module provides function pointer structs for the
-//! `VxDelegate` DMA-BUF and `CameraAdaptor` APIs, loaded at runtime from
-//! the delegate shared library.
+//! legacy `VxDelegate` DMA-BUF and `CameraAdaptor` APIs. Both are loaded
+//! at runtime from the delegate shared library.
 
 // Suppress all clippy/rustc/rustdoc warnings for bindgen-generated code.
 #[allow(
@@ -45,4 +48,5 @@ pub use ffi::*;
 pub const kTfLiteNullBufferHandle: TfLiteBufferHandle = -1;
 
 pub mod discovery;
+pub mod hal_ffi;
 pub mod vx_ffi;

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
 
+#![allow(deprecated)] // This example demonstrates VxDelegate CameraAdaptor API.
+
 //! Camera preprocessing example using NPU-accelerated format conversion.
 //!
 //! Demonstrates the full `CameraAdaptor` API: probing format support, querying
