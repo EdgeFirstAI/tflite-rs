@@ -7,6 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-27
+
+### Added
+
+- HAL Delegate DMA-BUF API: standard 7-function C ABI for querying
+  DMA-BUF tensor info and cache synchronization, loaded at runtime via
+  `dlsym` from any compliant delegate `.so` (EDGEAI-1190).
+- `DmaBuf::tensor_info(tensor_index)` returning `TensorInfo` with
+  `size`, `offset`, `shape`, `fd`, and `dtype` fields.
+- `DmaBuf::sync_for_device(tensor_index: i32)` and
+  `DmaBuf::sync_for_cpu(tensor_index: i32)` using tensor index instead
+  of opaque buffer handle.
+- `CameraAdaptor::is_format_supported(format: &str) -> bool` and
+  `CameraAdaptor::format_info(format: &str) -> Result<FormatInfo>`
+  via the new `hal_camera_adaptor_*` standard functions.
+- `TensorInfo`, `DType`, and `FormatInfo` public types in the
+  `edgefirst-tflite` crate.
+- `hal_ffi` module in `edgefirst-tflite-sys` with FFI bindings for
+  `HalDmaBufFunctions` (5 functions) and `HalCameraAdaptorFunctions`
+  (2 functions).
+- `hal_to_result()` error helper for errno-based HAL error conversion.
+- Python bindings for all new HAL methods on `DmaBuf` and
+  `CameraAdaptor`, with `@deprecated` type-checker annotations on all
+  legacy VxDelegate-only methods in `edgefirst_tflite.pyi`.
+- Zero-copy DMA-BUF pipeline example (`dmabuf_zero_copy`) using the
+  new tensor-index-based API (EDGEAI-1146).
+
+### Changed
+
+- `Delegate` now calls `hal_dmabuf_get_instance()` immediately after
+  probing HAL symbols to obtain the true inner delegate handle;
+  this handle is passed to `DmaBuf` and `CameraAdaptor` so all HAL
+  calls use the correct pointer even when TFLite wraps the delegate
+  in an `ExternalDelegate` adapter.
+- `DmaBuf` and `CameraAdaptor` now prefer the HAL backend when
+  available, with VxDelegate functions used as a fallback.
+
+### Deprecated
+
+- `DmaBuf::register`, `unregister`, `request`, `release`,
+  `bind_to_tensor`, `fd` (renamed `buffer_fd`), `begin_cpu_access`,
+  `end_cpu_access`, `set_active`, `active_buffer`, `invalidate_graph`,
+  `is_graph_compiled`, `sync_for_device_by_handle`,
+  `sync_for_cpu_by_handle` — VxDelegate-specific methods replaced by
+  the HAL-standard API.
+- `CameraAdaptor::set_format`, `set_format_ex`, `set_formats`,
+  `set_fourcc`, `format`, `is_supported`, `input_channels`,
+  `output_channels`, `fourcc`, `from_fourcc` — replaced by
+  `is_format_supported` and `format_info`.
+
 ## [0.2.1] - 2026-03-20
 
 ### Changed
@@ -75,7 +125,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/EdgeFirstAI/tflite-rs/releases/tag/v0.1.0
