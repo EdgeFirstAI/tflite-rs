@@ -269,9 +269,11 @@ mod tests {
 
     #[test]
     fn camera_adaptor_format_info_clone_copy() {
-        let mut info = HalCameraAdaptorFormatInfo::default();
-        info.input_channels = 4;
-        info.output_channels = 3;
+        let mut info = HalCameraAdaptorFormatInfo {
+            input_channels: 4,
+            output_channels: 3,
+            ..Default::default()
+        };
         info.fourcc[..4].copy_from_slice(b"RGBA");
 
         let copied = info;
