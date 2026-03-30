@@ -10,13 +10,15 @@
 //! These are loaded at runtime from the main `TFLite` library using
 //! `libloading`. The C API is defined in `xnnpack_delegate.h`.
 
-use std::ffi::c_int;
+use std::ffi::{c_char, c_int, c_void};
 
 use crate::TfLiteDelegate;
 
 /// Options for configuring the XNNPACK delegate.
 ///
 /// Maps to `TfLiteXNNPackDelegateOptions` from `xnnpack_delegate.h`.
+/// The layout **must** match the C struct exactly (all five fields) because
+/// `TfLiteXNNPackDelegateOptionsDefault` returns this struct by value.
 ///
 /// This struct intentionally does **not** implement `Default` because
 /// zero-initialisation may diverge from the C library's defaults in
@@ -32,6 +34,16 @@ pub struct TfLiteXNNPackDelegateOptions {
 
     /// Bitmask of `TfLiteXNNPackDelegateFlags` (0 = default behaviour).
     pub flags: u32,
+
+    /// Optional weights cache for packed weights (NULL = disabled).
+    pub weights_cache: *mut c_void,
+
+    /// Deprecated — use `flags` with
+    /// `TFLITE_XNNPACK_DELEGATE_FLAG_VARIABLE_OPERATORS` instead.
+    pub handle_variable_ops: bool,
+
+    /// Optional path to a weight cache file (NULL = disabled).
+    pub weight_cache_file_path: *const c_char,
 }
 
 /// Function pointers for the XNNPACK delegate API.
@@ -85,6 +97,9 @@ mod tests {
         let opts = TfLiteXNNPackDelegateOptions {
             num_threads: 4,
             flags: 1,
+            weights_cache: std::ptr::null_mut(),
+            handle_variable_ops: false,
+            weight_cache_file_path: std::ptr::null(),
         };
         let copied = opts;
         assert_eq!(copied.num_threads, 4);
@@ -96,9 +111,24 @@ mod tests {
         let opts = TfLiteXNNPackDelegateOptions {
             num_threads: 2,
             flags: 0,
+            weights_cache: std::ptr::null_mut(),
+            handle_variable_ops: false,
+            weight_cache_file_path: std::ptr::null(),
         };
         let debug = format!("{opts:?}");
         assert!(debug.contains("num_threads"));
         assert!(debug.contains('2'));
+    }
+
+    #[test]
+    fn options_struct_size() {
+        // The struct must match the C layout (5 fields, ~32 bytes on 64-bit).
+        // If this fails, the ABI is wrong and options_default() will corrupt
+        // the stack.
+        assert!(
+            std::mem::size_of::<TfLiteXNNPackDelegateOptions>() >= 24,
+            "TfLiteXNNPackDelegateOptions is too small: {} bytes",
+            std::mem::size_of::<TfLiteXNNPackDelegateOptions>()
+        );
     }
 }
