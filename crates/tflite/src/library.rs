@@ -56,11 +56,18 @@ impl Library {
     /// Returns an [`Error`] if the library cannot be loaded from `path` or
     /// required symbols are missing.
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
-        let p = path.as_ref().to_path_buf();
-        let inner = edgefirst_tflite_sys::discovery::load(&p).map_err(Error::from)?;
+        let raw = path.as_ref();
+        let inner = edgefirst_tflite_sys::discovery::load(raw).map_err(Error::from)?;
+        // Canonicalise so reopen() works even if the working directory
+        // changes later. Fall back to the original for soname-only paths.
+        let resolved = if raw.is_file() {
+            std::fs::canonicalize(raw).unwrap_or_else(|_| raw.to_path_buf())
+        } else {
+            raw.to_path_buf()
+        };
         Ok(Self {
             inner,
-            path: Some(p),
+            path: Some(resolved),
         })
     }
 

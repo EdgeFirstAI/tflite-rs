@@ -297,6 +297,7 @@ fn xnnpack_delegate_invoke_succeeds() {
     let outputs = interp.outputs().unwrap();
     let output_data = outputs[0].as_slice::<f32>().unwrap();
     let expected = [2.0f32, 3.0, 4.0, 5.0];
+    assert_eq!(output_data.len(), expected.len());
     for (got, want) in output_data.iter().zip(expected.iter()) {
         assert!((got - want).abs() < 1e-5, "expected {want}, got {got}");
     }

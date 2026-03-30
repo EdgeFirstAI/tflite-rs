@@ -80,12 +80,12 @@ pub fn discover_with_path() -> Result<(tensorflowlite_c, PathBuf), libloading::E
     if let Ok(path) = std::env::var("TFLITE_LIBRARY_PATH") {
         debug!("TFLITE_LIBRARY_PATH={path}");
         let lib = load(&path)?;
-        return Ok((lib, PathBuf::from(&path)));
+        return Ok((lib, resolve_path(&path)));
     }
 
     // 2. Vendored library from build.rs (compile-time path).
     if let Some((lib, path)) = try_vendored_with_path() {
-        return Ok((lib, path));
+        return Ok((lib, resolve_path(&path)));
     }
 
     // 3. Try versioned shared libraries (Linux only — macOS/Windows don't use
@@ -96,7 +96,7 @@ pub fn discover_with_path() -> Result<(tensorflowlite_c, PathBuf), libloading::E
                 let path = format!("{DEFAULT_TFLITECPP_PATH}.2.{version}.{patch}");
                 if let Ok(lib) = load(&path) {
                     debug!("Found TFLite library: {path}");
-                    return Ok((lib, PathBuf::from(&path)));
+                    return Ok((lib, resolve_path(&path)));
                 }
             }
         }
@@ -105,12 +105,27 @@ pub fn discover_with_path() -> Result<(tensorflowlite_c, PathBuf), libloading::E
     // 4. Try unversioned platform-specific paths.
     if let Ok(lib) = load(DEFAULT_TFLITEC_PATH) {
         debug!("Found TFLite library: {DEFAULT_TFLITEC_PATH}");
-        return Ok((lib, PathBuf::from(DEFAULT_TFLITEC_PATH)));
+        return Ok((lib, resolve_path(DEFAULT_TFLITEC_PATH)));
     }
 
     debug!("Trying fallback: {DEFAULT_TFLITECPP_PATH}");
     let lib = load(DEFAULT_TFLITECPP_PATH)?;
-    Ok((lib, PathBuf::from(DEFAULT_TFLITECPP_PATH)))
+    Ok((lib, resolve_path(DEFAULT_TFLITECPP_PATH)))
+}
+
+/// Resolve a library path to an absolute path when possible.
+///
+/// Canonicalises the path if it refers to an existing file. For bare
+/// soname strings (e.g., `"libtensorflowlite_c.so"`) that the dynamic
+/// linker resolves without a filesystem entry, the original path is
+/// returned unchanged.
+fn resolve_path(path: impl AsRef<Path>) -> PathBuf {
+    let p = path.as_ref();
+    if p.is_file() {
+        std::fs::canonicalize(p).unwrap_or_else(|_| p.to_path_buf())
+    } else {
+        p.to_path_buf()
+    }
 }
 
 /// Load the `TFLite` shared library from a specific path.
