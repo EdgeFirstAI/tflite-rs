@@ -122,13 +122,22 @@ mod tests {
 
     #[test]
     fn options_struct_size() {
-        // The struct must match the C layout (5 fields, ~32 bytes on 64-bit).
-        // If this fails, the ABI is wrong and options_default() will corrupt
-        // the stack.
-        assert!(
-            std::mem::size_of::<TfLiteXNNPackDelegateOptions>() >= 24,
-            "TfLiteXNNPackDelegateOptions is too small: {} bytes",
-            std::mem::size_of::<TfLiteXNNPackDelegateOptions>()
+        // The struct must match the C layout (5 fields).
+        // Expected sizes based on the C ABI:
+        //   32 bytes on 64-bit targets
+        //   20 bytes on 32-bit targets
+        //
+        // If this fails, the ABI is wrong and options_default() will
+        // corrupt the stack.
+        let size = std::mem::size_of::<TfLiteXNNPackDelegateOptions>();
+        let expected = if cfg!(target_pointer_width = "64") {
+            32
+        } else {
+            20
+        };
+        assert_eq!(
+            size, expected,
+            "TfLiteXNNPackDelegateOptions has unexpected size: {size} bytes (expected {expected})",
         );
     }
 }
