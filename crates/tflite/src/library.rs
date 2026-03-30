@@ -4,7 +4,7 @@
 //! Safe wrapper around the `TFLite` shared-library handle.
 
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 
@@ -28,20 +28,25 @@ use crate::error::{Error, Result};
 /// ```
 pub struct Library {
     inner: edgefirst_tflite_sys::tensorflowlite_c,
+    path: Option<PathBuf>,
 }
 
 impl Library {
     /// Discover and load the `TFLite` shared library automatically.
     ///
     /// This probes well-known versioned and unversioned library paths using
-    /// [`edgefirst_tflite_sys::discovery::discover`].
+    /// the [`edgefirst_tflite_sys::discovery`] module.
     ///
     /// # Errors
     ///
     /// Returns an [`Error`] if no compatible `TFLite` library can be found.
     pub fn new() -> Result<Self> {
-        let inner = edgefirst_tflite_sys::discovery::discover().map_err(Error::from)?;
-        Ok(Self { inner })
+        let (inner, path) =
+            edgefirst_tflite_sys::discovery::discover_with_path().map_err(Error::from)?;
+        Ok(Self {
+            inner,
+            path: Some(path),
+        })
     }
 
     /// Load the `TFLite` shared library from a specific `path`.
@@ -51,8 +56,19 @@ impl Library {
     /// Returns an [`Error`] if the library cannot be loaded from `path` or
     /// required symbols are missing.
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
-        let inner = edgefirst_tflite_sys::discovery::load(path).map_err(Error::from)?;
-        Ok(Self { inner })
+        let raw = path.as_ref();
+        let inner = edgefirst_tflite_sys::discovery::load(raw).map_err(Error::from)?;
+        // Canonicalise so reopen() works even if the working directory
+        // changes later. Fall back to the original for soname-only paths.
+        let resolved = if raw.is_file() {
+            std::fs::canonicalize(raw).unwrap_or_else(|_| raw.to_path_buf())
+        } else {
+            raw.to_path_buf()
+        };
+        Ok(Self {
+            inner,
+            path: Some(resolved),
+        })
     }
 
     /// Returns a reference to the underlying FFI function table.
@@ -62,6 +78,22 @@ impl Library {
     #[must_use]
     pub fn as_sys(&self) -> &edgefirst_tflite_sys::tensorflowlite_c {
         &self.inner
+    }
+
+    /// Re-open the underlying shared library, incrementing the OS refcount.
+    ///
+    /// This is used internally to keep the main `TFLite` library alive for
+    /// built-in delegates (e.g., XNNPACK) whose function pointers live in
+    /// the main library rather than a separate delegate `.so`.
+    pub(crate) fn reopen(&self) -> Result<libloading::Library> {
+        let path = self
+            .path
+            .as_ref()
+            .ok_or_else(|| Error::invalid_argument("library path not available for reopen"))?;
+        // SAFETY: Re-opening the same shared library increments the OS
+        // refcount. The path is known-valid because it was successfully
+        // loaded during construction.
+        unsafe { libloading::Library::new(path.as_os_str()) }.map_err(Error::from)
     }
 }
 
