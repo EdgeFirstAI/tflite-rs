@@ -4,7 +4,7 @@
 //! Safe wrapper around the `TFLite` shared-library handle.
 
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::error::{Error, Result};
 
@@ -28,6 +28,7 @@ use crate::error::{Error, Result};
 /// ```
 pub struct Library {
     inner: edgefirst_tflite_sys::tensorflowlite_c,
+    path: Option<PathBuf>,
 }
 
 impl Library {
@@ -40,8 +41,12 @@ impl Library {
     ///
     /// Returns an [`Error`] if no compatible `TFLite` library can be found.
     pub fn new() -> Result<Self> {
-        let inner = edgefirst_tflite_sys::discovery::discover().map_err(Error::from)?;
-        Ok(Self { inner })
+        let (inner, path) =
+            edgefirst_tflite_sys::discovery::discover_with_path().map_err(Error::from)?;
+        Ok(Self {
+            inner,
+            path: Some(path),
+        })
     }
 
     /// Load the `TFLite` shared library from a specific `path`.
@@ -51,8 +56,12 @@ impl Library {
     /// Returns an [`Error`] if the library cannot be loaded from `path` or
     /// required symbols are missing.
     pub fn from_path(path: impl AsRef<Path>) -> Result<Self> {
-        let inner = edgefirst_tflite_sys::discovery::load(path).map_err(Error::from)?;
-        Ok(Self { inner })
+        let p = path.as_ref().to_path_buf();
+        let inner = edgefirst_tflite_sys::discovery::load(&p).map_err(Error::from)?;
+        Ok(Self {
+            inner,
+            path: Some(p),
+        })
     }
 
     /// Returns a reference to the underlying FFI function table.
@@ -62,6 +71,22 @@ impl Library {
     #[must_use]
     pub fn as_sys(&self) -> &edgefirst_tflite_sys::tensorflowlite_c {
         &self.inner
+    }
+
+    /// Re-open the underlying shared library, incrementing the OS refcount.
+    ///
+    /// This is used internally to keep the main `TFLite` library alive for
+    /// built-in delegates (e.g., XNNPACK) whose function pointers live in
+    /// the main library rather than a separate delegate `.so`.
+    pub(crate) fn reopen(&self) -> Result<libloading::Library> {
+        let path = self
+            .path
+            .as_ref()
+            .ok_or_else(|| Error::invalid_argument("library path not available for reopen"))?;
+        // SAFETY: Re-opening the same shared library increments the OS
+        // refcount. The path is known-valid because it was successfully
+        // loaded during construction.
+        unsafe { libloading::Library::new(path.as_os_str()) }.map_err(Error::from)
     }
 }
 

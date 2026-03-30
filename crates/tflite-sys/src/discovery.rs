@@ -16,7 +16,7 @@
 //! during discovery.
 
 use log::{debug, warn};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use crate::tensorflowlite_c;
 
@@ -63,15 +63,29 @@ pub const DEFAULT_TFLITECPP_PATH: &str = if cfg!(windows) {
 ///
 /// Returns a [`libloading::Error`] if no `TFLite` library can be found.
 pub fn discover() -> Result<tensorflowlite_c, libloading::Error> {
+    discover_with_path().map(|(lib, _)| lib)
+}
+
+/// Discover and load the `TFLite` shared library, returning its path.
+///
+/// Identical to [`discover`] but also returns the filesystem path that
+/// was successfully loaded. Useful when callers need to re-open the
+/// library (e.g., for built-in delegate lifetime management).
+///
+/// # Errors
+///
+/// Returns a [`libloading::Error`] if no `TFLite` library can be found.
+pub fn discover_with_path() -> Result<(tensorflowlite_c, PathBuf), libloading::Error> {
     // 1. Explicit override via environment variable.
     if let Ok(path) = std::env::var("TFLITE_LIBRARY_PATH") {
         debug!("TFLITE_LIBRARY_PATH={path}");
-        return load(&path);
+        let lib = load(&path)?;
+        return Ok((lib, PathBuf::from(&path)));
     }
 
     // 2. Vendored library from build.rs (compile-time path).
-    if let Some(lib) = try_vendored() {
-        return Ok(lib);
+    if let Some((lib, path)) = try_vendored_with_path() {
+        return Ok((lib, path));
     }
 
     // 3. Try versioned shared libraries (Linux only — macOS/Windows don't use
@@ -82,7 +96,7 @@ pub fn discover() -> Result<tensorflowlite_c, libloading::Error> {
                 let path = format!("{DEFAULT_TFLITECPP_PATH}.2.{version}.{patch}");
                 if let Ok(lib) = load(&path) {
                     debug!("Found TFLite library: {path}");
-                    return Ok(lib);
+                    return Ok((lib, PathBuf::from(&path)));
                 }
             }
         }
@@ -91,11 +105,12 @@ pub fn discover() -> Result<tensorflowlite_c, libloading::Error> {
     // 4. Try unversioned platform-specific paths.
     if let Ok(lib) = load(DEFAULT_TFLITEC_PATH) {
         debug!("Found TFLite library: {DEFAULT_TFLITEC_PATH}");
-        return Ok(lib);
+        return Ok((lib, PathBuf::from(DEFAULT_TFLITEC_PATH)));
     }
 
     debug!("Trying fallback: {DEFAULT_TFLITECPP_PATH}");
-    load(DEFAULT_TFLITECPP_PATH)
+    let lib = load(DEFAULT_TFLITECPP_PATH)?;
+    Ok((lib, PathBuf::from(DEFAULT_TFLITECPP_PATH)))
 }
 
 /// Load the `TFLite` shared library from a specific path.
@@ -119,7 +134,7 @@ pub fn load(path: impl AsRef<Path>) -> Result<tensorflowlite_c, libloading::Erro
 /// - The vendored library file doesn't exist (stale `OUT_DIR` or deployed
 ///   binary without the library alongside it)
 /// - The library fails to load (ABI mismatch, missing transitive deps, etc.)
-fn try_vendored() -> Option<tensorflowlite_c> {
+fn try_vendored_with_path() -> Option<(tensorflowlite_c, PathBuf)> {
     let dir = option_env!("EDGEFIRST_TFLITE_VENDORED_DIR")?;
 
     let lib_name = if cfg!(windows) {
@@ -146,7 +161,7 @@ fn try_vendored() -> Option<tensorflowlite_c> {
     match load(&path) {
         Ok(lib) => {
             debug!("Loaded vendored TFLite library: {}", path.display());
-            Some(lib)
+            Some((lib, path))
         }
         Err(e) => {
             warn!(

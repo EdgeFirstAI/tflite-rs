@@ -252,6 +252,56 @@ fn tensor_mut_as_mut_slice_write() {
 }
 
 // ---------------------------------------------------------------------------
+// XNNPACK delegate
+// ---------------------------------------------------------------------------
+
+#[test]
+fn xnnpack_delegate_does_not_panic() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    // The result depends on whether the library includes XNNPACK symbols.
+    // We verify it does not panic regardless.
+    let _result = edgefirst_tflite::Delegate::xnnpack(&lib, 4);
+}
+
+#[test]
+fn xnnpack_delegate_invoke_succeeds() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+
+    let delegate = match edgefirst_tflite::Delegate::xnnpack(&lib, 2) {
+        Ok(d) => d,
+        Err(_) => {
+            eprintln!("SKIPPED: XNNPACK not available in this TFLite build");
+            return;
+        }
+    };
+
+    let model = common::load_model(&lib);
+    let mut interp = edgefirst_tflite::Interpreter::builder(&lib)
+        .unwrap()
+        .delegate(delegate)
+        .num_threads(2)
+        .build(&model)
+        .unwrap();
+
+    let input_data: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
+    {
+        let mut inputs = interp.inputs_mut().unwrap();
+        inputs[0].copy_from_slice(&input_data).unwrap();
+    }
+
+    interp.invoke().expect("invoke with XNNPACK should succeed");
+
+    let outputs = interp.outputs().unwrap();
+    let output_data = outputs[0].as_slice::<f32>().unwrap();
+    let expected = [2.0f32, 3.0, 4.0, 5.0];
+    for (got, want) in output_data.iter().zip(expected.iter()) {
+        assert!((got - want).abs() < 1e-5, "expected {want}, got {got}");
+    }
+}
+
+// ---------------------------------------------------------------------------
 // Full pipeline: load -> write input -> invoke -> read output
 // ---------------------------------------------------------------------------
 
