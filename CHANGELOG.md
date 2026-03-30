@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-30
+
+### Added
+
+- `Delegate::xnnpack(&Library, num_threads)` for CPU-accelerated inference
+  via the built-in XNNPACK delegate.
+- `xnnpack_delegate(num_threads)` Python function for XNNPACK delegate
+  creation.
+- `XnnPackFunctions` and `TfLiteXNNPackDelegateOptions` in
+  `edgefirst-tflite-sys` for runtime XNNPACK symbol loading.
+- `tensorflowlite_c::library()` accessor for the underlying
+  `libloading::Library`.
+- `discover_with_path()` in `edgefirst-tflite-sys` discovery module,
+  returning the loaded library path alongside the function table.
+- `Library::reopen()` (crate-internal) for built-in delegate lifetime
+  management via OS refcount.
+
+### Changed
+
+- Library paths are now canonicalised when they refer to existing files,
+  making `Library::reopen()` resilient to working-directory changes.
+
 ## [0.3.0] - 2026-03-27
 
 ### Added
@@ -125,7 +147,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.1.0...v0.2.0
