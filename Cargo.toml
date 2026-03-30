@@ -35,3 +35,7 @@ edgefirst-tflite = { version = "0.3.0", path = "crates/tflite" }
 half = "2"
 numpy = "0.24"
 pyo3 = "0.24"
+
+[patch.crates-io]
+edgefirst-hal = { path = "../hal/crates/hal" }
+
