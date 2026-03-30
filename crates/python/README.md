@@ -109,6 +109,10 @@ interp = Interpreter(
 interp.invoke()
 ```
 
+> **Note:** If you use `library_path=` on the `Interpreter`, pass the same
+> path to `xnnpack_delegate(library_path=...)` so both use the same TFLite
+> shared library.
+
 ## EdgeFirst Extensions
 
 ### DMA-BUF Zero-Copy Inference
