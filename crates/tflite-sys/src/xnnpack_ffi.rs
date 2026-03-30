@@ -17,10 +17,13 @@ use crate::TfLiteDelegate;
 /// Options for configuring the XNNPACK delegate.
 ///
 /// Maps to `TfLiteXNNPackDelegateOptions` from `xnnpack_delegate.h`.
-/// Always initialise via [`XnnPackFunctions::options_default`] to get
-/// safe defaults, then override individual fields.
+///
+/// This struct intentionally does **not** implement `Default` because
+/// zero-initialisation may diverge from the C library's defaults in
+/// future `TFLite` versions. Always initialise via
+/// [`XnnPackFunctions::options_default`], then override individual fields.
 #[repr(C)]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct TfLiteXNNPackDelegateOptions {
     /// Number of threads for the XNNPACK threadpool.
     ///
@@ -76,13 +79,6 @@ impl XnnPackFunctions {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn options_default_values() {
-        let opts = TfLiteXNNPackDelegateOptions::default();
-        assert_eq!(opts.num_threads, 0);
-        assert_eq!(opts.flags, 0);
-    }
 
     #[test]
     fn options_clone_copy() {

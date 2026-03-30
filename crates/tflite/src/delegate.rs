@@ -68,27 +68,40 @@ impl DelegateOptions {
 // Delegate
 // ---------------------------------------------------------------------------
 
-/// An external `TFLite` delegate for hardware acceleration.
+/// A `TFLite` delegate for hardware acceleration.
 ///
-/// Delegates are loaded from shared libraries that export the standard
-/// `tflite_plugin_create_delegate` / `tflite_plugin_destroy_delegate`
-/// entry points.
+/// Delegates come in two flavours:
+///
+/// - **External** — loaded from a separate `.so` via
+///   [`Delegate::load`] / [`Delegate::load_with_options`], using the
+///   `tflite_plugin_create_delegate` / `tflite_plugin_destroy_delegate`
+///   plugin entry points.
+/// - **Built-in** — created from symbols inside the main `TFLite`
+///   library (e.g., [`Delegate::xnnpack`]).
+///
+/// In both cases the `Delegate` owns the resources needed to keep the
+/// delegate alive and will call the matching destroy function on drop.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use edgefirst_tflite::{Delegate, DelegateOptions};
+/// use edgefirst_tflite::{Delegate, DelegateOptions, Library};
 ///
-/// // Load delegate with default options
+/// let lib = Library::new()?;
+///
+/// // External delegate with default options
 /// let delegate = Delegate::load("libvx_delegate.so")?;
 ///
-/// // Load delegate with options
+/// // External delegate with options
 /// let delegate = Delegate::load_with_options(
 ///     "libvx_delegate.so",
 ///     &DelegateOptions::new()
 ///         .option("cache_file_path", "/tmp/vx_cache")
 ///         .option("device_id", "0"),
 /// )?;
+///
+/// // Built-in XNNPACK delegate
+/// let delegate = Delegate::xnnpack(&lib, 4)?;
 /// # Ok::<(), edgefirst_tflite::Error>(())
 /// ```
 #[allow(clippy::struct_field_names)]
@@ -465,9 +478,11 @@ impl std::fmt::Debug for Delegate {
 
 impl Drop for Delegate {
     fn drop(&mut self) {
-        // SAFETY: The delegate pointer was created by `tflite_plugin_create_delegate`
-        // and `free` is the matching `tflite_plugin_destroy_delegate` from the same
-        // library, which is still loaded (held by `_lib`).
+        // SAFETY: The delegate pointer was created by the matching create
+        // function (`tflite_plugin_create_delegate` for external delegates,
+        // `TfLiteXNNPackDelegateCreate` for XNNPACK) and `free` is the
+        // corresponding destroy function from the same library, which is
+        // still loaded (held by `_lib`).
         unsafe { (self.free)(self.delegate.as_ptr()) };
     }
 }

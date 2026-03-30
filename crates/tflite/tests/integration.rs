@@ -271,10 +271,11 @@ fn xnnpack_delegate_invoke_succeeds() {
 
     let delegate = match edgefirst_tflite::Delegate::xnnpack(&lib, 2) {
         Ok(d) => d,
-        Err(_) => {
+        Err(e) if e.is_invalid_argument() => {
             eprintln!("SKIPPED: XNNPACK not available in this TFLite build");
             return;
         }
+        Err(e) => panic!("Delegate::xnnpack failed with unexpected error: {e}"),
     };
 
     let model = common::load_model(&lib);

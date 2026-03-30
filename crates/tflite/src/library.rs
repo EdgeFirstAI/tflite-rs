@@ -35,7 +35,7 @@ impl Library {
     /// Discover and load the `TFLite` shared library automatically.
     ///
     /// This probes well-known versioned and unversioned library paths using
-    /// [`edgefirst_tflite_sys::discovery::discover`].
+    /// the [`edgefirst_tflite_sys::discovery`] module.
     ///
     /// # Errors
     ///
