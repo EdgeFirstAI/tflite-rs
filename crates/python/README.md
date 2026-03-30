@@ -91,6 +91,24 @@ interp = Interpreter(
 interp.invoke()
 ```
 
+### XNNPACK (CPU Acceleration)
+
+XNNPACK accelerates floating-point and quantised models on ARM and x86 CPUs
+using SIMD instructions. No external delegate library is needed — XNNPACK is
+built into the TFLite library when compiled with `-DTFLITE_ENABLE_XNNPACK=ON`.
+
+```python
+from edgefirst_tflite import Interpreter, xnnpack_delegate
+
+delegate = xnnpack_delegate(num_threads=4)
+
+interp = Interpreter(
+    model_path="model.tflite",
+    experimental_delegates=[delegate],
+)
+interp.invoke()
+```
+
 ## EdgeFirst Extensions
 
 ### DMA-BUF Zero-Copy Inference
