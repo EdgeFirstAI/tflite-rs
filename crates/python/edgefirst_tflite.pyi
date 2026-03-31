@@ -329,6 +329,42 @@ def load_delegate(
     """
     ...
 
+def xnnpack_delegate(
+    num_threads: int = 0,
+    *,
+    library_path: str | Path | None = None,
+) -> Delegate:
+    """Create an XNNPACK delegate for CPU-accelerated inference.
+
+    XNNPACK optimises floating-point and quantised operations on ARM and
+    x86 CPUs using SIMD instructions (NEON on ARM, AVX/SSE on x86).
+
+    Args:
+        num_threads: XNNPACK threadpool size. Use 1 for single-threaded,
+            higher values for parallelism, or 0 to let XNNPACK choose.
+        library_path: Path to the TFLite shared library. When set, this
+            **must** match the ``library_path`` passed to ``Interpreter``
+            so the delegate and interpreter use the same ``.so``.
+            Defaults to auto-discovery.
+
+    Returns:
+        A ``Delegate`` to pass to ``Interpreter(experimental_delegates=[...])``.
+
+    Raises:
+        InvalidArgumentError: If the TFLite library was not compiled with
+            XNNPACK support (``-DTFLITE_ENABLE_XNNPACK=ON``).
+        LibraryError: If no TFLite shared library can be found.
+
+    Example::
+
+        delegate = xnnpack_delegate(num_threads=4)
+        interp = Interpreter(
+            model_path="model.tflite",
+            experimental_delegates=[delegate],
+        )
+    """
+    ...
+
 # ---------------------------------------------------------------------------
 # DMA-BUF
 # ---------------------------------------------------------------------------

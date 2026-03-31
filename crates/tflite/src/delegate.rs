@@ -3,14 +3,16 @@
 
 //! Delegate loading with configuration options.
 //!
-//! Delegates provide hardware acceleration for `TFLite` inference. The most
-//! common delegate for i.MX platforms is the `VxDelegate`, which offloads
-//! operations to the NPU.
+//! Delegates provide hardware acceleration for `TFLite` inference. External
+//! delegates (e.g., `VxDelegate` for NPU) are loaded from shared libraries.
+//! Built-in delegates (e.g., XNNPACK for CPU SIMD) use symbols from the
+//! main `TFLite` library.
 
 use std::ffi::{c_void, CString};
 use std::path::Path;
 use std::ptr::{self, NonNull};
 
+use edgefirst_tflite_sys::xnnpack_ffi::XnnPackFunctions;
 use edgefirst_tflite_sys::TfLiteDelegate;
 
 use crate::error::{Error, Result};
@@ -66,27 +68,40 @@ impl DelegateOptions {
 // Delegate
 // ---------------------------------------------------------------------------
 
-/// An external `TFLite` delegate for hardware acceleration.
+/// A `TFLite` delegate for hardware acceleration.
 ///
-/// Delegates are loaded from shared libraries that export the standard
-/// `tflite_plugin_create_delegate` / `tflite_plugin_destroy_delegate`
-/// entry points.
+/// Delegates come in two flavours:
+///
+/// - **External** — loaded from a separate `.so` via
+///   [`Delegate::load`] / [`Delegate::load_with_options`], using the
+///   `tflite_plugin_create_delegate` / `tflite_plugin_destroy_delegate`
+///   plugin entry points.
+/// - **Built-in** — created from symbols inside the main `TFLite`
+///   library (e.g., [`Delegate::xnnpack`]).
+///
+/// In both cases the `Delegate` owns the resources needed to keep the
+/// delegate alive and will call the matching destroy function on drop.
 ///
 /// # Examples
 ///
 /// ```no_run
-/// use edgefirst_tflite::{Delegate, DelegateOptions};
+/// use edgefirst_tflite::{Delegate, DelegateOptions, Library};
 ///
-/// // Load delegate with default options
+/// let lib = Library::new()?;
+///
+/// // External delegate with default options
 /// let delegate = Delegate::load("libvx_delegate.so")?;
 ///
-/// // Load delegate with options
+/// // External delegate with options
 /// let delegate = Delegate::load_with_options(
 ///     "libvx_delegate.so",
 ///     &DelegateOptions::new()
 ///         .option("cache_file_path", "/tmp/vx_cache")
 ///         .option("device_id", "0"),
 /// )?;
+///
+/// // Built-in XNNPACK delegate
+/// let delegate = Delegate::xnnpack(&lib, 4)?;
 /// # Ok::<(), edgefirst_tflite::Error>(())
 /// ```
 #[allow(clippy::struct_field_names)]
@@ -281,6 +296,85 @@ impl Delegate {
         })
     }
 
+    /// Create an XNNPACK delegate for CPU-accelerated inference.
+    ///
+    /// XNNPACK is a built-in `TFLite` delegate that optimises floating-point
+    /// and quantised operations on ARM and x86 CPUs using SIMD instructions.
+    ///
+    /// The `num_threads` parameter controls the XNNPACK threadpool size.
+    /// Use 1 for single-threaded execution, or a higher value for
+    /// multi-threaded parallelism. A value of 0 lets XNNPACK choose.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The `TFLite` library was not compiled with XNNPACK support
+    /// - The delegate creation returns a null pointer
+    /// - The library cannot be re-opened (internal lifetime management)
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use edgefirst_tflite::{Delegate, Interpreter, Library, Model};
+    ///
+    /// let lib = Library::new()?;
+    /// let model = Model::from_file(&lib, "model.tflite")?;
+    ///
+    /// let delegate = Delegate::xnnpack(&lib, 4)?;
+    ///
+    /// let mut interpreter = Interpreter::builder(&lib)?
+    ///     .delegate(delegate)
+    ///     .num_threads(4)
+    ///     .build(&model)?;
+    /// # Ok::<(), edgefirst_tflite::Error>(())
+    /// ```
+    pub fn xnnpack(lib: &crate::Library, num_threads: i32) -> Result<Self> {
+        // SAFETY: `lib.as_sys().library()` returns a reference to the loaded
+        // TFLite library. `try_load` resolves optional symbols; missing
+        // symbols return `None`.
+        let fns =
+            unsafe { XnnPackFunctions::try_load(lib.as_sys().library()) }.ok_or_else(|| {
+                Error::invalid_argument(
+                    "XNNPACK delegate symbols not found — \
+                     the TFLite library may not have been compiled with XNNPACK support",
+                )
+            })?;
+
+        // Get default options, then override num_threads.
+        // SAFETY: `options_default` is a valid function pointer resolved above.
+        let mut opts = unsafe { (fns.options_default)() };
+        opts.num_threads = num_threads;
+
+        // SAFETY: `create` is a valid function pointer. `opts` is properly
+        // initialised from `options_default` with `num_threads` overridden.
+        let raw = unsafe { (fns.create)(&opts) };
+        let delegate = NonNull::new(raw)
+            .ok_or_else(|| Error::null_pointer("TfLiteXNNPackDelegateCreate returned null"))?;
+
+        let free = fns.delete;
+
+        // Re-open the main TFLite library to keep it alive for the
+        // delegate's lifetime. This increments the OS refcount at
+        // near-zero cost.
+        let tflite_lib = lib.reopen()?;
+
+        Ok(Self {
+            delegate,
+            free,
+            _lib: tflite_lib,
+            #[cfg(feature = "dmabuf")]
+            hal_dmabuf_fns: None,
+            #[cfg(feature = "dmabuf")]
+            hal_delegate_handle: None,
+            #[cfg(feature = "dmabuf")]
+            dmabuf_fns: None,
+            #[cfg(feature = "camera_adaptor")]
+            hal_camera_fns: None,
+            #[cfg(feature = "camera_adaptor")]
+            camera_adaptor_fns: None,
+        })
+    }
+
     /// Returns the raw delegate pointer.
     ///
     /// This is an escape hatch for advanced use cases that need direct
@@ -384,9 +478,11 @@ impl std::fmt::Debug for Delegate {
 
 impl Drop for Delegate {
     fn drop(&mut self) {
-        // SAFETY: The delegate pointer was created by `tflite_plugin_create_delegate`
-        // and `free` is the matching `tflite_plugin_destroy_delegate` from the same
-        // library, which is still loaded (held by `_lib`).
+        // SAFETY: The delegate pointer was created by the matching create
+        // function (`tflite_plugin_create_delegate` for external delegates,
+        // `TfLiteXNNPackDelegateCreate` for XNNPACK) and `free` is the
+        // corresponding destroy function from the same library, which is
+        // still loaded (held by `_lib`).
         unsafe { (self.free)(self.delegate.as_ptr()) };
     }
 }

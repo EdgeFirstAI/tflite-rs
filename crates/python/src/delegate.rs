@@ -181,3 +181,37 @@ pub fn load_delegate(
         inner: Some(delegate),
     })
 }
+
+// ---------------------------------------------------------------------------
+// xnnpack_delegate() — module-level function
+// ---------------------------------------------------------------------------
+
+/// Create an XNNPACK delegate for CPU-accelerated inference.
+///
+/// XNNPACK optimises floating-point and quantised operations on ARM and
+/// x86 CPUs using SIMD instructions.
+///
+/// Args:
+///     `num_threads`: XNNPACK threadpool size. 0 lets XNNPACK choose.
+///     `library_path`: Path to the `TFLite` shared library. When set, this
+///         **must** match the `library_path` passed to `Interpreter` so
+///         the delegate and interpreter use the same `.so`. Defaults to
+///         auto-discovery.
+///
+/// Returns:
+///     A `Delegate` to pass to `Interpreter(experimental_delegates=[...])`.
+#[pyfunction]
+#[pyo3(signature = (num_threads=0, *, library_path=None))]
+pub fn xnnpack_delegate(num_threads: i32, library_path: Option<PathBuf>) -> PyResult<PyDelegate> {
+    let lib = if let Some(path) = library_path {
+        edgefirst_tflite::Library::from_path(path)
+    } else {
+        edgefirst_tflite::Library::new()
+    }
+    .map_err(error::to_py_err)?;
+    let delegate =
+        edgefirst_tflite::Delegate::xnnpack(&lib, num_threads).map_err(error::to_py_err)?;
+    Ok(PyDelegate {
+        inner: Some(delegate),
+    })
+}

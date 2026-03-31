@@ -37,6 +37,7 @@ fn edgefirst_tflite(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Module-level functions
     m.add_function(wrap_pyfunction!(delegate::load_delegate, m)?)?;
+    m.add_function(wrap_pyfunction!(delegate::xnnpack_delegate, m)?)?;
 
     Ok(())
 }

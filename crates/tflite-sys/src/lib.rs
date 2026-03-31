@@ -22,6 +22,9 @@
 //! The [`vx_ffi`] module provides function pointer structs for the
 //! legacy `VxDelegate` DMA-BUF and `CameraAdaptor` APIs. Both are loaded
 //! at runtime from the delegate shared library.
+//!
+//! The [`xnnpack_ffi`] module provides function pointer structs for the
+//! XNNPACK built-in delegate API, loaded from the main `TFLite` library.
 
 // Suppress all clippy/rustc/rustdoc warnings for bindgen-generated code.
 #[allow(
@@ -39,6 +42,18 @@
 )]
 mod ffi {
     include!("ffi.rs");
+
+    impl tensorflowlite_c {
+        /// Returns a reference to the underlying `libloading::Library`.
+        ///
+        /// This is an escape hatch for loading optional symbols (e.g.,
+        /// XNNPACK) that live inside the main TFLite shared library rather
+        /// than a separate delegate `.so`.
+        #[must_use]
+        pub fn library(&self) -> &::libloading::Library {
+            &self.__library
+        }
+    }
 }
 
 pub use ffi::*;
@@ -50,3 +65,4 @@ pub const kTfLiteNullBufferHandle: TfLiteBufferHandle = -1;
 pub mod discovery;
 pub mod hal_ffi;
 pub mod vx_ffi;
+pub mod xnnpack_ffi;
