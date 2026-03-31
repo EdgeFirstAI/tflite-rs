@@ -260,17 +260,36 @@ def main():
     # Path B: No DMA-BUF → copy via normalize_to_numpy + set_tensor
     dmabuf = interpreter.dmabuf()
     use_dmabuf = dmabuf is not None and in_dtype != "float32"
-    dmabuf_handle = None
 
     if use_dmabuf:
-        buf_size = in_h * in_w * 3
-        dmabuf_handle, desc = dmabuf.request(0, "delegate", buf_size)
-        dmabuf.bind_to_tensor(dmabuf_handle, 0)
-        dst_img = processor.import_image(
-            desc["fd"], in_w, in_h, PixelFormat.Rgb, dst_dtype,
-        )
-        print("  DMA-BUF: zero-copy GPU → NPU")
-    else:
+        # Try portable HAL tensor_info API first (Neutron, future delegates),
+        # fall back to VxDelegate legacy request/bind_to_tensor path.
+        # If both fail (e.g. multi-partition Neutron), fall back to CPU staging.
+        info = None
+        try:
+            info = dmabuf.tensor_info(0)
+        except Exception:
+            pass
+
+        if info is not None:
+            dst_img = processor.import_image(
+                info["fd"], in_w, in_h, PixelFormat.Rgb, dst_dtype,
+                offset=info.get("offset"),
+            )
+            print("  Input: HAL DMA-BUF zero-copy (GPU → DMA-BUF → NPU)")
+        else:
+            try:
+                buf_size = in_h * in_w * 3
+                handle, desc = dmabuf.request(0, "delegate", buf_size)
+                dmabuf.bind_to_tensor(handle, 0)
+                dst_img = processor.import_image(
+                    desc["fd"], in_w, in_h, PixelFormat.Rgb, dst_dtype,
+                )
+                print("  Input: VxDelegate DMA-BUF (legacy, GPU → DMA-BUF → NPU)")
+            except Exception:
+                use_dmabuf = False
+
+    if not use_dmabuf:
         dst_img = processor.create_image(in_w, in_h, PixelFormat.Rgb, dst_dtype)
         print("  Input: CPU staging (GPU → staging → TFLite arena)")
 
@@ -291,14 +310,14 @@ def main():
                       (left + new_w) / in_w, (top + new_h) / in_h)
 
     # ── 5. Iteration runner ──────────────────────────────────────────
-    def run_iterations(n):
+    def run_iterations(n, render=False):
         timings = {
             "preprocess": [], "infer": [], "copy": [], "decode": [],
             "materialize": [], "render": [], "total": [],
         }
         boxes = scores = classes = masks = None
 
-        for _ in range(n):
+        for iteration in range(n):
             t_total = time.perf_counter()
 
             # Preprocess: GPU convert + copy to input tensor.
@@ -360,8 +379,11 @@ def main():
                 masks = []
             timings["materialize"].append((time.perf_counter() - t0) * 1000)
 
-            # Render (if --save)
-            if overlay is not None:
+            # Render overlay on the last iteration only.  Rendering mid-loop
+            # triggers a GPU/NPU sync issue on i.MX95 (Mali-G310 + Neutron
+            # shared DMA-BUF): draw_decoded_masks queues GPU work that races
+            # with the next convert → sync_for_device → invoke cycle.
+            if render and overlay is not None and iteration == n - 1:
                 t0 = time.perf_counter()
                 processor.draw_decoded_masks(
                     overlay, boxes, scores, classes,
@@ -383,7 +405,9 @@ def main():
         print_stats("Warmup", warmup_timings)
 
     # ── 7. Benchmark ─────────────────────────────────────────────────
-    boxes, scores, classes, masks, bench_timings = run_iterations(args.iters)
+    boxes, scores, classes, masks, bench_timings = run_iterations(
+        args.iters, render=args.save,
+    )
 
     # ── 8. Print detections (from last iteration) ────────────────────
     num_detections = len(scores) if scores is not None else 0
