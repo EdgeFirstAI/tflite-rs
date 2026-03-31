@@ -38,7 +38,7 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use edgefirst_hal::{
-    decoder::{configs, ConfigOutput, DecoderBuilder, DecoderVersion, DetectBox, Nms, ProtoData},
+    decoder::{configs, ConfigOutput, DecoderBuilder, DecoderVersion, DetectBox, Nms, ProtoData, Segmentation},
     image::{
         load_image, save_jpeg, ColorMode, Crop, Flip, ImageProcessor, ImageProcessorTrait as _,
         MaskOverlay, Rect, Rotation,
@@ -233,6 +233,7 @@ struct IterTimings {
     infer: Vec<f64>,
     copy: Vec<f64>,
     decode: Vec<f64>,
+    materialize: Vec<f64>,
     render: Vec<f64>,
     total: Vec<f64>,
 }
@@ -244,6 +245,7 @@ impl IterTimings {
             infer: Vec::with_capacity(n),
             copy: Vec::with_capacity(n),
             decode: Vec::with_capacity(n),
+            materialize: Vec::with_capacity(n),
             render: Vec::with_capacity(n),
             total: Vec::with_capacity(n),
         }
@@ -256,22 +258,24 @@ impl IterTimings {
         }
         if n == 1 {
             println!("--- {label} ---");
-            println!("  Preprocess: {:.1}ms", self.preprocess[0]);
-            println!("  Infer:      {:.1}ms", self.infer[0]);
-            println!("  Copy:       {:.1}ms", self.copy[0]);
-            println!("  Decode:     {:.1}ms", self.decode[0]);
+            println!("  Preprocess:   {:.1}ms", self.preprocess[0]);
+            println!("  Infer:        {:.1}ms", self.infer[0]);
+            println!("  Copy:         {:.1}ms", self.copy[0]);
+            println!("  Decode:       {:.1}ms", self.decode[0]);
+            println!("  Materialize:  {:.1}ms", self.materialize[0]);
             if !self.render.is_empty() {
-                println!("  Render:     {:.1}ms", self.render[0]);
+                println!("  Render:       {:.1}ms", self.render[0]);
             }
-            println!("  Total:      {:.1}ms", self.total[0]);
+            println!("  Total:        {:.1}ms", self.total[0]);
             return;
         }
         println!("--- {label} ({n} iterations) ---");
-        println!("                  min      max      avg      p95      p99");
+        println!("                    min      max      avg      p95      p99");
         print_row("Preprocess", &self.preprocess);
         print_row("Infer", &self.infer);
         print_row("Copy", &self.copy);
         print_row("Decode", &self.decode);
+        print_row("Materialize", &self.materialize);
         if !self.render.is_empty() {
             print_row("Render", &self.render);
         }
@@ -449,7 +453,7 @@ enum ModelInput {
 #[allow(clippy::cast_precision_loss)]
 fn maybe_normalize_boxes(detections: &mut [DetectBox], in_w: usize, in_h: usize) {
     if let Some(first) = detections.first() {
-        if first.bbox.xmax > 1.0 || first.bbox.ymax > 1.0 {
+        if first.bbox.xmax > 2.0 || first.bbox.ymax > 2.0 {
             let iw = in_w as f32;
             let ih = in_h as f32;
             for d in detections.iter_mut() {
@@ -534,6 +538,10 @@ fn run_iterations(
 ) -> Result<(Vec<DetectBox>, IterTimings), Box<dyn std::error::Error>> {
     let mut timings = IterTimings::with_capacity(n);
     let mut detections: Vec<DetectBox> = Vec::with_capacity(100);
+    // Precompute the normalised letterbox rect once for use in materialize_segmentations.
+    let letterbox_norm = MaskOverlay::default()
+        .with_letterbox_crop(&letterbox, in_w, in_h)
+        .letterbox;
 
     for _ in 0..n {
         detections.clear();
@@ -551,14 +559,29 @@ fn run_iterations(
         output_bufs.sync_from(interpreter)?;
         timings.copy.push(ms(t_copy.elapsed()));
 
-        // decode_proto runs NMS and extracts boxes + raw prototype data (no
-        // CPU mask materialisation yet). For detection-only models it returns
-        // None and output_boxes holds the final detections.
+        // decode_proto populates detections + returns prototype data for seg models.
+        // For detection-only models it returns None; fall back to decode().
         let t_decode = Instant::now();
         let refs = output_bufs.refs();
+        let mut fallback_masks: Vec<Segmentation> = Vec::new();
         let proto: Option<ProtoData> = decoder.decode_proto(&refs, &mut detections)?;
+        if proto.is_none() {
+            decoder.decode(&refs, &mut detections, &mut fallback_masks)?;
+        }
         maybe_normalize_boxes(&mut detections, in_w, in_h);
         timings.decode.push(ms(t_decode.elapsed()));
+
+        // materialize: CPU dot-product of mask coefficients × proto tensor → bitmaps.
+        // For detection-only models this is a no-op (empty proto → empty masks).
+        // draw_decoded_masks is then called on ImageProcessor so the GL backend
+        // renders the bitmaps onto the DMA-BUF dst tensor.
+        let t_mat = Instant::now();
+        let masks: Vec<Segmentation> = if let Some(ref proto_data) = proto {
+            processor.materialize_masks(&detections, proto_data, letterbox_norm)?
+        } else {
+            fallback_masks
+        };
+        timings.materialize.push(ms(t_mat.elapsed()));
 
         if let Some(ref mut d) = dst {
             let overlay = MaskOverlay::default()
@@ -566,13 +589,7 @@ fn run_iterations(
                 .with_letterbox_crop(&letterbox, in_w, in_h)
                 .with_color_mode(ColorMode::Instance);
             let t_render = Instant::now();
-            if let Some(proto_data) = proto {
-                // Hybrid path: CPU materialize_segmentations + GL draw_decoded_masks.
-                // draw_proto_masks auto-selects this when both backends are available.
-                processor.draw_proto_masks(d, &detections, &proto_data, overlay)?;
-            } else {
-                processor.draw_decoded_masks(d, &detections, &[], overlay)?;
-            }
+            processor.draw_decoded_masks(d, &detections, &masks, overlay)?;
             timings.render.push(ms(t_render.elapsed()));
         }
 

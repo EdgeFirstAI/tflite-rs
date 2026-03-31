@@ -20,7 +20,7 @@ Examples:
         --warmup 5 --iters 100 --save
 
 Requirements:
-    pip install edgefirst-tflite edgefirst-hal numpy
+    pip install edgefirst-tflite>=0.4.0 edgefirst-hal>=0.15.0 numpy
 """
 
 from __future__ import annotations
@@ -78,7 +78,7 @@ def classify_outputs(output_details: list[dict]) -> list:
         zero_point = quant.get("zero_points", [0])
         scale = float(scale[0]) if len(scale) > 0 else 0.0
         zero_point = int(zero_point[0]) if len(zero_point) > 0 else 0
-        is_quantized = det.get("dtype", "float32") != "float32"
+        is_quantized = str(det.get("dtype", "float32")) != "float32"
 
         if len(shape) == 4:
             out = Output.protos(shape=shape)
@@ -123,18 +123,22 @@ def print_stats(label, timings):
     if n == 0:
         return
 
+    stages = ("preprocess", "infer", "copy", "decode", "materialize",
+              "render", "total")
+
     if n == 1:
         print(f"--- {label} ---")
-        print(f"  Infer:   {timings['infer'][0]:.1f}ms")
-        print(f"  Decode:  {timings['decode'][0]:.1f}ms")
-        if timings["render"]:
-            print(f"  Render:  {timings['render'][0]:.1f}ms")
-        print(f"  Total:   {timings['total'][0]:.1f}ms")
+        for name in stages:
+            vals = timings[name]
+            if not vals:
+                continue
+            lbl = name.capitalize() + ":"
+            print(f"  {lbl:<14}{vals[0]:.1f}ms")
         return
 
     print(f"--- {label} ({n} iterations) ---")
-    print("               min      max      avg      p95      p99")
-    for name in ("infer", "decode", "render", "total"):
+    print("                    min      max      avg      p95      p99")
+    for name in stages:
         vals = timings[name]
         if not vals:
             continue
@@ -144,7 +148,7 @@ def print_stats(label, timings):
         p95 = percentile(s, 0.95)
         p99 = percentile(s, 0.99)
         lbl = name.capitalize()
-        print(f"  {lbl:<8} {mn:>7.1f} {mx:>8.1f} {avg:>8.1f} {p95:>8.1f} {p99:>8.1f} ms")
+        print(f"  {lbl:<10} {mn:>7.1f} {mx:>8.1f} {avg:>8.1f} {p95:>8.1f} {p99:>8.1f} ms")
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
@@ -201,7 +205,7 @@ def main():
     inp = input_details[0]
     in_shape = tuple(inp["shape"])
     in_h, in_w = int(in_shape[1]), int(in_shape[2])
-    in_dtype = inp["dtype"]
+    in_dtype = str(inp["dtype"])
     print(f"  input[0]: shape={list(in_shape)} dtype={in_dtype}")
 
     for i, det in enumerate(output_details):
@@ -223,12 +227,22 @@ def main():
         decoder_version=DecoderVersion.Yolov8,
     )
 
-    # ── 4. Preprocess image (once) ───────────────────────────────────
+    # ── 4. Setup image preprocessing ─────────────────────────────────
     from edgefirst_hal import (
-        Tensor, ImageProcessor, PixelFormat, Rotation, Flip, Rect,
+        Tensor, ImageProcessor, PixelFormat, Rotation, Flip, Rect, ColorMode,
     )
 
-    t_pre = time.perf_counter()
+    # Pre-allocate HAL output tensors (reused each iteration, like Rust OutputBuffers).
+    DTYPE_MAP = {"int8": "int8", "uint8": "uint8", "float32": "float32", "int32": "int32"}
+    NP_DTYPE_MAP = {"int8": np.int8, "uint8": np.uint8, "float32": np.float32, "int32": np.int32}
+    output_tensors = []
+    for det in output_details:
+        shape = [int(s) for s in det["shape"]]
+        dt_str = str(det["dtype"])
+        dt = DTYPE_MAP.get(dt_str, "float32")
+        output_tensors.append(Tensor(shape, dtype=dt))
+
+    t_init = time.perf_counter()
 
     processor = ImageProcessor()
 
@@ -240,86 +254,121 @@ def main():
     left, top, new_w, new_h = compute_letterbox(img_w, img_h, in_w, in_h)
     dst_crop = Rect(left, top, new_w, new_h)
 
-    # Write preprocessed pixels to input tensor (once).
+    # Create preprocessing destination buffer (reused each iteration).
     #
     # Path A: DMA-BUF + integer model → zero-copy GPU → NPU
     # Path B: No DMA-BUF → copy via normalize_to_numpy + set_tensor
     dmabuf = interpreter.dmabuf()
-    if dmabuf is not None and in_dtype != "float32":
-        # Path A: GPU renders directly into VxDelegate's DMA-BUF.
+    use_dmabuf = dmabuf is not None and in_dtype != "float32"
+    dmabuf_handle = None
+
+    if use_dmabuf:
         buf_size = in_h * in_w * 3
-        handle, desc = dmabuf.request(0, "delegate", buf_size)
-        dmabuf.bind_to_tensor(handle, 0)
-        dst = processor.create_image_from_fd(desc["fd"], in_w, in_h, PixelFormat.Rgb, dst_dtype)
-        processor.convert(
-            src, dst,
-            rotation=Rotation.Rotate0,
-            flip=Flip.NoFlip,
-            dst_crop=dst_crop,
-            dst_color=[114, 114, 114, 255],
+        dmabuf_handle, desc = dmabuf.request(0, "delegate", buf_size)
+        dmabuf.bind_to_tensor(dmabuf_handle, 0)
+        dst_img = processor.import_image(
+            desc["fd"], in_w, in_h, PixelFormat.Rgb, dst_dtype,
         )
-        dmabuf.sync_for_device(handle)
         print("  DMA-BUF: zero-copy GPU → NPU")
     else:
-        # Path B: Copy into TFLite arena.
-        dst = processor.create_image(in_w, in_h, PixelFormat.Rgb, dst_dtype)
-        processor.convert(
-            src, dst,
-            rotation=Rotation.Rotate0,
-            flip=Flip.NoFlip,
-            dst_crop=dst_crop,
-            dst_color=[114, 114, 114, 255],
-        )
+        dst_img = processor.create_image(in_w, in_h, PixelFormat.Rgb, dst_dtype)
+        print("  Input: CPU staging (GPU → staging → TFLite arena)")
+
+    # Pre-allocate numpy buffer for CPU path.
+    if not use_dmabuf:
         if in_dtype == "int8":
             input_array = np.zeros((in_h, in_w, 3), dtype=np.int8)
-            dst.normalize_to_numpy(input_array)
-            input_data = input_array
-        elif in_dtype == "float32":
-            input_array = np.zeros((in_h, in_w, 3), dtype=np.uint8)
-            dst.normalize_to_numpy(input_array)
-            input_data = input_array.astype(np.float32) / 255.0
         else:
             input_array = np.zeros((in_h, in_w, 3), dtype=np.uint8)
-            dst.normalize_to_numpy(input_array)
-            input_data = input_array
-        interpreter.set_tensor(0, input_data)
-    preprocess_time = (time.perf_counter() - t_pre) * 1000
+
+    init_time = (time.perf_counter() - t_init) * 1000
 
     # Pre-allocate overlay for rendering (reused across iterations).
     overlay = Tensor.load(args.image, PixelFormat.Rgba) if args.save else None
 
+    # Precompute normalised letterbox rect for materialize_masks / draw_decoded_masks.
+    letterbox_norm = (left / in_w, top / in_h,
+                      (left + new_w) / in_w, (top + new_h) / in_h)
+
     # ── 5. Iteration runner ──────────────────────────────────────────
     def run_iterations(n):
-        timings = {"infer": [], "decode": [], "render": [], "total": []}
+        timings = {
+            "preprocess": [], "infer": [], "copy": [], "decode": [],
+            "materialize": [], "render": [], "total": [],
+        }
         boxes = scores = classes = masks = None
 
         for _ in range(n):
             t_total = time.perf_counter()
+
+            # Preprocess: GPU convert + copy to input tensor.
+            t0 = time.perf_counter()
+            processor.convert(
+                src, dst_img,
+                rotation=Rotation.Rotate0,
+                flip=Flip.NoFlip,
+                dst_crop=dst_crop,
+                dst_color=[114, 114, 114, 255],
+            )
+            if use_dmabuf:
+                dmabuf.sync_for_device(0)
+            else:
+                dst_img.normalize_to_numpy(input_array)
+                if in_dtype == "float32":
+                    interpreter.set_tensor(
+                        0, input_array.astype(np.float32) / 255.0,
+                    )
+                else:
+                    interpreter.set_tensor(0, input_array)
+            timings["preprocess"].append((time.perf_counter() - t0) * 1000)
 
             # Infer
             t0 = time.perf_counter()
             interpreter.invoke()
             timings["infer"].append((time.perf_counter() - t0) * 1000)
 
-            # Decode
+            # Copy output tensors from TFLite arena → HAL tensors.
             t0 = time.perf_counter()
-            model_outputs = [
-                interpreter.get_output_tensor(i)
-                for i in range(len(output_details))
-            ]
-            boxes, scores, classes, masks = decoder.decode(model_outputs)
+            for oi, det in enumerate(output_details):
+                np_arr = interpreter.get_output_tensor(oi)
+                np_dtype = NP_DTYPE_MAP.get(str(det["dtype"]), np.float32)
+                with output_tensors[oi].map() as m:
+                    dst = np.frombuffer(m, dtype=np_dtype).reshape(np_arr.shape)
+                    np.copyto(dst, np_arr)
+            timings["copy"].append((time.perf_counter() - t0) * 1000)
 
-            # Normalize if in pixel space
+            # Decode: decode_proto returns proto data for seg models (None for det).
+            t0 = time.perf_counter()
+            boxes, scores, classes, proto_data = decoder.decode_proto(
+                output_tensors,
+            )
+
+            # Normalize if in pixel space.
             if len(scores) > 0 and np.max(boxes) > 2.0:
                 boxes[:, [0, 2]] /= in_w
                 boxes[:, [1, 3]] /= in_h
-
             timings["decode"].append((time.perf_counter() - t0) * 1000)
+
+            # Materialize: CPU dot-product of mask coefficients × protos → bitmaps.
+            t0 = time.perf_counter()
+            if proto_data is not None:
+                masks = processor.materialize_masks(
+                    boxes, scores, classes, proto_data,
+                    letterbox=letterbox_norm,
+                )
+            else:
+                masks = []
+            timings["materialize"].append((time.perf_counter() - t0) * 1000)
 
             # Render (if --save)
             if overlay is not None:
                 t0 = time.perf_counter()
-                processor.draw_masks(overlay, boxes, scores, classes, masks)
+                processor.draw_decoded_masks(
+                    overlay, boxes, scores, classes,
+                    seg=masks, background=src,
+                    letterbox=letterbox_norm,
+                    color_mode=ColorMode.Instance,
+                )
                 timings["render"].append((time.perf_counter() - t0) * 1000)
 
             timings["total"].append((time.perf_counter() - t_total) * 1000)
@@ -339,14 +388,23 @@ def main():
     # ── 8. Print detections (from last iteration) ────────────────────
     num_detections = len(scores) if scores is not None else 0
     print(f"\n--- Detections ({num_detections}) ---")
+    # Inverse letterbox transform: map normalised model coords → original image pixels.
+    lx0 = left / in_w
+    ly0 = top / in_h
+    inv_lw = in_w / new_w
+    inv_lh = in_h / new_h
     for i in range(num_detections):
         label = int(classes[i])
         name = COCO[label] if label < len(COCO) else "?"
         score = float(scores[i]) * 100.0
-        x1 = max(0.0, float(boxes[i, 0]) * img_w)
-        y1 = max(0.0, float(boxes[i, 1]) * img_h)
-        x2 = min(float(img_w), float(boxes[i, 2]) * img_w)
-        y2 = min(float(img_h), float(boxes[i, 3]) * img_h)
+        bx0 = max(0.0, min(1.0, float(boxes[i, 0])))
+        by0 = max(0.0, min(1.0, float(boxes[i, 1])))
+        bx1 = max(0.0, min(1.0, float(boxes[i, 2])))
+        by1 = max(0.0, min(1.0, float(boxes[i, 3])))
+        x1 = max(0.0, min(float(img_w), (bx0 - lx0) * inv_lw * img_w))
+        y1 = max(0.0, min(float(img_h), (by0 - ly0) * inv_lh * img_h))
+        x2 = max(0.0, min(float(img_w), (bx1 - lx0) * inv_lw * img_w))
+        y2 = max(0.0, min(float(img_h), (by1 - ly0) * inv_lh * img_h))
         print(f"  {name:>12} ({label:2d}): {score:5.1f}%  "
               f"[{x1:.0f}, {y1:.0f}, {x2:.0f}, {y2:.0f}]")
 
@@ -360,8 +418,8 @@ def main():
 
     # ── 10. Print timing ─────────────────────────────────────────────
     print()
-    print(f"  Load:       {load_time:.1f}ms")
-    print(f"  Preprocess: {preprocess_time:.1f}ms")
+    print(f"  Load+init:  {load_time + init_time:.1f}ms"
+          f"  (model + image \u2192 DMA-BUF, one-time)")
     print()
     print_stats(f"Benchmark (iters={args.iters})", bench_timings)
 
