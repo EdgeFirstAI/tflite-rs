@@ -175,6 +175,29 @@ Configure the delegate to inject format conversion (e.g., RGBA to RGB),
 resize, and letterbox operations into the TIM-VX graph, running them on the
 NPU instead of the CPU. Enable with `features = ["camera_adaptor"]`.
 
+## XNNPACK (CPU Acceleration)
+
+XNNPACK accelerates floating-point and quantised models on ARM and x86 CPUs
+using SIMD instructions. Unlike external delegates, XNNPACK is built into
+the TFLite library (when compiled with `-DTFLITE_ENABLE_XNNPACK=ON`).
+
+```rust,no_run
+use edgefirst_tflite::{Delegate, Interpreter, Library, Model};
+
+let lib = Library::new()?;
+let model = Model::from_file(&lib, "model.tflite")?;
+
+let delegate = Delegate::xnnpack(&lib, 4)?;
+
+let mut interpreter = Interpreter::builder(&lib)?
+    .delegate(delegate)
+    .num_threads(4)
+    .build(&model)?;
+
+interpreter.invoke()?;
+# Ok::<(), edgefirst_tflite::Error>(())
+```
+
 ## Examples
 
 | Example | Description | Features |

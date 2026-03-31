@@ -254,6 +254,32 @@ symbols were found. `delegate.camera_adaptor()` returns `Some(CameraAdaptor)`
 if either CameraAdaptor symbol set was found. The HAL API is always preferred
 when both are available.
 
+## Built-in Delegates (XNNPACK)
+
+Unlike external delegates that are loaded from separate `.so` files via the
+`tflite_plugin_create_delegate` plugin ABI, built-in delegates have their
+symbols compiled into the main TFLite library. XNNPACK is the primary
+example.
+
+`Delegate::xnnpack(&Library, num_threads)` works as follows:
+
+1. `XnnPackFunctions::try_load(lib.as_sys().library())` — resolves
+   `TfLiteXNNPackDelegateOptionsDefault`, `TfLiteXNNPackDelegateCreate`,
+   and `TfLiteXNNPackDelegateDelete` from the main TFLite library.
+   Returns `None` when the library was compiled without XNNPACK.
+2. Calls `TfLiteXNNPackDelegateOptionsDefault()` to get safe defaults,
+   overrides `num_threads`.
+3. Calls `TfLiteXNNPackDelegateCreate(&opts)` to obtain a
+   `*mut TfLiteDelegate`.
+4. `Library::reopen()` opens a second OS handle to the same `.so`,
+   incrementing the `dlopen` refcount. This handle is stored in
+   `Delegate._lib` so the XNNPACK `delete` function pointer remains
+   valid even if the original `Library` is dropped first.
+
+The `xnnpack_ffi` module in `edgefirst-tflite-sys` follows the same
+`try_load` pattern as `vx_ffi` and `hal_ffi`, with function pointers
+stored in an `XnnPackFunctions` struct.
+
 ## DMA-BUF Zero-Copy Data Flow
 
 The HAL Delegate DMA-BUF API operates by tensor index. The delegate owns the
