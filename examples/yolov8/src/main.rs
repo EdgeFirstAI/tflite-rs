@@ -38,10 +38,13 @@ use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use edgefirst_hal::{
-    decoder::{configs, ConfigOutput, DecoderBuilder, DecoderVersion, DetectBox, Nms, ProtoData, Segmentation},
+    decoder::{
+        configs, ConfigOutput, DecoderBuilder, DecoderVersion, DetectBox, Nms, ProtoData,
+        Segmentation,
+    },
     image::{
         load_image, save_jpeg, ColorMode, Crop, Flip, ImageProcessor, ImageProcessorTrait as _,
-        MaskOverlay, Rect, Rotation,
+        MaskOverlay, MaskResolution, Rect, Rotation,
     },
     tensor::{
         DType, PixelFormat, PlaneDescriptor, TensorDyn, TensorMapTrait as _, TensorMemory,
@@ -94,9 +97,17 @@ fn parse_args() -> Args {
         match args[i].as_str() {
             "--delegate" => delegate = Some(PathBuf::from(next_arg!("--delegate"))),
             "--save" => save = true,
-            "--threshold" => threshold = next_arg!("--threshold").parse().expect("invalid --threshold value"),
+            "--threshold" => {
+                threshold = next_arg!("--threshold")
+                    .parse()
+                    .expect("invalid --threshold value");
+            }
             "--iou" => iou = next_arg!("--iou").parse().expect("invalid --iou value"),
-            "--warmup" => warmup = next_arg!("--warmup").parse().expect("invalid --warmup value"),
+            "--warmup" => {
+                warmup = next_arg!("--warmup")
+                    .parse()
+                    .expect("invalid --warmup value");
+            }
             "--iters" => iters = next_arg!("--iters").parse().expect("invalid --iters value"),
             other => eprintln!("Unknown argument: {other}"),
         }
@@ -548,7 +559,15 @@ fn run_iterations(
         let t_total = Instant::now();
 
         let t_pre = Instant::now();
-        preprocess_step(src, model_input, processor, interpreter, letterbox, use_dmabuf, input_type)?;
+        preprocess_step(
+            src,
+            model_input,
+            processor,
+            interpreter,
+            letterbox,
+            use_dmabuf,
+            input_type,
+        )?;
         timings.preprocess.push(ms(t_pre.elapsed()));
 
         let t_inf = Instant::now();
@@ -577,7 +596,12 @@ fn run_iterations(
         // renders the bitmaps onto the DMA-BUF dst tensor.
         let t_mat = Instant::now();
         let masks: Vec<Segmentation> = if let Some(ref proto_data) = proto {
-            processor.materialize_masks(&detections, proto_data, letterbox_norm)?
+            processor.materialize_masks(
+                &detections,
+                proto_data,
+                letterbox_norm,
+                MaskResolution::Proto,
+            )?
         } else {
             fallback_masks
         };

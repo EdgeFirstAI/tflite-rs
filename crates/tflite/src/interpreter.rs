@@ -26,6 +26,7 @@ use edgefirst_tflite_sys::{TfLiteInterpreter, TfLiteInterpreterOptions};
 use crate::delegate::Delegate;
 use crate::error::{self, Error, Result};
 use crate::model::Model;
+use crate::profiler::Profiler;
 use crate::tensor::{Tensor, TensorMut};
 use crate::Library;
 
@@ -73,6 +74,50 @@ impl<'lib> InterpreterBuilder<'lib> {
         }
         self.delegates.push(d);
         self
+    }
+
+    /// Attach a telemetry [`Profiler`] that collects per-op timing events.
+    ///
+    /// The profiler must outlive the resulting [`Interpreter`]. This is
+    /// naturally guaranteed when the `Profiler` is declared before the
+    /// interpreter in the same scope.
+    ///
+    /// The telemetry profiler API is optional — if the loaded `TFLite`
+    /// library does not export
+    /// `TfLiteInterpreterOptionsSetTelemetryProfiler`, this method returns
+    /// an error rather than silently ignoring the profiler.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the telemetry profiler symbol cannot be resolved
+    /// from the loaded `TFLite` library.
+    pub fn profiler(self, profiler: &Profiler) -> Result<Self> {
+        // Dynamically look up the optional telemetry setter.
+        let tflite_lib = self.lib.reopen()?;
+
+        // SAFETY: `tflite_lib` is the same library that was successfully
+        // loaded during `Library` construction. The symbol may or may not
+        // exist depending on the TFLite build.
+        let set_profiler: libloading::Symbol<
+            '_,
+            unsafe extern "C" fn(*mut TfLiteInterpreterOptions, *mut std::ffi::c_void),
+        > = unsafe { tflite_lib.get(b"TfLiteInterpreterOptionsSetTelemetryProfiler\0") }.map_err(
+            |_| {
+                Error::invalid_argument(
+                    "TfLiteInterpreterOptionsSetTelemetryProfiler symbol not found — \
+                 the TFLite library may not support the telemetry profiler API",
+                )
+            },
+        )?;
+
+        // SAFETY: `self.options` is a valid options pointer. `profiler.as_ptr()`
+        // returns a pointer to a boxed C struct that remains valid for the
+        // lifetime of the `Profiler`.
+        unsafe {
+            set_profiler(self.options.as_ptr(), profiler.as_ptr());
+        }
+
+        Ok(self)
     }
 
     /// Build the interpreter for the given model.

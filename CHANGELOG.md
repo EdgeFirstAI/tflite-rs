@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-26
+
+### Added
+
+- `Profiler` for per-op telemetry timing via the TFLite
+  `TfLiteInterpreterOptionsSetTelemetryProfiler` C API.
+- `OpEvent` type capturing operator name, index, subgraph index, and
+  duration in microseconds.
+- `InterpreterBuilder::profiler(&Profiler)` to attach a profiler before
+  building the interpreter.
+- `Profiler::events()`, `drain_events()`, `clear()`, and `event_count()`
+  for reading and managing collected profiling data.
+
+### Changed
+
+- Updated `edgefirst-hal` dependency from 0.14 to 0.18.
+
 ## [0.4.0] - 2026-03-30
 
 ### Added
@@ -147,7 +164,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.0...v0.2.1
