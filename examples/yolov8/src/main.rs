@@ -100,13 +100,13 @@ fn parse_args() -> Args {
             "--threshold" => {
                 threshold = next_arg!("--threshold")
                     .parse()
-                    .expect("invalid --threshold value")
+                    .expect("invalid --threshold value");
             }
             "--iou" => iou = next_arg!("--iou").parse().expect("invalid --iou value"),
             "--warmup" => {
                 warmup = next_arg!("--warmup")
                     .parse()
-                    .expect("invalid --warmup value")
+                    .expect("invalid --warmup value");
             }
             "--iters" => iters = next_arg!("--iters").parse().expect("invalid --iters value"),
             other => eprintln!("Unknown argument: {other}"),
