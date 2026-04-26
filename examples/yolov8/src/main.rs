@@ -41,7 +41,7 @@ use edgefirst_hal::{
     decoder::{configs, ConfigOutput, DecoderBuilder, DecoderVersion, DetectBox, Nms, ProtoData, Segmentation},
     image::{
         load_image, save_jpeg, ColorMode, Crop, Flip, ImageProcessor, ImageProcessorTrait as _,
-        MaskOverlay, Rect, Rotation,
+        MaskOverlay, MaskResolution, Rect, Rotation,
     },
     tensor::{
         DType, PixelFormat, PlaneDescriptor, TensorDyn, TensorMapTrait as _, TensorMemory,
@@ -577,7 +577,7 @@ fn run_iterations(
         // renders the bitmaps onto the DMA-BUF dst tensor.
         let t_mat = Instant::now();
         let masks: Vec<Segmentation> = if let Some(ref proto_data) = proto {
-            processor.materialize_masks(&detections, proto_data, letterbox_norm)?
+            processor.materialize_masks(&detections, proto_data, letterbox_norm, MaskResolution::Proto)?
         } else {
             fallback_masks
         };
