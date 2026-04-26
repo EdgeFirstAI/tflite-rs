@@ -40,6 +40,7 @@ pub mod error;
 pub mod interpreter;
 pub mod library;
 pub mod model;
+pub mod profiler;
 pub mod tensor;
 
 #[cfg(feature = "dmabuf")]
@@ -57,4 +58,5 @@ pub use error::{Error, StatusCode};
 pub use interpreter::{Interpreter, InterpreterBuilder};
 pub use library::Library;
 pub use model::Model;
+pub use profiler::{OpEvent, Profiler};
 pub use tensor::{QuantizationParams, Tensor, TensorMut, TensorType};
