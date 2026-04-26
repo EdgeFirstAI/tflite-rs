@@ -151,11 +151,13 @@ unsafe extern "C" fn report_settings_noop(
 ///
 /// The `data` field of `*profiler` must point to a live, heap-allocated
 /// `Arc<Mutex<ProfilerInner>>` (created via `Box::into_raw` in
-/// [`Profiler::new`]).
-unsafe fn inner_from_profiler(
+/// [`Profiler::new`]). The returned reference is only valid for the
+/// caller-chosen lifetime and must be kept local to the callback.
+unsafe fn inner_from_profiler<'a>(
     profiler: *mut TfLiteTelemetryProfilerStruct,
-) -> &'static Arc<Mutex<ProfilerInner>> {
-    // SAFETY: Caller guarantees the pointer is valid and the pointee is alive.
+) -> &'a Arc<Mutex<ProfilerInner>> {
+    // SAFETY: Caller guarantees the pointer is valid and the pointee is alive
+    // for the duration of the returned borrow.
     unsafe { &*((*profiler).data.cast::<Arc<Mutex<ProfilerInner>>>()) }
 }
 
@@ -545,7 +547,7 @@ mod tests {
         let profiler = Profiler::new();
         let c_ptr = c_struct_ptr(&profiler);
 
-        let op_name = c"TEST_OP";
+        let op_name = CStr::from_bytes_with_nul(b"TEST_OP\0").unwrap();
 
         // Simulate what TFLite does: call begin, then end.
         // SAFETY: We own the profiler and the C struct is valid.
@@ -572,7 +574,7 @@ mod tests {
         let profiler = Profiler::new();
         let c_ptr = c_struct_ptr(&profiler);
 
-        let op_name = c"DELEGATE_OP";
+        let op_name = CStr::from_bytes_with_nul(b"DELEGATE_OP\0").unwrap();
 
         // SAFETY: We own the profiler and the C struct is valid.
         unsafe {
