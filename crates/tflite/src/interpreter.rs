@@ -101,15 +101,14 @@ impl<'lib> InterpreterBuilder<'lib> {
         let set_profiler: libloading::Symbol<
             '_,
             unsafe extern "C" fn(*mut TfLiteInterpreterOptions, *mut std::ffi::c_void),
-        > = unsafe {
-            tflite_lib.get(b"TfLiteInterpreterOptionsSetTelemetryProfiler\0")
-        }
-        .map_err(|_| {
-            Error::invalid_argument(
-                "TfLiteInterpreterOptionsSetTelemetryProfiler symbol not found — \
+        > = unsafe { tflite_lib.get(b"TfLiteInterpreterOptionsSetTelemetryProfiler\0") }.map_err(
+            |_| {
+                Error::invalid_argument(
+                    "TfLiteInterpreterOptionsSetTelemetryProfiler symbol not found — \
                  the TFLite library may not support the telemetry profiler API",
-            )
-        })?;
+                )
+            },
+        )?;
 
         // SAFETY: `self.options` is a valid options pointer. `profiler.as_ptr()`
         // returns a pointer to a boxed C struct that remains valid for the
