@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-05-07
+
+### Changed
+
+- Updated `edgefirst-hal` dependency from 0.18 to 0.20 in the `yolov8`
+  example. The bump is source-compatible: no API changes were required
+  in example code.
+
 ## [0.5.0] - 2026-04-26
 
 ### Added
@@ -164,7 +172,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.2.1...v0.3.0
