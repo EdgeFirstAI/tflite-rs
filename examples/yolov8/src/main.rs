@@ -10,7 +10,7 @@
 //! Supports both detection-only (`yolov8n`) and instance segmentation
 //! (`yolov8n-seg`) models. The decoder is configured from the model's
 //! embedded `edgefirst.json` schema (extracted from the ZIP archive that the
-//! EdgeFirst converter appends to the `.tflite` flatbuffer), so all three
+//! `EdgeFirst` converter appends to the `.tflite` flatbuffer), so all three
 //! YOLO output layouts — fused, logical-split, and per-scale FPN-split —
 //! work transparently without manual output classification.
 //!
@@ -36,10 +36,13 @@
 //! yolov8 model.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --warmup 5 --iters 100 --save
 //! ```
 
+mod error;
+
 use std::os::fd::BorrowedFd;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use crate::error::{Error, Result};
 use edgefirst_hal::{
     decoder::{
         schema::{LogicalType, SchemaV2},
@@ -241,13 +244,13 @@ fn print_row(label: &str, values: &[f64]) {
 
 // ── Output buffers / model input / pipeline helpers ──────────────────────────
 
-fn tflite_dtype(tt: TensorType) -> Result<DType, Box<dyn std::error::Error>> {
+fn tflite_dtype(tt: TensorType) -> Result<DType> {
     match tt {
         TensorType::Float32 => Ok(DType::F32),
         TensorType::Int8 => Ok(DType::I8),
         TensorType::UInt8 => Ok(DType::U8),
         TensorType::Int32 => Ok(DType::I32),
-        other => Err(format!("unsupported output dtype: {other:?}").into()),
+        other => Err(Error::unsupported(format!("output dtype: {other:?}"))),
     }
 }
 
@@ -255,7 +258,7 @@ fn tflite_dtype(tt: TensorType) -> Result<DType, Box<dyn std::error::Error>> {
 struct OutputBuffers(Vec<TensorDyn>);
 
 impl OutputBuffers {
-    fn allocate(interpreter: &Interpreter<'_>) -> Result<Self, Box<dyn std::error::Error>> {
+    fn allocate(interpreter: &Interpreter<'_>) -> Result<Self> {
         let outputs = interpreter.outputs()?;
         let mut tensors = Vec::with_capacity(outputs.len());
         for t in &outputs {
@@ -275,10 +278,7 @@ impl OutputBuffers {
         Ok(Self(tensors))
     }
 
-    fn sync_from(
-        &mut self,
-        interpreter: &Interpreter<'_>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn sync_from(&mut self, interpreter: &Interpreter<'_>) -> Result<()> {
         let outputs = interpreter.outputs()?;
         for (td, t) in self.0.iter_mut().zip(outputs.iter()) {
             match tflite_dtype(t.tensor_type())? {
@@ -310,7 +310,7 @@ impl OutputBuffers {
                         .as_mut_slice()
                         .copy_from_slice(t.as_slice::<i32>()?);
                 }
-                _ => return Err("unsupported output dtype".into()),
+                _ => return Err(Error::unsupported("output dtype")),
             }
         }
         Ok(())
@@ -356,7 +356,7 @@ fn preprocess_step(
     letterbox: Crop,
     use_dmabuf: bool,
     input_type: TensorType,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     match model_input {
         ModelInput::DmaBuf(dst) => {
             processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
@@ -387,7 +387,7 @@ fn preprocess_step(
                         *d = f32::from(s) / 255.0;
                     }
                 }
-                other => return Err(format!("unsupported input type: {other:?}").into()),
+                other => return Err(Error::unsupported(format!("input type: {other:?}"))),
             }
         }
     }
@@ -413,7 +413,7 @@ fn run_iterations(
     in_h: usize,
     use_dmabuf: bool,
     input_type: TensorType,
-) -> Result<(Vec<DetectBox>, IterTimings), Box<dyn std::error::Error>> {
+) -> Result<(Vec<DetectBox>, IterTimings)> {
     let mut timings = IterTimings::with_capacity(n);
     let mut detections: Vec<DetectBox> = Vec::with_capacity(100);
     // Precompute the normalised letterbox rect once for use in materialize_segmentations.
@@ -493,7 +493,7 @@ fn run_iterations(
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 #[allow(clippy::too_many_lines, clippy::similar_names)]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let args = parse_args();
 
     // ── 1. Load TFLite library, model, delegate, interpreter ────────
@@ -575,8 +575,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let mut archive = ModelArchive::new(model.data())
-        .map_err(|e| format!("model has no embedded EdgeFirst metadata archive: {e}"))?;
+    // The model has no embedded EdgeFirst metadata archive when this returns
+    // an error — propagate as `Error::Tflite` (its inner cause already carries
+    // the missing-archive message).
+    let mut archive = ModelArchive::new(model.data())?;
     let edgefirst_json = archive.edgefirst_json()?;
     let labels = archive.labels().unwrap_or_default();
     println!(

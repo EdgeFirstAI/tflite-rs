@@ -209,7 +209,7 @@ impl PyInterpreter {
         num_threads: Option<i32>,
         experimental_delegates: Option<Bound<'_, PyList>>,
         library_path: Option<PathBuf>,
-        profiler: Option<PyRef<'_, PyProfiler>>,
+        profiler: Option<&PyProfiler>,
     ) -> PyResult<Self> {
         // Load the TFLite shared library.
         let library = if let Some(path) = library_path {
@@ -433,7 +433,7 @@ impl PyInterpreter {
 
     /// Open the embedded ZIP-archive metadata (``edgefirst.json``,
     /// ``labels.txt``, ``metadata.json``) appended to the model's
-    /// FlatBuffer payload by the EdgeFirst tflite-converter.
+    /// `FlatBuffer` payload by the `EdgeFirst` tflite-converter.
     ///
     /// Returns ``None`` when the model has no embedded archive.
     fn get_archive(&self) -> Option<crate::archive::PyModelArchive> {

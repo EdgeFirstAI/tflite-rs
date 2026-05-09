@@ -15,16 +15,24 @@ use crate::error::to_py_err;
 ///
 /// Owns the model bytes so the embedded `zip::ZipArchive<Cursor<&[u8]>>`
 /// has a stable backing buffer for the wrapper's lifetime.
+///
+/// # Field ordering
+///
+/// `archive` borrows from `bytes`, so `archive` MUST be declared **before**
+/// `bytes`. Rust drops fields in declaration order, so this places
+/// `archive`'s drop strictly before `bytes`'s — without this, `bytes` could
+/// be freed while `archive` still holds a reference to it during its own
+/// drop. Do not reorder these fields.
 #[pyclass(name = "ModelArchive", unsendable)]
 #[derive(Debug)]
 pub struct PyModelArchive {
-    // The bytes outlive the archive (it is `'static` over `bytes`).
-    bytes: Box<[u8]>,
-    // SAFETY: archive borrows `bytes` for the lifetime of `self`.
-    // pinning is handled by `Box<[u8]>` (heap address never moves) and
-    // `unsendable` prevents the wrapper from being moved across threads
-    // in a way that could invalidate the borrow.
+    // SAFETY: borrows `bytes` (below) for the lifetime of `Self`.
+    // `'static` is a lifetime placeholder — the actual borrow is constrained
+    // by the wrapper's lifetime via the field-drop order documented above.
     archive: edgefirst_tflite::archive::ModelArchive<'static>,
+    // Heap-allocated, never reallocated, address-stable for the wrapper's
+    // lifetime. Dropped after `archive` thanks to declaration-order drop.
+    bytes: Box<[u8]>,
 }
 
 impl PyModelArchive {
@@ -36,9 +44,10 @@ impl PyModelArchive {
         // as long as `Self` lives. We extend the lifetime to 'static to
         // satisfy pyclass which forbids non-'static borrows; the actual
         // borrow is constrained by the wrapper's lifetime.
-        let slice: &'static [u8] = unsafe { std::slice::from_raw_parts(bytes.as_ptr(), bytes.len()) };
+        let slice: &'static [u8] =
+            unsafe { std::slice::from_raw_parts(bytes.as_ptr(), bytes.len()) };
         let archive = edgefirst_tflite::archive::ModelArchive::new(slice).map_err(to_py_err)?;
-        Ok(Self { bytes, archive })
+        Ok(Self { archive, bytes })
     }
 }
 
@@ -114,7 +123,7 @@ impl PyModelArchive {
 }
 
 /// Module-level helper: probe whether a byte buffer ends with a valid
-/// ZIP archive (the signature the EdgeFirst converter appends).
+/// ZIP archive (the signature the `EdgeFirst` converter appends).
 #[pyfunction]
 #[pyo3(signature = (content))]
 pub fn has_archive(content: &[u8]) -> bool {

@@ -3,10 +3,11 @@
 
 //! Embedded ZIP-archive metadata for `TFLite` model files.
 //!
-//! The EdgeFirst tflite-converter appends a standard ZIP archive (typically
-//! containing `edgefirst.json`, `labels.txt`, and `metadata.json`) to the
-//! end of the FlatBuffer payload. The TFLite runtime ignores the trailing
-//! bytes, so the model still loads with any standards-compliant interpreter.
+//! The `EdgeFirst` tflite-converter appends a standard ZIP archive
+//! (typically containing `edgefirst.json`, `labels.txt`, and
+//! `metadata.json`) to the end of the `FlatBuffer` payload. The `TFLite`
+//! runtime ignores the trailing bytes, so the model still loads with any
+//! standards-compliant interpreter.
 //! ZIP readers locate the central directory by scanning backwards from the
 //! end of the file for the `PK\x05\x06` end-of-central-directory marker, so
 //! both formats coexist in the same file.
@@ -46,7 +47,7 @@ use std::io::{Cursor, Read};
 
 use crate::error::{Error, Result};
 
-/// File name of the EdgeFirst schema JSON inside the archive.
+/// File name of the `EdgeFirst` schema JSON inside the archive.
 pub const EDGEFIRST_JSON: &str = "edgefirst.json";
 /// File name of the line-delimited class labels inside the archive.
 pub const LABELS_TXT: &str = "labels.txt";
@@ -181,15 +182,14 @@ pub fn labels(data: &[u8]) -> Result<Vec<String>> {
 mod tests {
     use super::*;
 
-    static MODEL_WITH_ARCHIVE: &[u8] =
-        include_bytes!("../../../testdata/yolov8n-seg-int8.tflite");
+    static MODEL_WITH_ARCHIVE: &[u8] = include_bytes!("../../../testdata/yolov8n-seg-int8.tflite");
     static MINIMAL_MODEL: &[u8] = include_bytes!("../../../testdata/minimal.tflite");
 
     /// Schema v2 fixtures, one per converter output layout. Each model
     /// embeds an `edgefirst.json` that exercises a different decoder
     /// dispatch path:
     /// - `combined`: single fused detection tensor + protos.
-    /// - `logical`: separate boxes/scores/mask_coefs/protos.
+    /// - `logical`: separate `boxes` / `scores` / `mask_coefs` / `protos`.
     /// - `smart`: per-scale FPN-split outputs (DFL + sub-stride children).
     static SCHEMA_V2_COMBINED: &[u8] =
         include_bytes!("../../../testdata/yolov8n-seg-combined-int8.tflite");
@@ -265,16 +265,13 @@ mod tests {
 
     /// Every schema v2 fixture must round-trip the archive open + entry
     /// reads. This guards the API against ZIP-format regressions for all
-    /// three converter layouts produced by the EdgeFirst tflite-converter.
+    /// three converter layouts produced by the `EdgeFirst` tflite-converter.
     #[test]
     fn schema_v2_fixtures_open_cleanly() {
         for (name, bytes) in schema_v2_models() {
-            assert!(
-                has_archive(bytes),
-                "{name}: no embedded archive detected"
-            );
-            let mut archive = ModelArchive::new(bytes)
-                .unwrap_or_else(|e| panic!("{name}: open failed: {e}"));
+            assert!(has_archive(bytes), "{name}: no embedded archive detected");
+            let mut archive =
+                ModelArchive::new(bytes).unwrap_or_else(|e| panic!("{name}: open failed: {e}"));
             assert!(
                 archive.contains(EDGEFIRST_JSON),
                 "{name}: missing edgefirst.json"
@@ -312,14 +309,23 @@ mod tests {
         }
     }
 
-    /// The "combined" layout fuses boxes+scores+mask_coefs into a single
+    /// One row of the layout-signature pin table:
+    /// `(name, model bytes, must-contain substrings, must-NOT-contain substrings)`.
+    type LayoutCase = (
+        &'static str,
+        &'static [u8],
+        &'static [&'static str],
+        &'static [&'static str],
+    );
+
+    /// The "combined" layout fuses `boxes` + `scores` + `mask_coefs` into a single
     /// detection tensor. The "logical" layout exposes separate logical
     /// outputs. The "smart" layout exposes per-scale FPN children with
     /// `scale_index`/`stride`. This test pins the layout signature for
     /// each fixture so we notice if a converter rev silently changes it.
     #[test]
     fn schema_v2_fixtures_match_expected_layout() {
-        let cases: &[(&str, &[u8], &[&str], &[&str])] = &[
+        let cases: &[LayoutCase] = &[
             (
                 "combined",
                 SCHEMA_V2_COMBINED,
