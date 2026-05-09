@@ -8,8 +8,11 @@
 //! `Decoder` API), and overlay rendering.
 //!
 //! Supports both detection-only (`yolov8n`) and instance segmentation
-//! (`yolov8n-seg`) models. The model type is auto-detected from output shapes:
-//! a 4D output tensor indicates segmentation prototype masks.
+//! (`yolov8n-seg`) models. The decoder is configured from the model's
+//! embedded `edgefirst.json` schema (extracted from the ZIP archive that the
+//! `EdgeFirst` converter appends to the `.tflite` flatbuffer), so all three
+//! YOLO output layouts — fused, logical-split, and per-scale FPN-split —
+//! work transparently without manual output classification.
 //!
 //! Supports i.MX8MP (`VxDelegate` with DMA-BUF zero-copy and `CameraAdaptor`),
 //! i.MX95 (Neutron NPU with HAL DMA-BUF zero-copy), and CPU-only inference.
@@ -33,25 +36,30 @@
 //! yolov8 model.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --warmup 5 --iters 100 --save
 //! ```
 
+mod error;
+
 use std::os::fd::BorrowedFd;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
+use crate::error::{Error, Result};
 use edgefirst_hal::{
     decoder::{
-        configs, ConfigOutput, DecoderBuilder, DecoderVersion, DetectBox, Nms, ProtoData,
-        Segmentation,
+        schema::{LogicalType, SchemaV2},
+        DecoderBuilder, DetectBox, ProtoData, Segmentation,
     },
     image::{
         load_image, save_jpeg, ColorMode, Crop, Flip, ImageProcessor, ImageProcessorTrait as _,
         MaskOverlay, MaskResolution, Rect, Rotation,
     },
     tensor::{
-        DType, PixelFormat, PlaneDescriptor, TensorDyn, TensorMapTrait as _, TensorMemory,
-        TensorTrait as _,
+        DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMapTrait as _,
+        TensorMemory, TensorTrait as _,
     },
 };
-use edgefirst_tflite::{Delegate, DelegateOptions, Interpreter, Library, Model, TensorType};
+use edgefirst_tflite::{
+    archive::ModelArchive, Delegate, DelegateOptions, Interpreter, Library, Model, TensorType,
+};
 
 // ── Arguments ────────────────────────────────────────────────────────────────
 
@@ -124,91 +132,6 @@ fn parse_args() -> Args {
         iters,
     }
 }
-
-// ── COCO labels ──────────────────────────────────────────────────────────────
-
-const COCO: &[&str] = &[
-    "person",
-    "bicycle",
-    "car",
-    "motorcycle",
-    "airplane",
-    "bus",
-    "train",
-    "truck",
-    "boat",
-    "traffic light",
-    "fire hydrant",
-    "stop sign",
-    "parking meter",
-    "bench",
-    "bird",
-    "cat",
-    "dog",
-    "horse",
-    "sheep",
-    "cow",
-    "elephant",
-    "bear",
-    "zebra",
-    "giraffe",
-    "backpack",
-    "umbrella",
-    "handbag",
-    "tie",
-    "suitcase",
-    "frisbee",
-    "skis",
-    "snowboard",
-    "sports ball",
-    "kite",
-    "baseball bat",
-    "baseball glove",
-    "skateboard",
-    "surfboard",
-    "tennis racket",
-    "bottle",
-    "wine glass",
-    "cup",
-    "fork",
-    "knife",
-    "spoon",
-    "bowl",
-    "banana",
-    "apple",
-    "sandwich",
-    "orange",
-    "broccoli",
-    "carrot",
-    "hot dog",
-    "pizza",
-    "donut",
-    "cake",
-    "chair",
-    "couch",
-    "potted plant",
-    "bed",
-    "dining table",
-    "toilet",
-    "tv",
-    "laptop",
-    "mouse",
-    "remote",
-    "keyboard",
-    "cell phone",
-    "microwave",
-    "oven",
-    "toaster",
-    "sink",
-    "refrigerator",
-    "book",
-    "clock",
-    "vase",
-    "scissors",
-    "teddy bear",
-    "hair drier",
-    "toothbrush",
-];
 
 // ── Letterbox ────────────────────────────────────────────────────────────────
 
@@ -319,72 +242,15 @@ fn print_row(label: &str, values: &[f64]) {
     println!("  {label:<10} {min:>7.1} {max:>8.1} {avg:>8.1} {p95:>8.1} {p99:>8.1} ms");
 }
 
-// ── Output classification ────────────────────────────────────────────────────
-
-/// Classify a `TFLite` output tensor as a `ConfigOutput` based on its shape.
-fn classify_output(
-    shape: &[usize],
-    quant: Option<configs::QuantTuple>,
-    has_split_boxes: bool,
-    has_protos: bool,
-    proto_channels: usize,
-) -> ConfigOutput {
-    if shape.len() == 4 {
-        return ConfigOutput::Protos(configs::Protos {
-            decoder: configs::DecoderType::Ultralytics,
-            quantization: quant,
-            shape: shape.to_vec(),
-            dshape: Vec::new(),
-        });
-    }
-
-    let feat_dim = if shape.len() == 3 { shape[1] } else { shape[0] };
-
-    if has_split_boxes {
-        if feat_dim == 4 {
-            ConfigOutput::Boxes(configs::Boxes {
-                decoder: configs::DecoderType::Ultralytics,
-                quantization: quant,
-                shape: shape.to_vec(),
-                dshape: Vec::new(),
-                normalized: None,
-            })
-        } else if has_protos && proto_channels > 0 && feat_dim == proto_channels {
-            ConfigOutput::MaskCoefficients(configs::MaskCoefficients {
-                decoder: configs::DecoderType::Ultralytics,
-                quantization: quant,
-                shape: shape.to_vec(),
-                dshape: Vec::new(),
-            })
-        } else {
-            ConfigOutput::Scores(configs::Scores {
-                decoder: configs::DecoderType::Ultralytics,
-                quantization: quant,
-                shape: shape.to_vec(),
-                dshape: Vec::new(),
-            })
-        }
-    } else {
-        ConfigOutput::Detection(configs::Detection {
-            decoder: configs::DecoderType::Ultralytics,
-            quantization: quant,
-            shape: shape.to_vec(),
-            anchors: None,
-            dshape: Vec::new(),
-            normalized: None,
-        })
-    }
-}
-
 // ── Output buffers / model input / pipeline helpers ──────────────────────────
 
-fn tflite_dtype(tt: TensorType) -> Result<DType, Box<dyn std::error::Error>> {
+fn tflite_dtype(tt: TensorType) -> Result<DType> {
     match tt {
         TensorType::Float32 => Ok(DType::F32),
         TensorType::Int8 => Ok(DType::I8),
         TensorType::UInt8 => Ok(DType::U8),
         TensorType::Int32 => Ok(DType::I32),
-        other => Err(format!("unsupported output dtype: {other:?}").into()),
+        other => Err(Error::unsupported(format!("output dtype: {other:?}"))),
     }
 }
 
@@ -392,26 +258,27 @@ fn tflite_dtype(tt: TensorType) -> Result<DType, Box<dyn std::error::Error>> {
 struct OutputBuffers(Vec<TensorDyn>);
 
 impl OutputBuffers {
-    fn allocate(interpreter: &Interpreter<'_>) -> Result<Self, Box<dyn std::error::Error>> {
+    fn allocate(interpreter: &Interpreter<'_>) -> Result<Self> {
         let outputs = interpreter.outputs()?;
         let mut tensors = Vec::with_capacity(outputs.len());
         for t in &outputs {
             let shape = t.shape()?;
             let dtype = tflite_dtype(t.tensor_type())?;
-            tensors.push(TensorDyn::new(
-                &shape,
-                dtype,
-                Some(TensorMemory::Mem),
-                None,
-            )?);
+            let mut td = TensorDyn::new(&shape, dtype, Some(TensorMemory::Mem), None)?;
+            // The HAL per-scale decoder reads quantization from the tensor
+            // itself (not from the schema), so propagate the TFLite tensor's
+            // (scale, zero_point) onto each integer output buffer. Float
+            // outputs reject set_quantization — skip them.
+            if dtype != DType::F32 {
+                let qp = t.quantization_params();
+                td.set_quantization(Quantization::from((qp.scale, qp.zero_point)))?;
+            }
+            tensors.push(td);
         }
         Ok(Self(tensors))
     }
 
-    fn sync_from(
-        &mut self,
-        interpreter: &Interpreter<'_>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn sync_from(&mut self, interpreter: &Interpreter<'_>) -> Result<()> {
         let outputs = interpreter.outputs()?;
         for (td, t) in self.0.iter_mut().zip(outputs.iter()) {
             match tflite_dtype(t.tensor_type())? {
@@ -443,7 +310,7 @@ impl OutputBuffers {
                         .as_mut_slice()
                         .copy_from_slice(t.as_slice::<i32>()?);
                 }
-                _ => return Err("unsupported output dtype".into()),
+                _ => return Err(Error::unsupported("output dtype")),
             }
         }
         Ok(())
@@ -489,7 +356,7 @@ fn preprocess_step(
     letterbox: Crop,
     use_dmabuf: bool,
     input_type: TensorType,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<()> {
     match model_input {
         ModelInput::DmaBuf(dst) => {
             processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
@@ -520,7 +387,7 @@ fn preprocess_step(
                         *d = f32::from(s) / 255.0;
                     }
                 }
-                other => return Err(format!("unsupported input type: {other:?}").into()),
+                other => return Err(Error::unsupported(format!("input type: {other:?}"))),
             }
         }
     }
@@ -546,7 +413,7 @@ fn run_iterations(
     in_h: usize,
     use_dmabuf: bool,
     input_type: TensorType,
-) -> Result<(Vec<DetectBox>, IterTimings), Box<dyn std::error::Error>> {
+) -> Result<(Vec<DetectBox>, IterTimings)> {
     let mut timings = IterTimings::with_capacity(n);
     let mut detections: Vec<DetectBox> = Vec::with_capacity(100);
     // Precompute the normalised letterbox rect once for use in materialize_segmentations.
@@ -626,7 +493,7 @@ fn run_iterations(
 // ── Main ─────────────────────────────────────────────────────────────────────
 
 #[allow(clippy::too_many_lines, clippy::similar_names)]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<()> {
     let args = parse_args();
 
     // ── 1. Load TFLite library, model, delegate, interpreter ────────
@@ -694,62 +561,50 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("  CameraAdaptor: enabled (RGBA \u{2192} RGB on NPU)");
     }
 
-    // ── 3. Inspect outputs, auto-detect model type, build Decoder ───
-    let decoder = {
+    // ── 3. Print outputs and build Decoder from embedded edgefirst.json ───
+    // Emit the same per-output diagnostic lines the manual path used to
+    // print, so the output stays familiar across the refactor.
+    {
         let outputs = interpreter.outputs()?;
-
-        let mut has_protos = false;
-        let mut proto_channels = 0usize;
-        let mut has_split_boxes = false;
-
-        for tensor in &outputs {
-            let shape = tensor.shape()?;
-            if shape.len() == 4 {
-                has_protos = true;
-                // Proto tensor is [1, H, W, C] (NHWC); last dim is the mask channel count.
-                proto_channels = shape.last().copied().unwrap_or(0);
-            } else if shape.len() >= 2 {
-                let feat_dim = if shape.len() == 3 { shape[1] } else { shape[0] };
-                if feat_dim == 4 {
-                    has_split_boxes = true;
-                }
-            }
-        }
-
-        let mut dec_builder = DecoderBuilder::default()
-            .with_score_threshold(args.threshold)
-            .with_iou_threshold(args.iou)
-            .with_nms(Some(Nms::ClassAgnostic));
-
         for (i, tensor) in outputs.iter().enumerate() {
-            let shape = tensor.shape()?;
             let qp = tensor.quantization_params();
             println!(
                 "  output[{i}]: {} (scale={}, zero_point={})",
                 tensor, qp.scale, qp.zero_point
             );
-
-            let quant = if tensor.tensor_type() == TensorType::Float32 {
-                None
-            } else {
-                Some(configs::QuantTuple(qp.scale, qp.zero_point))
-            };
-
-            dec_builder = dec_builder.add_output(classify_output(
-                &shape,
-                quant,
-                has_split_boxes,
-                has_protos,
-                proto_channels,
-            ));
         }
+    }
 
-        dec_builder = dec_builder.with_decoder_version(DecoderVersion::Yolov8);
-        dec_builder.build()?
-    };
+    // The model has no embedded EdgeFirst metadata archive when this returns
+    // an error — propagate as `Error::Tflite` (its inner cause already carries
+    // the missing-archive message).
+    let mut archive = ModelArchive::new(model.data())?;
+    let edgefirst_json = archive.edgefirst_json()?;
+    let labels = archive.labels().unwrap_or_default();
+    println!(
+        "  Schema:  edgefirst.json embedded ({} bytes), labels.txt: {} entries",
+        edgefirst_json.len(),
+        labels.len(),
+    );
 
-    let model_type = format!("{:?}", decoder.model_type());
-    let mode = if model_type.to_lowercase().contains("seg") {
+    // Parse the JSON into a SchemaV2 so we can both feed the builder via the
+    // schema-aware path (`with_schema` preserves per-scale FPN children that
+    // the merge pipeline relies on for DFL decode) and inspect the logical
+    // outputs to decide segmentation vs detection mode without depending on
+    // the runtime `Decoder::model_type()` debug formatting.
+    let schema = SchemaV2::parse_json(&edgefirst_json)?;
+    let is_segmentation = schema
+        .outputs
+        .iter()
+        .any(|o| matches!(o.type_, Some(LogicalType::Protos)));
+
+    let decoder = DecoderBuilder::new()
+        .with_schema(schema)
+        .with_score_threshold(args.threshold)
+        .with_iou_threshold(args.iou)
+        .build()?;
+
+    let mode = if is_segmentation {
         "segmentation"
     } else {
         "detection"
@@ -921,7 +776,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let inv_lw = 1.0 / (lx1 - lx0);
         let inv_lh = 1.0 / (ly1 - ly0);
         for det in &detections {
-            let name = COCO.get(det.label).unwrap_or(&"?");
+            let name = labels.get(det.label).map_or("?", String::as_str);
             let bbox = det.bbox.to_canonical();
             let x1 = (((bbox.xmin.clamp(0.0, 1.0) - lx0) * inv_lw) * img_w as f32)
                 .clamp(0.0, img_w as f32);

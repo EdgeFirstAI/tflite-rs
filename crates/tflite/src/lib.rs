@@ -32,7 +32,8 @@
 //! |---------|-------------|
 //! | `dmabuf` | DMA-BUF zero-copy inference via HAL Delegate API |
 //! | `camera_adaptor` | NPU-accelerated format conversion |
-//! | `metadata` | `TFLite` model metadata extraction |
+//! | `metadata` | `TFLite` model metadata extraction (`TFLITE_METADATA` buffer) |
+//! | `archive` | Embedded ZIP-archive metadata (`edgefirst.json`, `labels.txt`) |
 //! | `full` | Enables all optional features |
 
 pub mod delegate;
@@ -51,6 +52,9 @@ pub mod camera_adaptor;
 
 #[cfg(feature = "metadata")]
 pub mod metadata;
+
+#[cfg(feature = "archive")]
+pub mod archive;
 
 // Public re-exports for convenience.
 pub use delegate::{Delegate, DelegateOptions};

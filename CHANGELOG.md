@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-08
+
+### Added
+
+- `archive` feature on `edgefirst-tflite` exposing `archive::ModelArchive`
+  for reading the ZIP archive that the EdgeFirst tflite-converter appends
+  to the FlatBuffer payload (`edgefirst.json`, `labels.txt`,
+  `metadata.json`). Convenience helpers `archive::edgefirst_json()`,
+  `archive::labels()`, and `archive::has_archive()` cover the common
+  one-shot reads.
+- Schema v2 fixtures in `testdata/`: `yolov8n-seg-combined-int8.tflite`,
+  `yolov8n-seg-logical-int8.tflite`, `yolov8n-seg-smart-int8.tflite`
+  exercising the fused, logical-split, and per-scale FPN-split decoder
+  layouts respectively.
+- Archive unit tests round-tripping all three schema v2 layouts and
+  asserting layout-signature contract pins.
+- Python bindings for the new `archive` API: `ModelArchive` class,
+  `has_archive()` module helper, and `Interpreter.get_archive()`.
+- Python bindings for the existing `Profiler` API (gap closure from
+  0.5.0): `Profiler` and `OpEvent` classes, plus a `profiler=`
+  keyword argument on `Interpreter`.
+
+### Changed
+
+- `yolov8` example builds the HAL `Decoder` from the model's embedded
+  `edgefirst.json` (via `SchemaV2::parse_json` + `DecoderBuilder::with_schema`)
+  instead of the prior shape-based heuristic. The same example now
+  drives all three converter output layouts (combined / logical / smart)
+  uniformly. Class labels are read from the embedded `labels.txt` rather
+  than a hardcoded COCO list.
+- `yolov8` example propagates each TFLite output tensor's
+  `(scale, zero_point)` onto the corresponding HAL `TensorDyn` output
+  buffer. The HAL per-scale decoder reads quantization from the tensor
+  itself, so this attachment is required for the per-scale FPN-split
+  ("smart") path.
+- Updated `edgefirst-hal` dependency from 0.20 to 0.21.0 in the `yolov8`
+  example.
+
 ## [0.5.1] - 2026-05-07
 
 ### Changed
