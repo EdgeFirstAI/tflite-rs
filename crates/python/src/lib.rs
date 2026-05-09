@@ -8,12 +8,14 @@
 //! core inference path, while exposing `EdgeFirst` extensions (DMA-BUF,
 //! `CameraAdaptor`) and model metadata.
 
+mod archive;
 mod camera_adaptor;
 mod delegate;
 mod dmabuf;
 mod error;
 mod interpreter;
 mod metadata;
+mod profiler;
 mod tensor_utils;
 
 use pyo3::prelude::*;
@@ -34,10 +36,14 @@ fn edgefirst_tflite(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<dmabuf::PyDmaBuf>()?;
     m.add_class::<camera_adaptor::PyCameraAdaptor>()?;
     m.add_class::<metadata::PyMetadata>()?;
+    m.add_class::<archive::PyModelArchive>()?;
+    m.add_class::<profiler::PyProfiler>()?;
+    m.add_class::<profiler::PyOpEvent>()?;
 
     // Module-level functions
     m.add_function(wrap_pyfunction!(delegate::load_delegate, m)?)?;
     m.add_function(wrap_pyfunction!(delegate::xnnpack_delegate, m)?)?;
+    m.add_function(wrap_pyfunction!(archive::has_archive, m)?)?;
 
     Ok(())
 }

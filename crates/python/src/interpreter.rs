@@ -7,12 +7,14 @@
 use std::mem::ManuallyDrop;
 use std::path::PathBuf;
 use std::pin::Pin;
+use std::sync::Arc;
 
 use pyo3::prelude::*;
 use pyo3::types::PyList;
 
 use crate::delegate::PyDelegate;
 use crate::error::{self, InvalidArgumentError, TfLiteError};
+use crate::profiler::PyProfiler;
 use crate::tensor_utils;
 
 // ---------------------------------------------------------------------------
@@ -35,6 +37,10 @@ struct InterpreterOwned {
     /// `TensorAccessor` to detect stale zero-copy views whose backing
     /// memory may have been freed and reallocated.
     allocation_generation: u64,
+    /// Shared with the `PyProfiler` on the Python side; held here so the
+    /// underlying C profiler struct outlives the interpreter.
+    #[allow(dead_code)]
+    profiler: Option<Arc<edgefirst_tflite::Profiler>>,
     // IMPORTANT: `library` must be the LAST field. After Drop::drop manually
     // drops `interpreter` and `model`, Rust auto-drops remaining fields in
     // declaration order. `library` must outlive both, so it must be last.
@@ -48,6 +54,7 @@ impl InterpreterOwned {
         model_data: Vec<u8>,
         num_threads: Option<i32>,
         delegates: Vec<edgefirst_tflite::Delegate>,
+        profiler: Option<Arc<edgefirst_tflite::Profiler>>,
     ) -> Result<Self, edgefirst_tflite::Error> {
         let library = Pin::new(Box::new(library));
 
@@ -72,12 +79,16 @@ impl InterpreterOwned {
         for d in delegates {
             builder = builder.delegate(d);
         }
+        if let Some(p) = profiler.as_ref() {
+            builder = builder.profiler(p)?;
+        }
         let interpreter = builder.build(&model)?;
 
         Ok(Self {
             interpreter: ManuallyDrop::new(interpreter),
             model: ManuallyDrop::new(model),
             allocation_generation: 0,
+            profiler,
             library,
         })
     }
@@ -187,8 +198,10 @@ impl PyInterpreter {
     ///     `num_threads`: Number of inference threads (None = auto).
     ///     `experimental_delegates`: List of `Delegate` objects for HW accel.
     ///     `library_path`: Path to `libtensorflowlite_c.so` (`EdgeFirst` extension).
+    ///     `profiler`: Optional ``Profiler`` to collect per-op timing events
+    ///         (`EdgeFirst` extension).
     #[new]
-    #[pyo3(signature = (model_path=None, model_content=None, num_threads=None, experimental_delegates=None, *, library_path=None))]
+    #[pyo3(signature = (model_path=None, model_content=None, num_threads=None, experimental_delegates=None, *, library_path=None, profiler=None))]
     fn new(
         _py: Python<'_>,
         model_path: Option<PathBuf>,
@@ -196,6 +209,7 @@ impl PyInterpreter {
         num_threads: Option<i32>,
         experimental_delegates: Option<Bound<'_, PyList>>,
         library_path: Option<PathBuf>,
+        profiler: Option<PyRef<'_, PyProfiler>>,
     ) -> PyResult<Self> {
         // Load the TFLite shared library.
         let library = if let Some(path) = library_path {
@@ -231,8 +245,10 @@ impl PyInterpreter {
             }
         }
 
-        let inner = InterpreterOwned::new(library, model_data, num_threads, delegates)
-            .map_err(error::to_py_err)?;
+        let profiler_arc = profiler.as_ref().map(|p| p.arc());
+        let inner =
+            InterpreterOwned::new(library, model_data, num_threads, delegates, profiler_arc)
+                .map_err(error::to_py_err)?;
 
         Ok(Self { inner })
     }
@@ -413,6 +429,19 @@ impl PyInterpreter {
         } else {
             Some(crate::metadata::PyMetadata { inner: meta })
         }
+    }
+
+    /// Open the embedded ZIP-archive metadata (``edgefirst.json``,
+    /// ``labels.txt``, ``metadata.json``) appended to the model's
+    /// FlatBuffer payload by the EdgeFirst tflite-converter.
+    ///
+    /// Returns ``None`` when the model has no embedded archive.
+    fn get_archive(&self) -> Option<crate::archive::PyModelArchive> {
+        let data = self.inner.model.data();
+        if !edgefirst_tflite::archive::has_archive(data) {
+            return None;
+        }
+        crate::archive::PyModelArchive::from_owned_bytes(data.to_vec()).ok()
     }
 }
 

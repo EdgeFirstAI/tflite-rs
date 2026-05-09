@@ -86,6 +86,7 @@ class Interpreter:
         experimental_delegates: list[Delegate] | None = None,
         *,
         library_path: str | Path | None = None,
+        profiler: Profiler | None = None,
     ) -> None:
         """Create a new Interpreter.
 
@@ -96,6 +97,8 @@ class Interpreter:
             experimental_delegates: List of hardware acceleration delegates.
             library_path: Explicit path to ``libtensorflowlite_c.so``
                 (EdgeFirst extension; omit to auto-discover).
+            profiler: Optional ``Profiler`` to record per-op timing
+                events during ``invoke()`` (EdgeFirst extension).
 
         Raises:
             InvalidArgumentError: If neither ``model_path`` nor
@@ -240,6 +243,17 @@ class Interpreter:
         Returns:
             A ``CameraAdaptor`` interface, or ``None`` if the delegate does
             not support CameraAdaptor.
+        """
+        ...
+
+    def get_archive(self) -> ModelArchive | None:
+        """Open the embedded ZIP-archive metadata appended to the model.
+
+        Returns
+        -------
+        A ``ModelArchive`` reading ``edgefirst.json`` / ``labels.txt`` /
+        ``metadata.json`` from the model's ZIP trailer, or ``None`` when
+        the model has no embedded archive.
         """
         ...
 
@@ -766,4 +780,126 @@ class Metadata:
     @property
     def min_parser_version(self) -> str | None:
         """Minimum parser version required."""
+        ...
+
+# ---------------------------------------------------------------------------
+# ModelArchive
+# ---------------------------------------------------------------------------
+
+class ModelArchive:
+    """Read the ZIP archive embedded in a ``.tflite`` file.
+
+    The EdgeFirst tflite-converter appends a standard ZIP archive
+    (``edgefirst.json``, ``labels.txt``, ``metadata.json``) to the end
+    of the FlatBuffer payload. The TFLite runtime ignores the trailing
+    bytes, so the model still loads with any standards-compliant
+    interpreter.
+    """
+
+    def __init__(
+        self,
+        path: str | Path | None = None,
+        *,
+        content: bytes | None = None,
+    ) -> None:
+        """Open the embedded archive of a ``.tflite`` model.
+
+        Args:
+            path: Filesystem path to the ``.tflite`` file.
+            content: Raw model bytes (alternative to ``path``).
+
+        Raises:
+            ValueError: If neither or both of ``path`` and ``content``
+                are provided.
+            InvalidArgumentError: If the bytes do not end with a valid
+                ZIP archive.
+        """
+        ...
+
+    def __len__(self) -> int:
+        """Number of entries in the archive."""
+        ...
+
+    def __contains__(self, name: str) -> bool:
+        """True if the archive contains an entry with this name."""
+        ...
+
+    def entry_names(self) -> list[str]:
+        """Names of all entries in the archive."""
+        ...
+
+    def read(self, name: str) -> bytes:
+        """Read an entry by name as raw bytes."""
+        ...
+
+    def read_to_string(self, name: str) -> str:
+        """Read an entry by name and decode as UTF-8."""
+        ...
+
+    def edgefirst_json(self) -> str:
+        """Read ``edgefirst.json`` as a UTF-8 string."""
+        ...
+
+    def labels(self) -> list[str]:
+        """Read ``labels.txt`` and split into one label per line."""
+        ...
+
+def has_archive(content: bytes) -> bool:
+    """Return ``True`` if ``content`` ends with a valid ZIP archive."""
+    ...
+
+# ---------------------------------------------------------------------------
+# Profiler
+# ---------------------------------------------------------------------------
+
+class OpEvent:
+    """One recorded operator timing event."""
+
+    @property
+    def op_name(self) -> str:
+        """Operator name (e.g. ``CONV_2D``, ``NeutronDelegate``)."""
+        ...
+
+    @property
+    def op_idx(self) -> int:
+        """Operator index in the subgraph."""
+        ...
+
+    @property
+    def subgraph_idx(self) -> int:
+        """Subgraph index."""
+        ...
+
+    @property
+    def duration_us(self) -> int:
+        """Duration in microseconds."""
+        ...
+
+class Profiler:
+    """Op-level telemetry profiler.
+
+    Construct one, pass it as ``profiler=`` to ``Interpreter(...)``,
+    then read events after each ``invoke()``.
+    """
+
+    def __init__(self) -> None: ...
+
+    def __len__(self) -> int:
+        """Number of completed events collected so far."""
+        ...
+
+    def events(self) -> list[OpEvent]:
+        """Snapshot of all events since the last ``drain_events`` or ``clear``."""
+        ...
+
+    def drain_events(self) -> list[OpEvent]:
+        """Return all collected events and empty the internal list."""
+        ...
+
+    def clear(self) -> None:
+        """Discard all collected events without returning them."""
+        ...
+
+    def event_count(self) -> int:
+        """Number of completed events collected so far."""
         ...
