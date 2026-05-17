@@ -64,3 +64,28 @@ pub use library::Library;
 pub use model::Model;
 pub use profiler::{OpEvent, Profiler};
 pub use tensor::{QuantizationParams, Tensor, TensorMut, TensorType};
+
+// ---------------------------------------------------------------------------
+// Compile-time thread-safety assertions
+// ---------------------------------------------------------------------------
+
+const fn assert_send<T: Send>() {}
+const fn assert_sync<T: Sync>() {}
+
+const _: () = {
+    // Library: loaded function table — safe to share across threads.
+    assert_send::<Library>();
+    assert_sync::<Library>();
+
+    // Model: read-only after creation — safe to share across threads.
+    assert_send::<Model<'_>>();
+    assert_sync::<Model<'_>>();
+
+    // Interpreter: mutable state — can be sent but not shared.
+    assert_send::<Interpreter<'_>>();
+    // Interpreter is intentionally NOT Sync.
+
+    // Delegate: opaque handle — safe to send and share.
+    assert_send::<Delegate>();
+    assert_sync::<Delegate>();
+};

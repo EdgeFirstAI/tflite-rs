@@ -75,6 +75,17 @@ impl<'lib> Model<'lib> {
     }
 }
 
+// SAFETY: `Model` owns a `NonNull<TfLiteModel>` (an opaque C handle with
+// no thread affinity), a `Vec<u8>` backing buffer (`Send + Sync`), and a
+// `&Library` reference (`Sync`). The `TfLiteModel*` is immutable after
+// creation — multiple interpreters can be created from it concurrently.
+unsafe impl Send for Model<'_> {}
+
+// SAFETY: The `TfLiteModel*` is internally reference-counted and read-only
+// after construction. Sharing `&Model` across threads is safe because all
+// access is read-only (creating interpreters takes `&Model`, not `&mut`).
+unsafe impl Sync for Model<'_> {}
+
 impl Drop for Model<'_> {
     fn drop(&mut self) {
         // SAFETY: `self.ptr` was created by `TfLiteModelCreate` and has not

@@ -22,8 +22,12 @@
 //! scp target/aarch64-unknown-linux-gnu/debug/deps/on_device-* root@device:/tmp/
 //! scp testdata/minimal.tflite root@device:/tmp/testdata/
 //! ssh root@device 'cd /tmp && TFLITE_TEST_LIB=/usr/lib/libtensorflowlite_c.so \
-//!     VX_DELEGATE_LIB=/usr/lib/libvx_delegate.so ./on_device-*'
+//!     VX_DELEGATE_LIB=/usr/lib/libvx_delegate.so ./on_device-* --test-threads=1'
 //! ```
+//!
+//! **Note:** `--test-threads=1` is required because VxDelegate initialization
+//! is not thread-safe — creating multiple delegate instances concurrently from
+//! different threads can cause heap corruption.
 
 // Allow deprecated VxDelegate API usage in on-device tests until
 // the test suite is migrated to the HAL Delegate API.
@@ -1117,5 +1121,141 @@ mod real_model_metadata {
         let metadata = edgefirst_tflite::metadata::Metadata::from_model_bytes(model.data());
         eprintln!("  Metadata: {metadata}");
         // Just verify it doesn't panic and produces reasonable output.
+    }
+}
+
+// ===========================================================================
+// Category M: Multi-Interpreter Concurrent Inference (VxDelegate)
+// ===========================================================================
+
+#[test]
+fn multi_interpreter_delegated_sequential() {
+    require_delegate!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+
+    let mut interp_a = build_delegated_interpreter(&lib, &model);
+    let mut interp_b = build_delegated_interpreter(&lib, &model);
+
+    let input_a: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
+    let input_b: [f32; 4] = [10.0, 20.0, 30.0, 40.0];
+
+    {
+        let mut inputs = interp_a.inputs_mut().unwrap();
+        inputs[0].copy_from_slice(&input_a).unwrap();
+    }
+    {
+        let mut inputs = interp_b.inputs_mut().unwrap();
+        inputs[0].copy_from_slice(&input_b).unwrap();
+    }
+
+    interp_a.invoke().expect("interp_a invoke failed");
+    interp_b.invoke().expect("interp_b invoke failed");
+
+    // Model adds [1,1,1,1].
+    let out_a = interp_a.outputs().unwrap();
+    let data_a = out_a[0].as_slice::<f32>().unwrap();
+    let expected_a = [2.0f32, 3.0, 4.0, 5.0];
+    for (got, want) in data_a.iter().zip(expected_a.iter()) {
+        assert!(
+            (got - want).abs() < 1e-5,
+            "interp_a: expected {want}, got {got}"
+        );
+    }
+
+    let out_b = interp_b.outputs().unwrap();
+    let data_b = out_b[0].as_slice::<f32>().unwrap();
+    let expected_b = [11.0f32, 21.0, 31.0, 41.0];
+    for (got, want) in data_b.iter().zip(expected_b.iter()) {
+        assert!(
+            (got - want).abs() < 1e-5,
+            "interp_b: expected {want}, got {got}"
+        );
+    }
+}
+
+/// Tests the pipeline pattern: interpreters are moved between threads to prove
+/// that `Send` works correctly with VxDelegate.
+///
+/// VxDelegate does not support multiple delegate instances being used
+/// concurrently (even with serialized invoke). The correct pipeline pattern
+/// moves a single interpreter between pipeline stages (fill → infer → read),
+/// with each stage on a different thread. This test verifies that interpreters
+/// with VxDelegate can be safely moved across thread boundaries.
+#[test]
+fn multi_interpreter_delegated_threaded() {
+    require_delegate!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+
+    const ITERATIONS: usize = 20;
+
+    // Create a single delegated interpreter and pass it through multiple
+    // threads to prove Send works with VxDelegate.
+    let mut interp = build_delegated_interpreter(&lib, &model);
+
+    // Run inference from the main thread first.
+    for i in 0..ITERATIONS {
+        let base = i as f32;
+        let input = [base, base + 1.0, base + 2.0, base + 3.0];
+        {
+            let mut inputs = interp.inputs_mut().unwrap();
+            inputs[0].copy_from_slice(&input).unwrap();
+        }
+        interp.invoke().unwrap();
+        let outputs = interp.outputs().unwrap();
+        let data = outputs[0].as_slice::<f32>().unwrap();
+        let expected = [base + 1.0, base + 2.0, base + 3.0, base + 4.0];
+        for (got, want) in data.iter().zip(expected.iter()) {
+            assert!(
+                (got - want).abs() < 1e-5,
+                "main thread iter {i}: expected {want}, got {got}"
+            );
+        }
+    }
+
+    // Move interpreter to a worker thread, run inference there, move it back.
+    // This proves Send works: the interpreter (with VxDelegate) can be safely
+    // transferred between threads — the core requirement for pipeline patterns.
+    let mut interp = std::thread::scope(|s| {
+        let handle = s.spawn(move || {
+            for i in 0..ITERATIONS {
+                let base = (100 + i) as f32;
+                let input = [base, base + 1.0, base + 2.0, base + 3.0];
+                {
+                    let mut inputs = interp.inputs_mut().unwrap();
+                    inputs[0].copy_from_slice(&input).unwrap();
+                }
+                interp.invoke().unwrap();
+                let outputs = interp.outputs().unwrap();
+                let data = outputs[0].as_slice::<f32>().unwrap();
+                let expected = [base + 1.0, base + 2.0, base + 3.0, base + 4.0];
+                for (got, want) in data.iter().zip(expected.iter()) {
+                    assert!(
+                        (got - want).abs() < 1e-5,
+                        "worker thread iter {i}: expected {want}, got {got}"
+                    );
+                }
+            }
+            interp
+        });
+        handle.join().expect("worker thread panicked")
+    });
+
+    // Use interpreter back on main thread to confirm it still works.
+    let input = [42.0f32, 43.0, 44.0, 45.0];
+    {
+        let mut inputs = interp.inputs_mut().unwrap();
+        inputs[0].copy_from_slice(&input).unwrap();
+    }
+    interp.invoke().unwrap();
+    let outputs = interp.outputs().unwrap();
+    let data = outputs[0].as_slice::<f32>().unwrap();
+    let expected = [43.0f32, 44.0, 45.0, 46.0];
+    for (got, want) in data.iter().zip(expected.iter()) {
+        assert!(
+            (got - want).abs() < 1e-5,
+            "final main thread: expected {want}, got {got}"
+        );
     }
 }

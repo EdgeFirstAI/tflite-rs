@@ -231,6 +231,22 @@ probes for optional VxDelegate extension symbols using `try_load` on
 - `delegate.dmabuf()` — returns `Option<DmaBuf<'_>>` (feature `dmabuf`)
 - `delegate.camera_adaptor()` — returns `Option<CameraAdaptor<'_>>` (feature `camera_adaptor`)
 
+### Thread Safety
+
+The TFLite C API has no thread affinity. Core types implement `Send`/`Sync`:
+
+| Type | `Send` | `Sync` | Notes |
+|------|--------|--------|-------|
+| `Library` | ✅ | ✅ | Immutable function table |
+| `Model<'lib>` | ✅ | ✅ | Read-only after creation |
+| `Interpreter<'lib>` | ✅ | ❌ | Mutable state; exclusive ownership only |
+| `Delegate` | ✅ | ✅ | Opaque handle |
+
+Multiple interpreters can be created from one model for concurrent inference.
+Each interpreter has independent tensor state. Use `std::thread::scope` with
+the `'lib` lifetime. See `examples/async_pipeline/` for a pipelined
+submit/wait pattern.
+
 ---
 
 ## Build and Test Commands

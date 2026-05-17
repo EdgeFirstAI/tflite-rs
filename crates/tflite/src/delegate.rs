@@ -133,16 +133,20 @@ pub struct Delegate {
     camera_adaptor_fns: Option<VxCameraAdaptorFunctions>,
 }
 
-// SAFETY: `hal_delegate_handle` is a raw pointer obtained from
-// `hal_dmabuf_get_instance()`. The HAL contract guarantees this pointer
-// is valid and stable for the lifetime of the loaded delegate library.
+// SAFETY: `Delegate` owns its `NonNull<TfLiteDelegate>` handle, a destroy
+// function pointer, and keeps the delegate `.so` loaded via `_lib`. The
+// `TfLiteDelegate*` has no thread affinity — it can be safely sent to
+// another thread (e.g., when creating interpreters in worker threads).
 // `Delegate` is the sole owner and never shares the handle concurrently.
-#[cfg(feature = "dmabuf")]
-// SAFETY: See above — the handle is stable and not concurrently accessed.
 unsafe impl Send for Delegate {}
-#[cfg(feature = "dmabuf")]
-// SAFETY: All HAL API methods take `&self` and the underlying C functions
-// are thread-safe per the HAL contract.
+
+// SAFETY: All shared access via `&Delegate` is read-only (e.g.,
+// `as_ptr()`, `has_dmabuf()`). The delegate pointer itself is only
+// mutated through `&mut self` or on drop. Optional HAL function tables
+// are immutable once loaded. In practice, delegates are owned by
+// interpreters which are `Send` but not `Sync`, so concurrent shared
+// access does not occur — each thread owns its own interpreter and
+// delegate instance.
 unsafe impl Sync for Delegate {}
 
 impl Delegate {
