@@ -21,14 +21,39 @@
 //! ## Usage
 //!
 //! ```text
-//! cargo run -p async-pipeline -- model.tflite [iterations] [depth]
+//! cargo run -p async-pipeline -- model.tflite [iterations] [depth] [--delegate <path>]
 //! ```
 //!
 //! - `iterations`: total inferences to run (default: 100)
-//! - `depth`: ring buffer depth / number of interpreter slots (default: 2)
+//! - `depth`: ring buffer depth / number of interpreter slots (default: 1)
 //!
-//! An optional `--delegate <path>` flag loads a hardware delegate (e.g.,
-//! VxDelegate for NPU acceleration).
+//! **Note:** The `--delegate` flag must come after the positional arguments.
+//!
+//! A depth of 1 is safe with all delegates (including `VxDelegate`). Higher
+//! depths (2, 3, 4) create multiple interpreter/delegate instances and provide
+//! increased pipelining; this works with CPU-only inference and
+//! `NeutronDelegate` (i.MX95) but **not** with `VxDelegate` (i.MX8M Plus),
+//! which crashes when multiple delegate instances coexist.
+//!
+//! ## Examples
+//!
+//! ```text
+//! # Safe with all backends (depth=1, the default):
+//! cargo run -p async-pipeline -- model.tflite 100
+//!
+//! # Higher depths for CPU-only or NeutronDelegate:
+//! cargo run -p async-pipeline -- model.tflite 100 2
+//! cargo run -p async-pipeline -- model.tflite 100 3
+//! cargo run -p async-pipeline -- model.tflite 100 4
+//!
+//! # Sweep depths 1–4 to compare throughput (CPU-only):
+//! for d in 1 2 3 4; do
+//!   cargo run -p async-pipeline -- model.tflite 200 $d
+//! done
+//!
+//! # With NeutronDelegate at depth=3:
+//! cargo run -p async-pipeline -- model.tflite 100 3 --delegate /usr/lib/libneutron_delegate.so
+//! ```
 
 use edgefirst_tflite::{Delegate, Interpreter, Library, Model};
 use std::{env, process, thread, time::Instant};
@@ -93,21 +118,44 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     if args.len() < 2 {
         eprintln!(
-            "Usage: {} <model.tflite> [iterations] [depth] [--delegate <path>]",
+            "Usage: {} <model.tflite> [iterations] [depth] [--delegate <path>]\n\
+             \n  depth defaults to 1 (safe with all delegates).\n\
+             Use depth 2-4 for CPU-only or NeutronDelegate pipelines.",
             args[0]
         );
         process::exit(1);
     }
 
     let model_path = &args[1];
-    let iterations: usize = args.get(2).and_then(|s| s.parse().ok()).unwrap_or(100);
-    let depth: usize = args.get(3).and_then(|s| s.parse().ok()).unwrap_or(2);
 
-    // Parse optional --delegate flag.
+    // Parse optional --delegate flag first (can appear anywhere after model).
     let delegate_path = args
         .windows(2)
         .find(|w| w[0] == "--delegate")
         .map(|w| w[1].clone());
+
+    // Parse positional args, skipping any that are part of --delegate.
+    let positional: Vec<&str> = {
+        let mut pos = Vec::new();
+        let mut skip = false;
+        for arg in &args[2..] {
+            if skip {
+                skip = false;
+                continue;
+            }
+            if arg == "--delegate" {
+                skip = true;
+                continue;
+            }
+            pos.push(arg.as_str());
+        }
+        pos
+    };
+    let iterations: usize = positional
+        .first()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(100);
+    let depth: usize = positional.get(1).and_then(|s| s.parse().ok()).unwrap_or(1);
 
     println!("Model:      {model_path}");
     println!("Iterations: {iterations}");

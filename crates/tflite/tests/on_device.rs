@@ -1175,20 +1175,20 @@ fn multi_interpreter_delegated_sequential() {
 }
 
 /// Tests the pipeline pattern: interpreters are moved between threads to prove
-/// that `Send` works correctly with VxDelegate.
+/// that `Send` works correctly with `VxDelegate`.
 ///
-/// VxDelegate does not support multiple delegate instances being used
+/// `VxDelegate` does not support multiple delegate instances being used
 /// concurrently (even with serialized invoke). The correct pipeline pattern
 /// moves a single interpreter between pipeline stages (fill → infer → read),
 /// with each stage on a different thread. This test verifies that interpreters
-/// with VxDelegate can be safely moved across thread boundaries.
+/// with `VxDelegate` can be safely moved across thread boundaries.
 #[test]
 fn multi_interpreter_delegated_threaded() {
+    const ITERATIONS: usize = 20;
+
     require_delegate!();
     let lib = common::load_library().unwrap();
     let model = common::load_model(&lib);
-
-    const ITERATIONS: usize = 20;
 
     // Create a single delegated interpreter and pass it through multiple
     // threads to prove Send works with VxDelegate.
@@ -1196,7 +1196,7 @@ fn multi_interpreter_delegated_threaded() {
 
     // Run inference from the main thread first.
     for i in 0..ITERATIONS {
-        let base = i as f32;
+        let base = f32::from(i as u16);
         let input = [base, base + 1.0, base + 2.0, base + 3.0];
         {
             let mut inputs = interp.inputs_mut().unwrap();
@@ -1220,7 +1220,7 @@ fn multi_interpreter_delegated_threaded() {
     let mut interp = std::thread::scope(|s| {
         let handle = s.spawn(move || {
             for i in 0..ITERATIONS {
-                let base = (100 + i) as f32;
+                let base = f32::from((100 + i) as u16);
                 let input = [base, base + 1.0, base + 2.0, base + 3.0];
                 {
                     let mut inputs = interp.inputs_mut().unwrap();

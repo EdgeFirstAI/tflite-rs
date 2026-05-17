@@ -390,12 +390,12 @@ fn multi_interpreter_same_model() {
 
 #[test]
 fn multi_interpreter_threaded() {
+    const NUM_THREADS: usize = 4;
+    const ITERATIONS: usize = 50;
+
     common::require_tflite!();
     let lib = common::load_library().unwrap();
     let model = common::load_model(&lib);
-
-    const NUM_THREADS: usize = 4;
-    const ITERATIONS: usize = 50;
 
     // Create one interpreter per thread.
     let interpreters: Vec<_> = (0..NUM_THREADS)
@@ -410,7 +410,7 @@ fn multi_interpreter_threaded() {
             .map(|(thread_id, mut interp)| {
                 s.spawn(move || {
                     for i in 0..ITERATIONS {
-                        let base = (thread_id * 100 + i) as f32;
+                        let base = f32::from((thread_id * 100 + i) as u16);
                         let input = [base, base + 1.0, base + 2.0, base + 3.0];
                         {
                             let mut inputs = interp.inputs_mut().unwrap();
