@@ -18,6 +18,8 @@ pub enum Error {
     Tflite(edgefirst_tflite::Error),
     /// HAL `Decoder` build or decode failure.
     Decoder(edgefirst_hal::decoder::DecoderError),
+    /// HAL `codec` (image decode / peek) failure.
+    Codec(edgefirst_hal::codec::CodecError),
     /// HAL `image` (load / convert / save / overlay) failure.
     Image(edgefirst_hal::image::Error),
     /// HAL `tensor` (allocation / quantization / map) failure.
@@ -39,6 +41,7 @@ impl fmt::Display for Error {
             Self::Io(e) => write!(f, "io error: {e}"),
             Self::Tflite(e) => write!(f, "tflite error: {e}"),
             Self::Decoder(e) => write!(f, "decoder error: {e}"),
+            Self::Codec(e) => write!(f, "codec error: {e}"),
             Self::Image(e) => write!(f, "image error: {e}"),
             Self::Tensor(e) => write!(f, "tensor error: {e}"),
             Self::Unsupported(msg) => write!(f, "unsupported: {msg}"),
@@ -52,6 +55,7 @@ impl std::error::Error for Error {
             Self::Io(e) => Some(e),
             Self::Tflite(e) => Some(e),
             Self::Decoder(e) => Some(e),
+            Self::Codec(e) => Some(e),
             Self::Image(e) => Some(e),
             Self::Tensor(e) => Some(e),
             Self::Unsupported(_) => None,
@@ -80,6 +84,12 @@ impl From<edgefirst_hal::decoder::DecoderError> for Error {
 impl From<edgefirst_hal::image::Error> for Error {
     fn from(e: edgefirst_hal::image::Error) -> Self {
         Self::Image(e)
+    }
+}
+
+impl From<edgefirst_hal::codec::CodecError> for Error {
+    fn from(e: edgefirst_hal::codec::CodecError) -> Self {
+        Self::Codec(e)
     }
 }
 

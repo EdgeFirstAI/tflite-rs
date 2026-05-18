@@ -2,7 +2,7 @@
 # Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
 
 [package]
-name = "yolov8"
+name = "async-pipeline"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -10,13 +10,4 @@ license.workspace = true
 publish = false
 
 [dependencies]
-edgefirst-tflite = { path = "../../crates/tflite", features = [
-    "dmabuf",
-    "camera_adaptor",
-    "metadata",
-    "archive",
-] }
-edgefirst-hal = "0.23.0"
-
-[lints]
-workspace = true
+edgefirst-tflite = { path = "../../crates/tflite" }

@@ -401,6 +401,13 @@ impl<'lib> Interpreter<'lib> {
     }
 }
 
+// SAFETY: `Interpreter` holds a `NonNull<TfLiteInterpreter>` (opaque C
+// handle with no thread affinity), a `Vec<Delegate>` (`Send`), and a
+// `&Library` reference (`Sync`). The TFLite C API allows an interpreter
+// to be used from any single thread — it just must not be accessed
+// concurrently from multiple threads (hence `Send` but not `Sync`).
+unsafe impl Send for Interpreter<'_> {}
+
 impl std::fmt::Debug for Interpreter<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Interpreter")

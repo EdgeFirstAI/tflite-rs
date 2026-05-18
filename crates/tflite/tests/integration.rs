@@ -334,3 +334,110 @@ fn full_pipeline_end_to_end() {
         assert!((got - want).abs() < 1e-5, "expected {want}, got {got}");
     }
 }
+
+// ---------------------------------------------------------------------------
+// Multi-interpreter: concurrent inference from shared model
+// ---------------------------------------------------------------------------
+
+#[test]
+fn multi_interpreter_same_model() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+
+    // Create two interpreters from the same model.
+    let mut interp_a = common::build_interpreter(&lib, &model);
+    let mut interp_b = common::build_interpreter(&lib, &model);
+
+    // Write different inputs to each.
+    {
+        let mut inputs = interp_a.inputs_mut().unwrap();
+        inputs[0].copy_from_slice(&[1.0f32, 2.0, 3.0, 4.0]).unwrap();
+    }
+    {
+        let mut inputs = interp_b.inputs_mut().unwrap();
+        inputs[0]
+            .copy_from_slice(&[10.0f32, 20.0, 30.0, 40.0])
+            .unwrap();
+    }
+
+    // Invoke both — they should not interfere.
+    interp_a.invoke().unwrap();
+    interp_b.invoke().unwrap();
+
+    // Model adds [1,1,1,1].
+    let out_a = interp_a.outputs().unwrap();
+    let out_b = interp_b.outputs().unwrap();
+    let data_a = out_a[0].as_slice::<f32>().unwrap();
+    let data_b = out_b[0].as_slice::<f32>().unwrap();
+
+    let expected_a = [2.0f32, 3.0, 4.0, 5.0];
+    let expected_b = [11.0f32, 21.0, 31.0, 41.0];
+
+    for (got, want) in data_a.iter().zip(expected_a.iter()) {
+        assert!(
+            (got - want).abs() < 1e-5,
+            "interp_a: expected {want}, got {got}"
+        );
+    }
+    for (got, want) in data_b.iter().zip(expected_b.iter()) {
+        assert!(
+            (got - want).abs() < 1e-5,
+            "interp_b: expected {want}, got {got}"
+        );
+    }
+}
+
+#[test]
+fn multi_interpreter_threaded() {
+    const NUM_THREADS: usize = 4;
+    const ITERATIONS: usize = 50;
+
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+
+    // Create one interpreter per thread.
+    let interpreters: Vec<_> = (0..NUM_THREADS)
+        .map(|_| common::build_interpreter(&lib, &model))
+        .collect();
+
+    // Move each interpreter into its own thread.
+    std::thread::scope(|s| {
+        let handles: Vec<_> = interpreters
+            .into_iter()
+            .enumerate()
+            .map(|(thread_id, mut interp)| {
+                s.spawn(move || {
+                    for i in 0..ITERATIONS {
+                        #[allow(clippy::cast_possible_truncation)]
+                        let base = f32::from((thread_id * 100 + i) as u16);
+                        let input = [base, base + 1.0, base + 2.0, base + 3.0];
+                        {
+                            let mut inputs = interp.inputs_mut().unwrap();
+                            inputs[0].copy_from_slice(&input).unwrap();
+                        }
+
+                        interp.invoke().unwrap();
+
+                        let outputs = interp.outputs().unwrap();
+                        let data = outputs[0].as_slice::<f32>().unwrap();
+
+                        // Model adds [1,1,1,1].
+                        let expected = [base + 1.0, base + 2.0, base + 3.0, base + 4.0];
+                        for (got, want) in data.iter().zip(expected.iter()) {
+                            assert!(
+                                (got - want).abs() < 1e-5,
+                                "thread {thread_id} iter {i}: expected {want}, got {got}"
+                            );
+                        }
+                    }
+                })
+            })
+            .collect();
+
+        for h in handles {
+            h.join().expect("worker thread panicked");
+        }
+    });
+}

@@ -377,6 +377,89 @@ Error::invalid_argument()  →  ErrorKind::InvalidArgument(String)
 The `std::error::Error::source()` chain is preserved for library errors,
 enabling upstream error inspection.
 
+## Thread Safety and Concurrent Inference
+
+### Send / Sync Guarantees
+
+The TFLite C API has no thread affinity — objects can be used from any thread.
+The following Rust-side `Send` / `Sync` traits are implemented:
+
+| Type | `Send` | `Sync` | Rationale |
+|------|--------|--------|-----------|
+| `Library` | ✅ | ✅ | Immutable function table; `libloading::Library` is `Send + Sync` |
+| `Model<'lib>` | ✅ | ✅ | Read-only after creation; TFLite ref-counts internally |
+| `Interpreter<'lib>` | ✅ | ❌ | Mutable tensor state — exclusive ownership, no concurrent access |
+| `Delegate` | ✅ | ✅ | Opaque handle; not accessed concurrently |
+| `Profiler` | ✅ | ✅ | Stable callback interface |
+
+`Interpreter` is `Send` but not `Sync` — it can be moved to another thread but
+must not be shared across threads (all mutating methods require `&mut self`).
+
+### Multi-Interpreter Pattern (Concurrent Inference)
+
+The TFLite C API supports creating multiple `TfLiteInterpreter*` instances from
+a single `TfLiteModel*`. Each interpreter gets its own independent tensor
+buffers; only the read-only model weights are shared (via the flatbuffer data).
+
+This is the recommended pattern for concurrent inference:
+
+```rust
+let lib = Library::new()?;
+let model = Model::from_file(&lib, "model.tflite")?;
+
+// Create N interpreters from one model — each has independent state.
+let interpreters: Vec<Interpreter<'_>> = (0..num_threads)
+    .map(|_| Interpreter::builder(&lib)?.num_threads(1).build(&model))
+    .collect::<Result<_>>()?;
+
+// Move each interpreter into its own thread.
+std::thread::scope(|s| {
+    for mut interp in interpreters {
+        s.spawn(move || {
+            // Fill inputs, invoke, read outputs — fully independent.
+            interp.invoke().unwrap();
+        });
+    }
+});
+```
+
+### Async Pipeline Pattern (Submit / Wait)
+
+For pipelined throughput optimization, use a circular buffer of interpreter
+slots with separate fill → infer → read stages. While one thread runs
+`invoke()` on slot N, the main thread fills slot N+1 and reads slot N-1:
+
+```text
+  ┌──────────┐   ┌──────────┐   ┌──────────┐
+  │ Fill (CPU)│──▶│Infer(thr)│──▶│Read (CPU)│
+  └──────────┘   └──────────┘   └──────────┘
+       slot[i]      slot[i-1]      slot[i-2]
+```
+
+See `examples/async_pipeline/` for a complete working implementation with
+synchronous vs pipelined throughput comparison.
+
+### VxDelegate Thread Safety Limitations
+
+VxDelegate (i.MX8M Plus NPU delegate) has a known limitation: **multiple
+delegate instances in the same process cannot be used concurrently** or
+destroyed concurrently. Attempts to do so may result in "double free or
+corruption" crashes in VxDelegate's internal memory management.
+
+The safe patterns for VxDelegate are:
+
+1. **Single interpreter moved between threads** — Create one delegate/interpreter
+   and move it between pipeline stages. This proves `Send` works correctly.
+
+2. **Multiple interpreters with CPU-only** — For true concurrent multi-interpreter
+   inference, omit the delegate (CPU-only mode supports full thread parallelism).
+
+3. **Pipeline with depth=1** — The async pipeline with a single slot moves the
+   interpreter to a worker thread for invoke, achieving CPU/NPU overlap without
+   multiple delegate instances.
+
+The NeutronDelegate (i.MX95) does not have this limitation.
+
 ## Metadata Extraction
 
 The `metadata` feature extracts human-readable metadata from TFLite model

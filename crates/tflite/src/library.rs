@@ -97,6 +97,16 @@ impl Library {
     }
 }
 
+// SAFETY: `Library` holds a `tensorflowlite_c` struct whose fields are
+// function pointers (all `Send + Sync`) and a `libloading::Library` (which
+// is `Send + Sync`). The TFLite C API has no thread affinity — function
+// pointers resolved from a loaded library are safe to call from any thread.
+unsafe impl Send for Library {}
+
+// SAFETY: All access through `&Library` is via immutable function-pointer
+// calls (`as_sys()` returns `&tensorflowlite_c`). No interior mutability.
+unsafe impl Sync for Library {}
+
 impl fmt::Debug for Library {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Library")
