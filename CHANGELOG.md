@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-18
+
+### Added
+
+- `Send + Sync` trait implementations on `Library`, `Model`, and `Delegate`;
+  `Send` (without `Sync`) on `Interpreter`. Enables multi-interpreter
+  concurrent inference patterns with `std::thread::scope`.
+- Compile-time `Send`/`Sync` assertions in `lib.rs` to prevent accidental
+  regression of thread-safety contracts.
+- `async_pipeline` example demonstrating a ring-buffer submit/wait pattern
+  with fill → infer → read stages overlapping across threads.
+- Integration tests for multi-interpreter correctness (4 threads × 50
+  iterations).
+- On-device tests verifying VxDelegate pipeline pattern (single interpreter
+  moved between threads) and NeutronDelegate multi-interpreter concurrency.
+
+### Changed
+
+- `Delegate` `Send + Sync` implementation is no longer gated behind the
+  `dmabuf` feature; it is now unconditional.
+- Updated `edgefirst-hal` dependency from 0.21.0 to 0.23.0 in the `yolov8`
+  example.
+
 ## [0.6.0] - 2026-05-08
 
 ### Added
@@ -210,7 +233,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.7.0...HEAD
+[0.7.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.3.0...v0.4.0

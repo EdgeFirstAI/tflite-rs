@@ -328,7 +328,7 @@ enum ModelInput {
     Staging(TensorDyn),
 }
 
-/// Normalize detection boxes to [0,1] if the model outputs pixel coordinates.
+/// Normalize detection boxes to `[0,1]` if the model outputs pixel coordinates.
 #[allow(clippy::cast_precision_loss)]
 fn maybe_normalize_boxes(detections: &mut [DetectBox], in_w: usize, in_h: usize) {
     if let Some(first) = detections.first() {
