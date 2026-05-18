@@ -25,7 +25,7 @@
 //!     VX_DELEGATE_LIB=/usr/lib/libvx_delegate.so ./on_device-* --test-threads=1'
 //! ```
 //!
-//! **Note:** `--test-threads=1` is required because VxDelegate initialization
+//! **Note:** `--test-threads=1` is required because `VxDelegate` initialization
 //! is not thread-safe — creating multiple delegate instances concurrently from
 //! different threads can cause heap corruption.
 
@@ -1196,6 +1196,7 @@ fn multi_interpreter_delegated_threaded() {
 
     // Run inference from the main thread first.
     for i in 0..ITERATIONS {
+        #[allow(clippy::cast_possible_truncation)]
         let base = f32::from(i as u16);
         let input = [base, base + 1.0, base + 2.0, base + 3.0];
         {
@@ -1220,6 +1221,7 @@ fn multi_interpreter_delegated_threaded() {
     let mut interp = std::thread::scope(|s| {
         let handle = s.spawn(move || {
             for i in 0..ITERATIONS {
+                #[allow(clippy::cast_possible_truncation)]
                 let base = f32::from((100 + i) as u16);
                 let input = [base, base + 1.0, base + 2.0, base + 3.0];
                 {

@@ -410,6 +410,7 @@ fn multi_interpreter_threaded() {
             .map(|(thread_id, mut interp)| {
                 s.spawn(move || {
                     for i in 0..ITERATIONS {
+                        #[allow(clippy::cast_possible_truncation)]
                         let base = f32::from((thread_id * 100 + i) as u16);
                         let input = [base, base + 1.0, base + 2.0, base + 3.0];
                         {
