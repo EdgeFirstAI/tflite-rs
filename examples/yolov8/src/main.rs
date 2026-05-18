@@ -44,13 +44,14 @@ use std::time::{Duration, Instant};
 
 use crate::error::{Error, Result};
 use edgefirst_hal::{
+    codec::{peek_info, DecodeOptions, ImageDecoder, ImageLoad as _},
     decoder::{
         schema::{LogicalType, SchemaV2},
         DecoderBuilder, DetectBox, ProtoData, Segmentation,
     },
     image::{
-        load_image, save_jpeg, ColorMode, Crop, Flip, ImageProcessor, ImageProcessorTrait as _,
-        MaskOverlay, MaskResolution, Rect, Rotation,
+        save_jpeg, ColorMode, Crop, Flip, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
+        MaskResolution, Rect, Rotation,
     },
     tensor::{
         DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMapTrait as _,
@@ -616,10 +617,15 @@ fn main() -> Result<()> {
     let mut processor = ImageProcessor::new()?;
 
     let image_bytes = std::fs::read(&args.image)?;
-    let cpu_img = load_image(&image_bytes, Some(PixelFormat::Rgba), None)?;
-    let img_w = cpu_img.width().expect("loaded image must have width");
-    let img_h = cpu_img.height().expect("loaded image must have height");
+    let decode_opts = DecodeOptions::default().with_format(PixelFormat::Rgba);
+    let info = peek_info(&image_bytes, &decode_opts)?;
+    let img_w = info.width;
+    let img_h = info.height;
     println!("Image: {img_w}x{img_h}");
+
+    let mut cpu_img = TensorDyn::image(img_w, img_h, PixelFormat::Rgba, DType::U8, None)?;
+    let mut img_decoder = ImageDecoder::new();
+    cpu_img.load_image(&mut img_decoder, &image_bytes, &decode_opts)?;
 
     let mut src_rgba = processor.create_image(img_w, img_h, PixelFormat::Rgba, DType::U8, None)?;
     processor.convert(
