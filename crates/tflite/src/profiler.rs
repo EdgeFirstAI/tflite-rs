@@ -382,7 +382,7 @@ impl Profiler {
     /// It points to the `TfLiteTelemetryProfilerStruct` but is returned as
     /// `*mut c_void` to avoid exposing the private C struct type.
     pub(crate) fn as_ptr(&self) -> *mut c_void {
-        (self.c_struct.as_ref() as *const TfLiteTelemetryProfilerStruct)
+        std::ptr::from_ref::<TfLiteTelemetryProfilerStruct>(self.c_struct.as_ref())
             .cast_mut()
             .cast()
     }
@@ -547,7 +547,7 @@ mod tests {
         let profiler = Profiler::new();
         let c_ptr = c_struct_ptr(&profiler);
 
-        let op_name = CStr::from_bytes_with_nul(b"TEST_OP\0").unwrap();
+        let op_name = c"TEST_OP";
 
         // Simulate what TFLite does: call begin, then end.
         // SAFETY: We own the profiler and the C struct is valid.
@@ -574,7 +574,7 @@ mod tests {
         let profiler = Profiler::new();
         let c_ptr = c_struct_ptr(&profiler);
 
-        let op_name = CStr::from_bytes_with_nul(b"DELEGATE_OP\0").unwrap();
+        let op_name = c"DELEGATE_OP";
 
         // SAFETY: We own the profiler and the C struct is valid.
         unsafe {

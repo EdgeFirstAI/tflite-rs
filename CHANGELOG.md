@@ -38,6 +38,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `Option<Colorimetry>` argument, and the letterbox `Crop` is expressed via
   the new `source`/`fit` fields instead of `dst_rect`.
 
+### Fixed
+
+- Resolved new Clippy lints surfaced by the Rust 1.96 toolchain
+  (`borrow_as_ptr`, `ref_as_ptr`, `manual_c_str_literals`): raw-pointer FFI
+  arguments now use `&raw const`/`&raw mut` and `std::ptr::from_ref`, and test
+  C strings use `c"..."` literals.
+
 ## [0.7.0] - 2026-05-18
 
 ### Added

@@ -351,7 +351,7 @@ impl Delegate {
 
         // SAFETY: `create` is a valid function pointer. `opts` is properly
         // initialised from `options_default` with `num_threads` overridden.
-        let raw = unsafe { (fns.create)(&opts) };
+        let raw = unsafe { (fns.create)(&raw const opts) };
         let delegate = NonNull::new(raw)
             .ok_or_else(|| Error::null_pointer("TfLiteXNNPackDelegateCreate returned null"))?;
 

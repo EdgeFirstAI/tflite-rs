@@ -164,7 +164,7 @@ impl<'a> CameraAdaptor<'a> {
                 (hal.get_format_info)(
                     self.hal_delegate_ptr(),
                     c_format.as_ptr(),
-                    &mut info,
+                    &raw mut info,
                     std::mem::size_of::<HalCameraAdaptorFormatInfo>(),
                 )
             };

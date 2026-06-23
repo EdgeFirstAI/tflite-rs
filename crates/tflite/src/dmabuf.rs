@@ -323,7 +323,7 @@ impl<'a> DmaBuf<'a> {
             (hal.get_tensor_info)(
                 self.hal_delegate_ptr(),
                 tensor_index,
-                &mut info,
+                &raw mut info,
                 std::mem::size_of::<HalDmabufTensorInfo>(),
             )
         };
@@ -491,7 +491,7 @@ impl<'a> DmaBuf<'a> {
                 self.delegate.as_ptr(),
                 tensor_index,
                 ownership.to_raw(),
-                &mut desc,
+                &raw mut desc,
             )
         };
         if handle == kTfLiteNullBufferHandle {
