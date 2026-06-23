@@ -139,7 +139,7 @@ struct TensorAccessor {
 
 #[pymethods]
 impl TensorAccessor {
-    fn __call__(&self, py: Python<'_>) -> PyResult<PyObject> {
+    fn __call__(&self, py: Python<'_>) -> PyResult<Py<PyAny>> {
         let interp = self.interp.bind(py);
         let interp_ref = interp.borrow();
 
@@ -301,13 +301,13 @@ impl PyInterpreter {
     }
 
     /// Return a copy of an input tensor's data as a numpy array.
-    fn get_input_tensor(&self, py: Python<'_>, input_index: usize) -> PyResult<PyObject> {
+    fn get_input_tensor(&self, py: Python<'_>, input_index: usize) -> PyResult<Py<PyAny>> {
         let tensors = self.inner.interpreter.inputs().map_err(error::to_py_err)?;
         copy_tensor_to_numpy(py, &tensors, input_index, "input")
     }
 
     /// Return a copy of an output tensor's data as a numpy array.
-    fn get_output_tensor(&self, py: Python<'_>, output_index: usize) -> PyResult<PyObject> {
+    fn get_output_tensor(&self, py: Python<'_>, output_index: usize) -> PyResult<Py<PyAny>> {
         let tensors = self.inner.interpreter.outputs().map_err(error::to_py_err)?;
         copy_tensor_to_numpy(py, &tensors, output_index, "output")
     }
@@ -451,7 +451,7 @@ fn copy_tensor_to_numpy(
     tensors: &[edgefirst_tflite::Tensor<'_>],
     index: usize,
     kind: &str,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let tensor = tensors.get(index).ok_or_else(|| {
         InvalidArgumentError::new_err(format!(
             "{kind} tensor index {index} out of range (count: {})",

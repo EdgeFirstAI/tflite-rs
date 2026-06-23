@@ -44,14 +44,14 @@ use std::time::{Duration, Instant};
 
 use crate::error::{Error, Result};
 use edgefirst_hal::{
-    codec::{peek_info, DecodeOptions, ImageDecoder, ImageLoad as _},
+    codec::{peek_info, ImageDecoder, ImageLoad as _},
     decoder::{
         schema::{LogicalType, SchemaV2},
         DecoderBuilder, DetectBox, ProtoData, Segmentation,
     },
     image::{
-        save_jpeg, ColorMode, Crop, Flip, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
-        MaskResolution, Rect, Rotation,
+        save_jpeg, ColorMode, Crop, Fit, Flip, ImageProcessor, ImageProcessorTrait as _,
+        MaskOverlay, MaskResolution, Rotation,
     },
     tensor::{
         DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMapTrait as _,
@@ -137,23 +137,14 @@ fn parse_args() -> Args {
 // ── Letterbox ────────────────────────────────────────────────────────────────
 
 /// Compute a letterbox crop that preserves aspect ratio with gray padding.
-#[allow(
-    clippy::cast_precision_loss,
-    clippy::cast_possible_truncation,
-    clippy::cast_sign_loss
-)]
-fn compute_letterbox(src_w: usize, src_h: usize, dst_w: usize, dst_h: usize) -> Crop {
-    let scale = (dst_w as f32 / src_w as f32).min(dst_h as f32 / src_h as f32);
-    let new_w = (src_w as f32 * scale) as usize;
-    let new_h = (src_h as f32 * scale) as usize;
-    Crop::new()
-        .with_dst_rect(Some(Rect::new(
-            (dst_w - new_w) / 2,
-            (dst_h - new_h) / 2,
-            new_w,
-            new_h,
-        )))
-        .with_dst_color(Some([114, 114, 114, 255])) // YOLO gray
+///
+/// The HAL `Crop` now resolves the centred aspect-preserving placement
+/// internally from the source and destination dimensions, so we only need to
+/// request a `Letterbox` fit with the YOLO gray pad colour.
+fn compute_letterbox() -> Crop {
+    Crop::new().with_fit(Fit::Letterbox {
+        pad: [114, 114, 114, 255], // YOLO gray
+    })
 }
 
 // ── Timing / statistics ─────────────────────────────────────────────────────
@@ -417,9 +408,13 @@ fn run_iterations(
 ) -> Result<(Vec<DetectBox>, IterTimings)> {
     let mut timings = IterTimings::with_capacity(n);
     let mut detections: Vec<DetectBox> = Vec::with_capacity(100);
+    // The letterbox placement is resolved from the source image dimensions
+    // (the `src` tensor) fitted into the model input dimensions.
+    let src_w = src.width().unwrap_or(in_w);
+    let src_h = src.height().unwrap_or(in_h);
     // Precompute the normalised letterbox rect once for use in materialize_segmentations.
     let letterbox_norm = MaskOverlay::default()
-        .with_letterbox_crop(&letterbox, in_w, in_h)
+        .with_letterbox_crop(&letterbox, src_w, src_h, in_w, in_h)
         .letterbox;
 
     for _ in 0..n {
@@ -478,7 +473,7 @@ fn run_iterations(
         if let Some(ref mut d) = dst {
             let overlay = MaskOverlay::default()
                 .with_background(src)
-                .with_letterbox_crop(&letterbox, in_w, in_h)
+                .with_letterbox_crop(&letterbox, src_w, src_h, in_w, in_h)
                 .with_color_mode(ColorMode::Instance);
             let t_render = Instant::now();
             processor.draw_decoded_masks(d, &detections, &masks, overlay)?;
@@ -617,15 +612,19 @@ fn main() -> Result<()> {
     let mut processor = ImageProcessor::new()?;
 
     let image_bytes = std::fs::read(&args.image)?;
-    let decode_opts = DecodeOptions::default().with_format(PixelFormat::Rgba);
-    let info = peek_info(&image_bytes, &decode_opts)?;
+    // The codec no longer takes decode options: it decodes to the source's
+    // native pixel format (JPEG -> NV12/GREY, PNG -> RGB/RGBA/GREY) and reports
+    // it via `info.format`. `ImageProcessor::convert` below handles the
+    // conversion to the RGBA working format, so allocate `cpu_img` in the
+    // native format the decoder will produce.
+    let info = peek_info(&image_bytes)?;
     let img_w = info.width;
     let img_h = info.height;
     println!("Image: {img_w}x{img_h}");
 
-    let mut cpu_img = TensorDyn::image(img_w, img_h, PixelFormat::Rgba, DType::U8, None)?;
+    let mut cpu_img = TensorDyn::image(img_w, img_h, info.format, DType::U8, None)?;
     let mut img_decoder = ImageDecoder::new();
-    cpu_img.load_image(&mut img_decoder, &image_bytes, &decode_opts)?;
+    cpu_img.load_image(&mut img_decoder, &image_bytes)?;
 
     let mut src_rgba = processor.create_image(img_w, img_h, PixelFormat::Rgba, DType::U8, None)?;
     processor.convert(
@@ -637,7 +636,7 @@ fn main() -> Result<()> {
     )?;
     drop(cpu_img);
 
-    let letterbox = compute_letterbox(img_w, img_h, in_w, in_h);
+    let letterbox = compute_letterbox();
 
     // ── 5. Bind model input (DMA-BUF or staging buffer) ─────────────
     // CameraAdaptor (RGBA input, NPU converts to RGB) is only valid on the DMA-BUF
@@ -661,7 +660,7 @@ fn main() -> Result<()> {
             // SAFETY: info.fd is owned by the delegate; PlaneDescriptor dups it.
             let pd = PlaneDescriptor::new(unsafe { BorrowedFd::borrow_raw(info.fd) })?
                 .with_offset(info.offset);
-            let dst = processor.import_image(pd, None, in_w, in_h, input_fmt, input_dtype)?;
+            let dst = processor.import_image(pd, None, in_w, in_h, input_fmt, input_dtype, None)?;
             if use_camera_adaptor {
                 println!(
                     "  Input: HAL DMA-BUF + CameraAdaptor \
@@ -701,7 +700,7 @@ fn main() -> Result<()> {
             // SAFETY: desc.fd is owned by VxDelegate for the interpreter's lifetime.
             #[allow(deprecated)]
             let pd = PlaneDescriptor::new(unsafe { BorrowedFd::borrow_raw(desc.fd) })?;
-            let dst = processor.import_image(pd, None, in_w, in_h, input_fmt, input_dtype)?;
+            let dst = processor.import_image(pd, None, in_w, in_h, input_fmt, input_dtype, None)?;
             if use_camera_adaptor {
                 println!("  Input: VxDelegate DMA-BUF + CameraAdaptor (legacy, RGBA \u{2192} NPU)");
             } else {
@@ -769,16 +768,14 @@ fn main() -> Result<()> {
     println!("\n--- Detections ({}) ---", detections.len());
     #[allow(clippy::cast_precision_loss)]
     {
-        let (lx0, ly0, lx1, ly1) = if let Some(r) = letterbox.dst_rect {
-            (
-                r.left as f32 / in_w as f32,
-                r.top as f32 / in_h as f32,
-                (r.left + r.width) as f32 / in_w as f32,
-                (r.top + r.height) as f32 / in_h as f32,
-            )
-        } else {
-            (0.0_f32, 0.0_f32, 1.0_f32, 1.0_f32)
-        };
+        // `Crop` no longer carries a `dst_rect`; resolve the normalised
+        // letterbox region (`[lx0, ly0, lx1, ly1]` in model-input space) via the
+        // same helper the renderer uses, from the source image dimensions fitted
+        // into the model input dimensions.
+        let [lx0, ly0, lx1, ly1] = MaskOverlay::default()
+            .with_letterbox_crop(&letterbox, img_w, img_h, in_w, in_h)
+            .letterbox
+            .unwrap_or([0.0_f32, 0.0_f32, 1.0_f32, 1.0_f32]);
         let inv_lw = 1.0 / (lx1 - lx0);
         let inv_lh = 1.0 / (ly1 - ly0);
         for det in &detections {

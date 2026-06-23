@@ -2215,7 +2215,7 @@ pub struct tensorflowlite_c {
 impl tensorflowlite_c {
     pub unsafe fn new<P>(path: P) -> Result<Self, ::libloading::Error>
     where
-        P: AsRef<::std::ffi::OsStr>,
+        P: ::libloading::AsFilename,
     {
         let library = unsafe { ::libloading::Library::new(path) }?;
         unsafe { Self::from_library(library) }

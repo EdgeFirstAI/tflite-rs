@@ -4,6 +4,11 @@
 
 BINDGEN_EXTRA_CLANG_ARGS="-I./" bindgen --dynamic-loading tensorflowlite_c --wrap-unsafe-ops --allowlist-function 'TfLite.*' wrapper.h > src/ffi.rs
 
+# libloading 0.9 sealed the path argument of `Library::new` behind the new
+# `AsFilename` trait; bindgen still emits the 0.8-era `AsRef<OsStr>` bound.
+# Rewrite the generated bound so the loader compiles against libloading 0.9+.
+sed -i 's/P: AsRef<::std::ffi::OsStr>,/P: ::libloading::AsFilename,/' src/ffi.rs
+
 # Fix C code examples in doc comments to prevent doc-test failures.
 # Bindgen copies C API doc comments verbatim. Rustdoc treats 4+-space
 # indented blocks as Rust code and tries to compile them. We wrap these

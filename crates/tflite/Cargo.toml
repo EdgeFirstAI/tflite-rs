@@ -26,18 +26,18 @@ full = ["metadata", "archive", "dmabuf", "camera_adaptor"]
 
 [dependencies]
 edgefirst-tflite-sys.workspace = true
-libloading = "0.8"
+libloading = "0.9"
 log = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
 
 # Optional: metadata feature
-flatbuffers = { version = "25.2", optional = true }
+flatbuffers = { version = "25.12", optional = true }
 
 # Optional: archive feature — embedded ZIP-footer metadata (edgefirst.json,
 # labels.txt). `default-features = false` matches the workspace's tflite-sys
 # crate so we don't pull in non-deflate codecs we never read.
-zip = { version = "2", default-features = false, features = ["deflate"], optional = true }
+zip = { version = "8", default-features = false, features = ["deflate"], optional = true }
 
 [lints]
 workspace = true
