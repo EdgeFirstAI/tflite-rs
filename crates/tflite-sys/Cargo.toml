@@ -17,17 +17,17 @@ keywords = ["tflite", "tensorflow-lite", "ffi", "bindings", "machine-learning"]
 categories = ["external-ffi-bindings"]
 
 [dependencies]
-libloading = "0.8"
+libloading = "0.9"
 log = "0.4"
 
 [features]
 vendored = []
 
 [build-dependencies]
-ureq = { version = "2", default-features = false, features = ["tls"] }
+ureq = { version = "3", default-features = false, features = ["rustls"] }
 flate2 = "1"
 tar = "0.4"
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "8", default-features = false, features = ["deflate"] }
 
 [lints]
 workspace = true

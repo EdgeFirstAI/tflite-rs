@@ -134,9 +134,13 @@ fn download(url: &str, dest: &Path) {
     });
 
     // Validate Content-Length if available to detect truncated downloads.
-    let content_length: Option<u64> = resp.header("Content-Length").and_then(|v| v.parse().ok());
+    let content_length: Option<u64> = resp
+        .headers()
+        .get("Content-Length")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse().ok());
 
-    let mut reader = resp.into_reader();
+    let mut reader = resp.into_body().into_reader();
     let mut file = fs::File::create(dest).unwrap_or_else(|e| {
         panic!("Failed to create {}: {e}", dest.display());
     });

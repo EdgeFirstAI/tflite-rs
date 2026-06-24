@@ -8,7 +8,7 @@ use std::sync::Arc;
 use pyo3::prelude::*;
 
 /// One recorded operator timing event.
-#[pyclass(name = "OpEvent")]
+#[pyclass(name = "OpEvent", from_py_object)]
 #[derive(Debug, Clone)]
 pub struct PyOpEvent {
     pub(crate) inner: edgefirst_tflite::OpEvent,

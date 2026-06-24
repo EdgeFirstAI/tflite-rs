@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-06-23
+
+### Changed
+
+- **Raised the minimum supported Rust version (MSRV) from 1.75 to 1.88.**
+  Required by the `libloading` 0.9 and `zip` 8 upgrades, which both declare
+  a 1.88 MSRV.
+- Updated all workspace dependencies to their latest releases:
+  - `pyo3` 0.24 → 0.29 and `numpy` 0.24 → 0.29 (Python bindings).
+  - `libloading` 0.8 → 0.9 (runtime symbol loading in
+    `edgefirst-tflite-sys` and `edgefirst-tflite`).
+  - `zip` 2 → 8 (vendored TFLite extraction and the `archive` feature).
+  - `ureq` 2 → 3 (vendored TFLite download in the `edgefirst-tflite-sys`
+    build script).
+  - `flatbuffers` 25.2 → 25.12 (the `metadata` feature).
+  - `edgefirst-hal` 0.23.0 → 0.25.2 (the `yolov8` example).
+- `edgefirst-tflite-sys`: regenerated FFI loader bound for `libloading` 0.9.
+  `tensorflowlite_c::new` now requires `libloading::AsFilename` instead of
+  `AsRef<OsStr>`; `update.sh` rewrites the bindgen output accordingly.
+- `edgefirst-tflite-sys`: migrated the vendored TFLite downloader to the
+  `ureq` 3 response/body API and switched the build-script TLS feature from
+  the removed `tls` flag to `rustls`.
+- Python bindings: replaced the deprecated `PyObject` alias with `Py<PyAny>`
+  and opted `OpEvent` into the explicit `#[pyclass(from_py_object)]` derive
+  to preserve its `FromPyObject` behaviour under `pyo3` 0.29.
+- `yolov8` example: migrated to the `edgefirst-hal` 0.25 image-loading and
+  letterbox API. Decoding no longer takes a `DecodeOptions` (images decode to
+  their native pixel format), `ImageProcessor::import_image` takes an
+  `Option<Colorimetry>` argument, and the letterbox `Crop` is expressed via
+  the new `source`/`fit` fields instead of `dst_rect`.
+
+### Fixed
+
+- Resolved new Clippy lints surfaced by the Rust 1.96 toolchain
+  (`borrow_as_ptr`, `ref_as_ptr`, `manual_c_str_literals`): raw-pointer FFI
+  arguments now use `&raw const`/`&raw mut` and `std::ptr::from_ref`, and test
+  C strings use `c"..."` literals.
+
 ## [0.7.0] - 2026-05-18
 
 ### Added
@@ -233,7 +271,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.7.0...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.0...v0.5.1

@@ -84,7 +84,7 @@ pub fn build_detail_dict<'py>(
 pub fn tensor_to_numpy(
     py: Python<'_>,
     tensor: &edgefirst_tflite::Tensor<'_>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let shape = tensor.shape().map_err(error::to_py_err)?;
 
     macro_rules! copy_to_numpy {
@@ -165,7 +165,7 @@ pub fn tensor_view_numpy<'py>(
     _py: Python<'py>,
     tensor: &edgefirst_tflite::Tensor<'_>,
     container: Bound<'py, pyo3::PyAny>,
-) -> PyResult<PyObject> {
+) -> PyResult<Py<PyAny>> {
     let shape = tensor.shape().map_err(error::to_py_err)?;
 
     macro_rules! borrow_view {

@@ -63,7 +63,7 @@ edgefirst-tflite/
 | Setting | Value |
 |---------|-------|
 | Rust edition | 2021 |
-| MSRV | 1.75 |
+| MSRV | 1.88 |
 | Resolver | v2 |
 | License | Apache-2.0 |
 | Authors | Au-Zone Technologies `<support@au-zone.com>` |
