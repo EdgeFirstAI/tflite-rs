@@ -182,7 +182,13 @@ pub fn labels(data: &[u8]) -> Result<Vec<String>> {
 mod tests {
     use super::*;
 
-    static MODEL_WITH_ARCHIVE: &[u8] = include_bytes!("../../../testdata/yolov8n-seg-int8.tflite");
+    // NOTE: these fixtures are stored in Git LFS, and `include_bytes!` has no
+    // idea what a pointer file is — it would happily compile the 130-byte stub
+    // into the test binary, where it fails as a corrupt archive rather than a
+    // missing file. Every `actions/checkout` in `.github/workflows/` therefore
+    // sets `lfs: true`; keep it that way, or run `git lfs pull` locally.
+    static MODEL_WITH_ARCHIVE: &[u8] =
+        include_bytes!("../../../testdata/yolov8n-seg-t-b7f_quant-u8-i8_combined.tflite");
     static MINIMAL_MODEL: &[u8] = include_bytes!("../../../testdata/minimal.tflite");
 
     /// Schema v2 fixtures, one per converter output layout. Each model
@@ -192,11 +198,11 @@ mod tests {
     /// - `logical`: separate `boxes` / `scores` / `mask_coefs` / `protos`.
     /// - `smart`: per-scale FPN-split outputs (DFL + sub-stride children).
     static SCHEMA_V2_COMBINED: &[u8] =
-        include_bytes!("../../../testdata/yolov8n-seg-combined-int8.tflite");
+        include_bytes!("../../../testdata/yolov8n-seg-t-b7f_quant-u8-i8_combined.tflite");
     static SCHEMA_V2_LOGICAL: &[u8] =
-        include_bytes!("../../../testdata/yolov8n-seg-logical-int8.tflite");
+        include_bytes!("../../../testdata/yolov8n-seg-t-b7f_quant-u8-i8_logical.tflite");
     static SCHEMA_V2_SMART: &[u8] =
-        include_bytes!("../../../testdata/yolov8n-seg-smart-int8.tflite");
+        include_bytes!("../../../testdata/yolov8n-seg-t-b7f_quant-u8-i8_smart.tflite");
 
     fn schema_v2_models() -> [(&'static str, &'static [u8]); 3] {
         [
