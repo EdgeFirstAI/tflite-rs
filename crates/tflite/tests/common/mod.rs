@@ -33,6 +33,30 @@ macro_rules! require_tflite {
 }
 pub(crate) use require_tflite;
 
+/// Skip the calling test unless `LiteRT` (`LiteRt*`) symbols are present.
+///
+/// Reports the unresolved symbol so a skip caused by a *partial* `LiteRT`
+/// build is not mistaken for "this is a classic `TFLite` library".
+// This module is shared by several integration test binaries, not all of which
+// exercise LiteRT; the macro is legitimately unused in those.
+#[allow(unused_macros)]
+macro_rules! require_litert {
+    () => {
+        $crate::common::require_tflite!();
+        let __lib = $crate::common::load_library().unwrap();
+        if !__lib.has_litert() {
+            eprintln!(
+                "SKIPPED: LiteRT unavailable ({:?} unresolved). Point TFLITE_TEST_LIB \
+                 at a LiteRT-capable shared library (e.g. Android libLiteRt.so) to enable.",
+                __lib.litert_missing_symbol()
+            );
+            return;
+        }
+    };
+}
+#[allow(unused_imports)]
+pub(crate) use require_litert;
+
 /// Load the `TFLite` library from `TFLITE_TEST_LIB` env var or auto-discovery.
 pub fn load_library() -> Option<Library> {
     if let Ok(path) = std::env::var("TFLITE_TEST_LIB") {

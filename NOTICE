@@ -22,6 +22,23 @@ Rust Dependencies:
 For a complete list of dependencies and their licenses, see the SBOM
 artifact published with each release.
 
+Vendored Source:
+
+This distribution redistributes third-party source code in the following
+locations. These are not Rust crate dependencies and therefore do not appear
+in the SBOM.
+
+- crates/tflite-sys/litert/
+    LiteRT C API headers
+    Copyright 2024-2025 Google LLC
+    Licensed under the Apache License, Version 2.0
+    Source: https://github.com/google-ai-edge/LiteRT (tag v2.1.6)
+    License text: crates/tflite-sys/litert/LICENSE
+    Local modifications: crates/tflite-sys/litert/patches/
+
+    These headers are used solely as bindgen input to generate FFI type
+    definitions; they are not compiled or linked into the resulting binaries.
+
 ================================================================================
 Trademarks
 ================================================================================

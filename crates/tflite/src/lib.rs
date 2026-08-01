@@ -35,11 +35,40 @@
 //! | `metadata` | `TFLite` model metadata extraction (`TFLITE_METADATA` buffer) |
 //! | `archive` | Embedded ZIP-archive metadata (`edgefirst.json`, `labels.txt`) |
 //! | `full` | Enables all optional features |
+//!
+//! # `LiteRT` Next
+//!
+//! When the loaded shared library exports `LiteRt*` symbols (for example the
+//! Android `LiteRT` runtime), the [`litert`] module provides an ergonomic
+//! `CompiledModel` path with explicit accelerator selection and buffer
+//! placement. Classic TensorFlow Lite libraries continue to work through
+//! [`Interpreter`]; `LiteRT` constructors then return an error for which
+//! [`Error::is_litert_unavailable`] is `true`, and
+//! [`Error::litert_missing_symbol`] names the symbol that was absent.
+//!
+//! Branch on [`Library::has_litert`] to choose a path:
+//!
+//! ```no_run
+//! use edgefirst_tflite::{litert, Interpreter, Library, Model};
+//!
+//! let lib = Library::new()?;
+//! if lib.has_litert() {
+//!     let env = litert::Environment::new(&lib)?;
+//!     let model = litert::Model::from_file(&env, "model.tflite")?;
+//!     // ... compile and run via litert::CompiledModel
+//! } else {
+//!     let model = Model::from_file(&lib, "model.tflite")?;
+//!     let interpreter = Interpreter::builder(&lib)?.build(&model)?;
+//!     // ... run via the classic Interpreter
+//! }
+//! # Ok::<(), edgefirst_tflite::Error>(())
+//! ```
 
 pub mod delegate;
 pub mod error;
 pub mod interpreter;
 pub mod library;
+pub mod litert;
 pub mod model;
 pub mod profiler;
 pub mod tensor;
@@ -58,7 +87,7 @@ pub mod archive;
 
 // Public re-exports for convenience.
 pub use delegate::{Delegate, DelegateOptions};
-pub use error::{Error, StatusCode};
+pub use error::{Error, LiteRtStatusCode, StatusCode};
 pub use interpreter::{Interpreter, InterpreterBuilder};
 pub use library::Library;
 pub use model::Model;
@@ -88,4 +117,18 @@ const _: () = {
     // Delegate: opaque handle — safe to send and share.
     assert_send::<Delegate>();
     assert_sync::<Delegate>();
+
+    // LiteRT handles. Environment / Model / Options are Sync because every
+    // operation reachable through a shared reference is a read. CompiledModel
+    // and TensorBuffer are Send-only: inference and host mapping mutate runtime
+    // state, and both gate that behind `&mut self`. See each type's
+    // `# Thread safety` documentation for the full argument.
+    assert_send::<litert::Environment<'_>>();
+    assert_sync::<litert::Environment<'_>>();
+    assert_send::<litert::Model<'_>>();
+    assert_sync::<litert::Model<'_>>();
+    assert_send::<litert::Options<'_>>();
+    assert_sync::<litert::Options<'_>>();
+    assert_send::<litert::CompiledModel<'_>>();
+    assert_send::<litert::TensorBuffer<'_>>();
 };

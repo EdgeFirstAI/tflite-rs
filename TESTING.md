@@ -16,10 +16,25 @@ the `vendored` feature.
 | File | Purpose |
 |------|---------|
 | `testdata/minimal.tflite` | Minimal valid TFLite flatbuffer for unit tests |
-| `testdata/yolov8n-int8.tflite` | YOLOv8n int8 model for i.MX 8M Plus |
-| `testdata/yolov8n-int8.imx95.tflite` | YOLOv8n int8 model converted for i.MX 95 Neutron |
-| `testdata/yolov8n-seg-int8.tflite` | YOLOv8n segmentation int8 model |
-| `testdata/yolov8n-seg-int8.imx95.tflite` | YOLOv8n segmentation int8 model for i.MX 95 |
+| `testdata/yolov8n-t-b86_quant-u8-i8_*.tflite` | YOLOv8n detection, u8 input / i8 output |
+| `testdata/yolov8n-seg-t-b7f_quant-u8-i8_*.tflite` | YOLOv8n segmentation, u8 input / i8 output |
+
+The YOLOv8 fixtures follow `<model>_<layout>[.imx95].tflite`:
+
+- **`_combined` / `_logical` / `_smart`** — the three YOLO output layouts
+  (fused, logical-split, per-scale FPN-split). The `yolov8` example configures
+  its decoder from the model's embedded `edgefirst.json`, so all three should
+  produce equivalent detections.
+- **`.imx95.tflite`** — converted for the i.MX 95 Neutron NPU; run these with
+  `--delegate /usr/lib/libneutron_delegate.so`. They fail with `UnresolvedOps`
+  on any other runtime, which is expected.
+- **plain `.tflite`** — portable; runs on any host with a TFLite or LiteRT
+  runtime, including CPU-only development machines.
+
+These fixtures are stored in [Git LFS](https://git-lfs.com). Clone with
+`git lfs install` configured, or run `git lfs pull` after cloning, otherwise
+they arrive as pointer stubs. `minimal.tflite` is intentionally *not* in LFS —
+it is compiled into the test binaries with `include_bytes!`.
 
 ## Host Unit Tests
 
