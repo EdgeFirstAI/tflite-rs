@@ -85,23 +85,36 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Allocate buffers the compiled model can actually reach: `create_*_buffer`
     // queries the runtime's placement requirements rather than assuming host
-    // memory is usable by the accelerator.
-    let mut inputs = vec![compiled.create_input_buffer(0, 0)?];
-    let mut outputs = vec![compiled.create_output_buffer(0, 0)?];
-    println!(
-        "Input buffer: {} bytes, output buffer: {} bytes",
-        inputs[0].size(),
-        outputs[0].size()
-    );
+    // memory is usable by the accelerator. Allocate every I/O tensor — models
+    // with more than one input/output fail at `run` if only index 0 is present.
+    let num_inputs = model.num_inputs(0)?;
+    let num_outputs = model.num_outputs(0)?;
+    let mut inputs: Vec<_> = (0..num_inputs)
+        .map(|i| compiled.create_input_buffer(0, i))
+        .collect::<Result<_, _>>()?;
+    let mut outputs: Vec<_> = (0..num_outputs)
+        .map(|i| compiled.create_output_buffer(0, i))
+        .collect::<Result<_, _>>()?;
+    for (i, buf) in inputs.iter().enumerate() {
+        println!("  input[{i}]: {} bytes", buf.size());
+    }
+    for (i, buf) in outputs.iter().enumerate() {
+        println!("  output[{i}]: {} bytes", buf.size());
+    }
 
-    // Zero-filled input is enough for a smoke run.
-    let zeros = vec![0u8; inputs[0].size()];
-    inputs[0].write_bytes(&zeros)?;
+    // Zero-filled inputs are enough for a smoke run.
+    for input in &mut inputs {
+        let zeros = vec![0u8; input.size()];
+        input.write_bytes(&zeros)?;
+    }
 
     compiled.run_default(&mut inputs, &mut outputs)?;
 
     let result = outputs[0].read_bytes()?;
-    println!("Sync run completed (read {} output bytes)", result.len());
+    println!(
+        "Sync run completed (read {} bytes from output[0])",
+        result.len()
+    );
 
     Ok(())
 }

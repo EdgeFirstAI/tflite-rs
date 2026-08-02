@@ -31,10 +31,9 @@ use std::fmt;
 
 use crate::litert_ffi::{
     LiteRtAccelerator, LiteRtAcceleratorId, LiteRtCompiledModel, LiteRtEnvOption,
-    LiteRtEnvironment, LiteRtHostMemoryDeallocator, LiteRtHwAcceleratorSet, LiteRtModel,
-    LiteRtOptions, LiteRtParamIndex, LiteRtRankedTensorType, LiteRtSignature, LiteRtStatus,
-    LiteRtTensor, LiteRtTensorBuffer, LiteRtTensorBufferLockMode, LiteRtTensorBufferRequirements,
-    LiteRtTensorBufferType,
+    LiteRtEnvironment, LiteRtHwAcceleratorSet, LiteRtModel, LiteRtOptions, LiteRtParamIndex,
+    LiteRtRankedTensorType, LiteRtSignature, LiteRtStatus, LiteRtTensor, LiteRtTensorBuffer,
+    LiteRtTensorBufferLockMode, LiteRtTensorBufferRequirements, LiteRtTensorBufferType,
 };
 
 pub use crate::litert_ffi::{
@@ -71,7 +70,6 @@ pub type RankedTensorType = LiteRtRankedTensorType;
 pub type Status = LiteRtStatus;
 pub type TensorBufferType = LiteRtTensorBufferType;
 pub type TensorBufferLockMode = LiteRtTensorBufferLockMode;
-pub type HostMemoryDeallocator = LiteRtHostMemoryDeallocator;
 pub type Signature = LiteRtSignature;
 pub type Tensor = LiteRtTensor;
 
@@ -352,15 +350,6 @@ litert_functions! {
             env: LiteRtEnvironment,
             tensor_type: *const LiteRtRankedTensorType,
             requirements: LiteRtTensorBufferRequirements,
-            buffer: *mut LiteRtTensorBuffer,
-        ) -> LiteRtStatus,
-    /// `LiteRtCreateTensorBufferFromHostMemory` — wrap caller-owned memory.
-    create_tensor_buffer_from_host_memory => LiteRtCreateTensorBufferFromHostMemory:
-        unsafe extern "C" fn(
-            tensor_type: *const LiteRtRankedTensorType,
-            host_buffer_addr: *mut c_void,
-            host_buffer_size: usize,
-            deallocator: LiteRtHostMemoryDeallocator,
             buffer: *mut LiteRtTensorBuffer,
         ) -> LiteRtStatus,
     /// `LiteRtDestroyTensorBuffer` — destroy a tensor buffer.

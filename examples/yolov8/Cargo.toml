@@ -16,7 +16,7 @@ edgefirst-tflite = { path = "../../crates/tflite", features = [
     "metadata",
     "archive",
 ] }
-edgefirst-hal = "0.27.0"
+edgefirst-hal = "0.27.1"
 
 [lints]
 workspace = true

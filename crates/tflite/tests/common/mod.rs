@@ -43,7 +43,13 @@ pub(crate) use require_tflite;
 macro_rules! require_litert {
     () => {
         $crate::common::require_tflite!();
-        let __lib = $crate::common::load_library().unwrap();
+        let Some(__lib) = $crate::common::load_library() else {
+            eprintln!(
+                "SKIPPED: TFLite shared library became unavailable after the \
+                 availability check. Set TFLITE_TEST_LIB to a stable path."
+            );
+            return;
+        };
         if !__lib.has_litert() {
             eprintln!(
                 "SKIPPED: LiteRT unavailable ({:?} unresolved). Point TFLITE_TEST_LIB \

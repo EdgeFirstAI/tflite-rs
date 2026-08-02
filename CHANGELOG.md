@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `examples/yolov8`: bump `edgefirst-hal` to **0.27.1** (EGL dynamic-loader /
+  iOS `libEGL` resolution fix, and corrected `hal_import_image` C docs).
+- `LiteRtFunctions::try_load` no longer requires
+  `LiteRtCreateTensorBufferFromHostMemory` (unused by the safe API); partial
+  LiteRT builds that omit it are no longer reported as unavailable.
+- `require_litert!()` skips without panicking if library discovery fails between
+  the availability check and the LiteRT probe.
+- Root README, `ARCHITECTURE.md`, and crate descriptions updated for the 0.9.0
+  dual-runtime surface (LiteRT Next + custom allocations).
+
 ## [0.9.0] - 2026-07-31
 
 ### Added
@@ -88,7 +100,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   example declares what it actually does (`ReadWrite` for the decode target,
   `None` for the GPU-only working image, `Read` for buffers the host maps).
   Mis-declaring is not an error, only a silent slow path, so the choices are
-  documented at each allocation.
+  documented at each allocation. (Patched to 0.27.1 in `[Unreleased]`.)
 - The `yolov8` example now requests `TensorMemory::Dma` explicitly for its
   pipeline buffers — the HAL's portable name for a platform-native zero-copy
   GPU buffer (DMA-BUF on Linux, IOSurface on macOS/iOS, `AHardwareBuffer` on

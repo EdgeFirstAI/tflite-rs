@@ -4,7 +4,7 @@
 
 ```mermaid
 graph TD
-    examples["examples/*<br/>(basic_inference, dmabuf_zero_copy, ...)"]
+    examples["examples/*<br/>(basic_inference, litert_compiled_model, yolov8, ...)"]
     python["edgefirst-tflite<br/>(Python / PyO3)<br/>crates/python/"]
     tflite["edgefirst-tflite<br/>(safe Rust API)<br/>crates/tflite/"]
     sys["edgefirst-tflite-sys<br/>(FFI bindings)<br/>crates/tflite-sys/"]
@@ -21,9 +21,11 @@ graph TD
 ## Crate Structure
 
 ```
-edgefirst-tflite          (safe API)
+edgefirst-tflite          (safe API — Interpreter + litert::CompiledModel)
   └─ edgefirst-tflite-sys (FFI bindings)
-       └─ libloading      (runtime symbol loading)
+       ├─ tensorflowlite_c   (classic TfLite* table)
+       ├─ LiteRtFunctions    (soft-optional LiteRt* table)
+       └─ libloading         (runtime symbol loading)
 
 edgefirst-tflite          (Python bindings, crates/python/)
   └─ edgefirst-tflite     (safe API, re-used)
@@ -34,8 +36,17 @@ edgefirst-tflite          (Python bindings, crates/python/)
 
 Low-level FFI plumbing. No safe wrappers.
 
-- **`ffi.rs`** -- `bindgen`-generated struct with 164 function pointers,
-  loaded at runtime via `libloading` (`--dynamic-loading`).
+- **`ffi.rs`** -- `bindgen`-generated `tensorflowlite_c` struct with classic
+  `TfLite*` function pointers, loaded at runtime via `libloading`
+  (`--dynamic-loading`).
+- **`litert_ffi.rs`** -- `bindgen`-generated LiteRT types and a parallel
+  `litert` function table (Approach A: never folded into `tensorflowlite_c`).
+  Headers are vendored from LiteRT v2.1.6 under `litert/`.
+- **`litert.rs`** -- hand-written `LiteRtFunctions::try_load` that resolves
+  Spec 3 symbols individually, reports the first missing name, and
+  cross-checks signatures against bindgen at compile time.
+- **`experimental_ffi.rs`** -- soft-optional TFLite experimental symbols
+  (custom allocation for zero-copy model input).
 - **`discovery.rs`** -- Library discovery with 4-step priority chain (see below).
 - **`hal_ffi.rs`** -- Function pointer structs for the HAL Delegate DMA-BUF
   and CameraAdaptor C APIs (`hal_dmabuf_*`, `hal_camera_adaptor_*`), as
@@ -50,36 +61,47 @@ Low-level FFI plumbing. No safe wrappers.
 
 Ergonomic, safe Rust API. This is the primary user-facing crate.
 
-- **`library.rs`** -- `Library` wraps the sys-level FFI handle.
+- **`library.rs`** -- `Library` wraps the sys-level FFI handle; probes LiteRT
+  and custom-allocation symbols without failing classic TFLite load.
 - **`model.rs`** -- `Model` loads TFLite models from files or byte buffers.
-- **`interpreter.rs`** -- `InterpreterBuilder` (builder pattern) and
-  `Interpreter` for running inference.
+- **`interpreter.rs`** -- `InterpreterBuilder` / `Interpreter`, including
+  `set_custom_allocation_for_input` when experimental symbols resolve.
+- **`litert/`** -- LiteRT Next path: `Environment`, `Model`, `Options`,
+  `CompiledModel`, `TensorBuffer` / `BufferRequirements`, accelerators.
 - **`tensor.rs`** -- `Tensor` / `TensorMut` for type-safe tensor access.
 - **`delegate.rs`** -- `Delegate` loads hardware acceleration delegates and
   probes for HAL Delegate and legacy `VxDelegate` extension APIs.
 - **`dmabuf.rs`** -- `DmaBuf` for zero-copy DMA-BUF operations (feature-gated).
 - **`camera_adaptor.rs`** -- `CameraAdaptor` for NPU preprocessing (feature-gated).
 - **`metadata.rs`** -- `Metadata` extraction from model files (feature-gated).
-
+- **`archive.rs`** -- embedded ZIP-footer metadata (feature-gated).
 ## Runtime Symbol Loading
 
-Symbols are resolved **at runtime**, not link-time. `bindgen --dynamic-loading`
-generates a `tensorflowlite_c` struct where each TFLite C API function is a
-field containing a function pointer. The struct is instantiated with
-`tensorflowlite_c::new(path)` (unsafe), which resolves all required symbols
-at once via `libloading`.
+Symbols are resolved **at runtime**, not link-time. Two independent tables are
+probed from the same loaded shared object:
+
+1. **Classic TFLite** — `bindgen --dynamic-loading` generates a
+   `tensorflowlite_c` struct. Instantiation via `tensorflowlite_c::new(path)`
+   resolves all required `TfLite*` symbols at once. Failure here fails
+   `Library::new`.
+2. **LiteRT Next (soft-optional)** — after classic load succeeds,
+   `LiteRtFunctions::try_load` resolves Spec 3 `LiteRt*` symbols one by one.
+   Missing symbols yield `None` plus the first unresolved name; classic
+   `Interpreter` hosts are unaffected. There is no Cargo `litert` feature.
+3. **Experimental custom allocation (soft-optional)** — same pattern for
+   `TfLiteInterpreterSetCustomAllocation*` used by zero-copy model input.
 
 This design means:
-- No link-time dependency on a TFLite shared library — the binary compiles
-  without TFLite installed.
+- No link-time dependency on a TFLite / LiteRT shared library — the binary
+  compiles without either installed.
 - The same binary works across TFLite versions and platforms without
-  recompilation.
-- Missing or incompatible libraries produce clear runtime errors instead of
-  silent linker failures.
+  recompilation; LiteRT engages only when the host `.so` exports it.
+- Missing or incompatible libraries produce clear runtime errors (or named
+  soft-optional skips) instead of silent linker failures.
 
-`Library` in `crates/tflite/src/library.rs` wraps this struct and is the only
-entry point. All call sites access TFLite symbols through `Library::as_sys()`.
-
+`Library` in `crates/tflite/src/library.rs` wraps these tables and is the only
+entry point. Classic call sites use `Library::as_sys()`; LiteRT call sites use
+`Library::litert()` / `has_litert()` / `litert_missing_symbol()`.
 ## Library Discovery Mechanism
 
 `discovery::discover()` in `crates/tflite-sys/src/discovery.rs` searches for
@@ -186,12 +208,23 @@ Rust lifetimes enforce the correct teardown order without runtime reference
 counting:
 
 ```
-Library                 — owns the TFLite function table (loaded .so)
+Library                 — owns TFLite (+ optional LiteRT) function tables
   └─ Model<'lib>        — borrows &Library; cannot outlive Library
   └─ Interpreter<'lib>  — borrows &Library; cannot outlive Library
        └─ Tensor<'interp>     — borrows &Interpreter; read-only view
        └─ TensorMut<'interp>  — borrows &mut Interpreter; mutable view
+
+  └─ litert::Environment<'lib>
+       └─ litert::Model<'env>           — borrows Environment
+            └─ litert::CompiledModel<'env, 'model>  — borrows Model
+                 └─ BufferRequirements<'cm>         — borrows CompiledModel
+       └─ litert::Options<'lib>
+       └─ litert::TensorBuffer<'lib>
 ```
+
+`CompiledModel` and `BufferRequirements` borrow their parents so dropping a
+`Model` while a compiled instance still exists is a compile error (covered by
+`compile_fail` doctests).
 
 Each C object has a corresponding RAII wrapper with `impl Drop`:
 
@@ -201,10 +234,34 @@ Each C object has a corresponding RAII wrapper with `impl Drop`:
 | `TfLiteInterpreterOptions*` | `InterpreterBuilder` | `TfLiteInterpreterOptionsDelete` |
 | `TfLiteInterpreter*` | `Interpreter` | `TfLiteInterpreterDelete` |
 | `TfLiteDelegate*` | `Delegate` | `tflite_plugin_destroy_delegate` |
+| `LiteRtEnvironment*` | `litert::Environment` | `LiteRtDestroyEnvironment` |
+| `LiteRtModel*` | `litert::Model` | `LiteRtDestroyModel` |
+| `LiteRtCompiledModel*` | `litert::CompiledModel` | `LiteRtDestroyCompiledModel` |
+| `LiteRtTensorBuffer*` | `litert::TensorBuffer` | `LiteRtDestroyTensorBuffer` |
+| `LiteRtOptions*` | `litert::Options` | `LiteRtDestroyOptions` |
 
 `Delegate` also owns the `libloading::Library` for the delegate `.so` as a
 private field (`_lib`), keeping it resident for the delegate's full lifetime.
 
+## Zero-Copy Model Input (Custom Allocation)
+
+Independent of DMA-BUF / LiteRT, classic `Interpreter` can bind a
+caller-owned buffer as an input tensor's storage when the loaded library
+exports the experimental custom-allocation entry points
+(`Library::has_custom_allocation`):
+
+```
+Caller buffer (IOSurface / aligned host / …)
+  │
+  ▼
+Interpreter::set_custom_allocation_for_input(index, ptr, bytes)
+  │  TfLiteInterpreterSetCustomAllocationForInputTensor*
+  ▼
+invoke() reads directly from caller storage (no arena copy)
+```
+
+On Apple platforms the YOLOv8 example uses this with HAL `IOSurface` memory.
+Linux DMA custom allocation remains blocked on EdgeFirstAI/hal#134.
 ## Delegate Extension Probing (HAL and VxDelegate)
 
 When a `Delegate` is loaded via `Delegate::load_with_options`, the crate
@@ -366,17 +423,21 @@ Callers inspect errors through methods rather than matching on variants:
 - `is_delegate_error()` -- delegate returned an error status
 - `is_null_pointer()` -- a C API call returned null
 - `status_code()` -- returns the TFLite `StatusCode` if applicable
+- `is_litert_unavailable()` / `litert_missing_symbol()` -- LiteRT soft-optional
+  surface missing or incomplete
+- `litert_status_code()` -- returns a `LiteRtStatusCode` when applicable
 
 ```
 Error::status(code)        →  ErrorKind::Status(StatusCode)
 Error::null_pointer(msg)   →  ErrorKind::NullPointer + context
 Error::from(libloading)    →  ErrorKind::Library(libloading::Error)
 Error::invalid_argument()  →  ErrorKind::InvalidArgument(String)
+Error::litert_unavailable  →  ErrorKind::LiteRtUnavailable { symbol }
+Error::litert_status(code) →  ErrorKind::LiteRtStatus(LiteRtStatusCode)
 ```
 
 The `std::error::Error::source()` chain is preserved for library errors,
 enabling upstream error inspection.
-
 ## Thread Safety and Concurrent Inference
 
 ### Send / Sync Guarantees
