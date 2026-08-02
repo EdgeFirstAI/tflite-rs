@@ -64,6 +64,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
+          lfs: true
           fetch-depth: 0
 
       - name: Extract version from tag
@@ -160,6 +161,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          lfs: true
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
@@ -194,6 +197,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          lfs: true
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
@@ -254,6 +259,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          lfs: true
 
       - name: Download SBOM artifact from commit
         uses: dawidd6/action-download-artifact@8a338493df3d275e4a7a63bcff3b8fe97e51a927 # v19

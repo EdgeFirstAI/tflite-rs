@@ -9,12 +9,17 @@ addition to any global or user-level configuration.
 ## Project Overview
 
 **edgefirst-tflite** provides ergonomic Rust bindings for the TensorFlow Lite
-C API, designed for edge AI inference on NXP i.MX platforms.
+C API (and soft-optional LiteRT Next), designed for edge AI inference on NXP
+i.MX platforms and Android LiteRT hosts.
 
 Key characteristics:
 
 - **Runtime symbol loading** — TFLite is loaded at runtime via `libloading`.
   There is no link-time dependency on a TFLite shared library.
+- **Dual runtime** — classic `Interpreter` always works on TFLite-only `.so`
+  files; `litert::CompiledModel` engages when `LiteRt*` symbols resolve.
+  `Library::litert_missing_symbol()` names the first unresolved symbol, which
+  separates "classic TFLite" from "partial LiteRT build".
 - **DMA-BUF zero-copy inference** — the `dmabuf` feature enables zero-copy
   tensor hand-off from camera or DMA buffers directly to the NPU.
 - **NPU-accelerated preprocessing** — the `camera_adaptor` feature exposes
@@ -34,12 +39,13 @@ edgefirst-tflite/
 │   ├── tflite/                 # edgefirst-tflite  — safe, idiomatic Rust API
 │   │   └── src/
 │   │       ├── lib.rs
-│   │       ├── library.rs      # Library: wraps tflite-sys, auto-discovers TFLite
+│   │       ├── library.rs      # Library: wraps tflite-sys, probes LiteRT
 │   │       ├── model.rs        # Model: loads a .tflite file or buffer
 │   │       ├── interpreter.rs  # Interpreter + InterpreterBuilder (builder pattern)
+│   │       ├── litert/         # LiteRT Next CompiledModel path (soft-optional)
 │   │       ├── delegate.rs     # Delegate + DelegateOptions (external delegate)
 │   │       ├── tensor.rs       # Tensor / TensorMut / TensorType / QuantizationParams
-│   │       ├── error.rs        # Error / StatusCode / Result
+│   │       ├── error.rs        # Error / StatusCode / LiteRtStatusCode / Result
 │   │       ├── dmabuf.rs       # [feature = "dmabuf"]  DMA-BUF zero-copy API
 │   │       ├── camera_adaptor.rs  # [feature = "camera_adaptor"]  NPU preprocessing
 │   │       └── metadata.rs     # [feature = "metadata"]  Model metadata extraction
@@ -47,10 +53,14 @@ edgefirst-tflite/
 │       └── src/
 │           ├── lib.rs
 │           ├── ffi.rs          # bindgen-generated TFLite C API (included via include!)
+│           ├── litert_ffi.rs   # bindgen-generated LiteRT C API (types + ABI check)
+│           ├── litert.rs       # LiteRtFunctions::try_load + ABI cross-check
+│           ├── litert/         # vendored LiteRT headers, patches, vendor.sh
 │           ├── vx_ffi.rs       # VxDelegate DMA-BUF and CameraAdaptor symbols
 │           └── discovery.rs    # discover() / load() — library search and probing
 ├── examples/                   # Standalone example binaries
 │   ├── basic_inference/        # cargo run -p basic-inference -- model.tflite
+│   ├── litert_compiled_model/  # cargo run -p litert-compiled-model -- model.tflite
 │   └── dmabuf_zero_copy/       # cargo run -p dmabuf-zero-copy -- model.tflite
 └── testdata/
     └── minimal.tflite          # Minimal valid TFLite flatbuffer for integration tests
@@ -155,6 +165,50 @@ symbols at once.
 `Library` in `crates/tflite/src/library.rs` wraps this struct and exposes it
 via `Library::as_sys()`. All call sites go through `Library::as_sys()` — never
 use the sys crate's structs directly in the high-level crate.
+
+### Optional Symbol Tables (LiteRT, XNNPACK, experimental C API)
+
+Symbols that may or may not exist in the loaded library are **not** resolved by
+a bindgen `--dynamic-loading` struct, which fails wholesale if any one symbol is
+missing. They use a hand-written function-pointer struct with a `try_load`
+constructor instead — `XnnPackFunctions`, `LiteRtFunctions`, and
+`ExperimentalFunctions` all follow this pattern.
+
+This is also why `c_api_experimental.h` stays out of `wrapper.h`: including it
+would put every experimental symbol in the eagerly-resolved bindgen table, so a
+runtime missing any one of them would fail to load at all. Bind what you need in
+`crates/tflite-sys/src/experimental_ffi.rs` and let the safe layer name the
+unavailable API (`Error::is_unsupported` / `Error::unsupported_api`) so callers
+can fall back instead of failing.
+
+For LiteRT the table is declared by the `litert_functions!` macro in
+`crates/tflite-sys/src/litert.rs`. One entry declares the field name, the C
+symbol name, and the signature; the macro derives the struct, `try_load`, and a
+compile-time cross-check against the bindgen-generated table. Two rules follow:
+
+- **Add symbols to the macro, never to the struct directly.** Anything else
+  bypasses the ABI cross-check and the missing-symbol reporting.
+- **Never collapse a resolution failure into a bare `Option`.** `try_load`
+  returns the name of the first unresolved symbol so callers can tell "classic
+  TFLite" from "partial LiteRT build". Preserve that through to the `Error`.
+
+### Vendored Headers
+
+`crates/tflite-sys/litert/` holds upstream LiteRT headers (Apache-2.0, Google
+LLC), pinned by `litert/VERSION` and attributed in the top-level `NOTICE`.
+
+**Never edit the vendored headers in place.** Add a patch under
+`litert/patches/` and re-run `litert/vendor.sh`, which reapplies patches after
+fetching upstream. An in-place edit is silently lost at the next re-vendor.
+
+### Borrowed C Handles
+
+Several LiteRT C objects are views into a parent, valid only for the parent's
+lifetime — a compiled model's buffer requirements, a model's signatures, an
+accelerator's name. When wrapping one, give the wrapper a lifetime parameter
+naming the parent (using `PhantomData` if there is no field to carry it) rather
+than storing a bare pointer. Both currently wrapped cases are guarded by
+`compile_fail` doctests; keep that pattern for new ones.
 
 ### Builder Pattern
 

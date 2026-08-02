@@ -1,3 +1,7 @@
 /target
 Cargo.lock
 /venv
+
+# Agent-generated design notes, plans, and status reports. These are local
+# working artefacts, not project documentation, and must not be committed.
+/docs/superpowers/

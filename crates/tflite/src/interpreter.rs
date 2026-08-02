@@ -21,6 +21,9 @@
 
 use std::ptr::NonNull;
 
+use edgefirst_tflite_sys::experimental_ffi::{
+    kTfLiteCustomAllocationFlagsNone, TfLiteCustomAllocation, TENSOR_ALIGNMENT,
+};
 use edgefirst_tflite_sys::{TfLiteInterpreter, TfLiteInterpreterOptions};
 
 use crate::delegate::Delegate;
@@ -230,6 +233,144 @@ impl<'lib> Interpreter<'lib> {
         };
         error::status_to_result(status)
             .map_err(|e| e.with_context("TfLiteInterpreterAllocateTensors"))
+    }
+
+    /// Back an input tensor with caller-owned memory instead of the arena.
+    ///
+    /// This is what turns a GPU-resident buffer into the tensor the runtime
+    /// reads, removing the host copy that otherwise stages every frame into
+    /// the arena. The canonical use is a HAL image tensor allocated with
+    /// `TensorMemory::Dma` — a DMA-BUF on Linux, an `IOSurface` on Apple
+    /// platforms — that the GPU renders into directly.
+    ///
+    /// Call [`Interpreter::allocate_tensors`] afterwards; the binding does not
+    /// take effect until you do. Several inputs can be bound before a single
+    /// re-allocation.
+    ///
+    /// # Safety
+    ///
+    /// The caller guarantees, for as long as this interpreter can read the
+    /// tensor — that is, until the interpreter is dropped or the binding is
+    /// replaced:
+    ///
+    /// - `data` stays valid, mapped, and **at the same address**. A mapping
+    ///   that can be revoked or relocated (anything staged or refcounted
+    ///   behind a temporary guard) is not eligible; the runtime keeps the raw
+    ///   pointer and never re-queries it.
+    /// - Nothing else writes the region while [`Interpreter::invoke`] runs.
+    /// - The region is readable for at least `bytes`, and writable too if the
+    ///   tensor is anything other than a pure input.
+    ///
+    /// The runtime does not take ownership and will not free the memory.
+    ///
+    /// # Errors
+    ///
+    /// - The runtime does not export the experimental C API
+    ///   ([`Library::has_custom_allocation`](crate::Library::has_custom_allocation)
+    ///   is `false`).
+    /// - `input_index` is out of range, or the runtime rejects it.
+    /// - `bytes` is smaller than the tensor's byte size.
+    /// - `data` is not 64-byte aligned (`kDefaultTensorAlignment`). Page-backed
+    ///   mappings — DMA-BUF, `IOSurface` — always satisfy this; a pointer into
+    ///   the middle of a `Vec` generally does not.
+    /// - The C API returns a non-OK status, e.g. because the tensor is not
+    ///   arena-allocated (a delegate may own it instead).
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// # use edgefirst_tflite::{Interpreter, Library, Model};
+    /// # let lib = Library::new()?;
+    /// # let model = Model::from_file(&lib, "model.tflite")?;
+    /// # let mut interpreter = Interpreter::builder(&lib)?.build(&model)?;
+    /// # let (ptr, len) = (std::ptr::NonNull::dangling(), 0usize);
+    /// if lib.has_custom_allocation() {
+    ///     // SAFETY: `ptr` addresses a page-aligned mapping of at least `len`
+    ///     // bytes that outlives `interpreter` and is not relocated.
+    ///     unsafe { interpreter.set_custom_allocation_for_input(0, ptr, len)? };
+    ///     interpreter.allocate_tensors()?;
+    /// }
+    /// # Ok::<(), edgefirst_tflite::Error>(())
+    /// ```
+    pub unsafe fn set_custom_allocation_for_input(
+        &mut self,
+        input_index: usize,
+        data: NonNull<u8>,
+        bytes: usize,
+    ) -> Result<()> {
+        let fns = self.lib.experimental().ok_or_else(|| {
+            Error::unsupported(
+                "TfLiteInterpreterSetCustomAllocationForTensor",
+                "this TFLite build does not export the experimental C API; \
+                 inputs must be copied into the arena instead",
+            )
+        })?;
+
+        let inputs = self.input_count();
+        if input_index >= inputs {
+            return Err(Error::invalid_argument(format!(
+                "input index {input_index} out of range (interpreter has {inputs} inputs)"
+            )));
+        }
+
+        // Condition 3 from `c_api_experimental.h`: the buffer must cover the
+        // tensor. Checked here so the failure names both sizes instead of
+        // surfacing as a bare status from AllocateTensors much later.
+        let tensor_bytes = self
+            .inputs()?
+            .get(input_index)
+            .ok_or_else(|| Error::null_pointer(format!("input tensor {input_index} is null")))?
+            .byte_size();
+        if bytes < tensor_bytes {
+            return Err(Error::invalid_argument(format!(
+                "custom allocation of {bytes} bytes is smaller than input tensor \
+                 {input_index} ({tensor_bytes} bytes)"
+            )));
+        }
+
+        // Condition 4: alignment. We validate rather than expose the
+        // skip-align flag — upstream warns that skipping it "can cause crashes
+        // when calling Invoke()", because kernels issue aligned vector loads
+        // regardless of what the runtime was told.
+        if !(data.as_ptr() as usize).is_multiple_of(TENSOR_ALIGNMENT) {
+            return Err(Error::invalid_argument(format!(
+                "custom allocation must be {TENSOR_ALIGNMENT}-byte aligned \
+                 (kDefaultTensorAlignment), got {:p}",
+                data.as_ptr()
+            )));
+        }
+
+        #[allow(clippy::cast_possible_truncation, clippy::cast_possible_wrap)]
+        let input_index_i32 = input_index as i32;
+        // SAFETY: `self.ptr` is a valid interpreter and `input_index` was
+        // bounds-checked above.
+        let tensor_index =
+            unsafe { (fns.get_input_tensor_index)(self.ptr.as_ptr(), input_index_i32) };
+        if tensor_index < 0 {
+            return Err(Error::invalid_argument(format!(
+                "TfLiteInterpreterGetInputTensorIndex returned {tensor_index} for \
+                 input {input_index}"
+            )));
+        }
+
+        let allocation = TfLiteCustomAllocation {
+            data: data.as_ptr().cast(),
+            bytes,
+        };
+        // SAFETY: `self.ptr` is a valid interpreter, `tensor_index` came from
+        // the runtime itself, and `allocation` is read during the call only —
+        // the runtime copies the two fields out. The buffer it points at is
+        // the caller's obligation, documented under `# Safety`.
+        let status = unsafe {
+            (fns.set_custom_allocation_for_tensor)(
+                self.ptr.as_ptr(),
+                tensor_index,
+                &raw const allocation,
+                kTfLiteCustomAllocationFlagsNone,
+            )
+        };
+        error::status_to_result(status)
+            .map_err(|e| e.with_context("TfLiteInterpreterSetCustomAllocationForTensor"))
     }
 
     /// Resize an input tensor's dimensions.

@@ -25,6 +25,9 @@
 //!
 //! The [`xnnpack_ffi`] module provides function pointer structs for the
 //! XNNPACK built-in delegate API, loaded from the main `TFLite` library.
+//!
+//! The [`litert`] module provides soft-optional `LiteRT` Next function
+//! pointers (`LiteRt*`), loaded from the same shared library when present.
 
 // Suppress all clippy/rustc/rustdoc warnings for bindgen-generated code.
 #[allow(
@@ -62,7 +65,35 @@ pub use ffi::*;
 #[allow(non_upper_case_globals)]
 pub const kTfLiteNullBufferHandle: TfLiteBufferHandle = -1;
 
+// Suppress warnings for bindgen-generated LiteRT bindings.
+#[allow(
+    clippy::all,
+    clippy::pedantic,
+    clippy::nursery,
+    non_upper_case_globals,
+    non_camel_case_types,
+    non_snake_case,
+    missing_debug_implementations,
+    unreachable_pub,
+    dead_code,
+    rustdoc::bare_urls,
+    rustdoc::broken_intra_doc_links
+)]
+#[allow(unused_imports, unnecessary_transmutes)]
+mod litert_ffi {
+    // Types and constants from this module back the public [`crate::litert`]
+    // API. The generated `litert` loader struct is deliberately *not* used at
+    // runtime: it resolves every symbol eagerly and cannot express "optional",
+    // whereas `LiteRtFunctions::try_load` resolves symbols individually and
+    // reports which one is missing. The generated struct is still compiled
+    // because `litert::abi_cross_check` uses it to assert at compile time that
+    // the hand-written signatures match bindgen exactly.
+    include!("litert_ffi.rs");
+}
+
 pub mod discovery;
+pub mod experimental_ffi;
 pub mod hal_ffi;
+pub mod litert;
 pub mod vx_ffi;
 pub mod xnnpack_ffi;

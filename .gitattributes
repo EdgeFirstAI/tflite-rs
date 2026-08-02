@@ -1,0 +1,9 @@
+# YOLOv8 model fixtures are multi-megabyte binaries used for manual and
+# on-device testing; keep them out of the git object store.
+testdata/yolov8*.tflite filter=lfs diff=lfs merge=lfs -text
+
+# testdata/minimal.tflite is deliberately NOT tracked by LFS. It is
+# `include_bytes!`-ed into three crates and read from disk by the integration
+# tests, and CI checks out without an LFS smudge, so a pointer file there would
+# compile a 130-byte text stub into the test binaries and fail as a corrupt
+# flatbuffer. It is under 1 KB — it belongs in the object store.

@@ -1,8 +1,9 @@
 # edgefirst-tflite
 
-Ergonomic Rust bindings for the [TensorFlow Lite](https://www.tensorflow.org/lite) C API
-with runtime symbol loading, DMA-BUF zero-copy inference, and NPU-accelerated
-preprocessing.
+Ergonomic Rust bindings for the [TensorFlow Lite](https://www.tensorflow.org/lite)
+C API and soft-optional [LiteRT Next](https://ai.google.dev/edge/litert), with
+runtime symbol loading, DMA-BUF / IOSurface zero-copy inference, and
+NPU-accelerated preprocessing.
 
 ## Crates
 
@@ -17,7 +18,7 @@ Most users should depend on **`edgefirst-tflite`** only.
 
 ```toml
 [dependencies]
-edgefirst-tflite = "0.1"
+edgefirst-tflite = "0.9"
 ```
 
 ```rust,no_run
@@ -40,13 +41,65 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+### LiteRT Next (`CompiledModel`)
+
+When the loaded shared library also exports `LiteRt*` symbols (for example
+Android's `libLiteRt.so`), use the ergonomic LiteRT path:
+
+```rust,no_run
+use edgefirst_tflite::{Library, litert};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let lib = Library::new()?;
+    if !lib.has_litert() {
+        eprintln!("LiteRT unavailable: {:?}", lib.litert_missing_symbol());
+        return Ok(());
+    }
+
+    let env = litert::Environment::new(&lib)?;
+    let model = litert::Model::from_file(&env, "model.tflite")?;
+    let opts = litert::Options::new(&lib)?
+        .hardware_accelerators(litert::HwAccelerators::CPU)?;
+    let mut compiled = litert::CompiledModel::create(&env, &model, &opts)?;
+    println!("fully accelerated: {}", compiled.is_fully_accelerated()?);
+    Ok(())
+}
+```
+
+Classic TensorFlow Lite hosts keep working through `Interpreter`; LiteRT
+constructors return `Error::is_litert_unavailable()` when symbols are absent.
+
+### Zero-copy model input (custom allocation)
+
+On runtimes that export the experimental custom-allocation entry points,
+bind a caller-owned buffer as an input tensor's storage (for example an
+`IOSurface` on Apple platforms):
+
+```rust,no_run
+use edgefirst_tflite::{Interpreter, Library, Model};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let lib = Library::new()?;
+    if !lib.has_custom_allocation() {
+        return Ok(()); // fall back to arena copy
+    }
+    let model = Model::from_file(&lib, "model.tflite")?;
+    let mut interpreter = Interpreter::builder(&lib)?.build(&model)?;
+    // SAFETY: `ptr` must outlive the interpreter and stay 64-byte aligned.
+    // unsafe { interpreter.set_custom_allocation_for_input(0, ptr, len)? };
+    let _ = interpreter;
+    Ok(())
+}
+```
+
 ## Feature Flags
 
 | Feature | Description |
 |---------|-------------|
-| `dmabuf` | DMA-BUF zero-copy inference via `VxDelegate` |
-| `camera_adaptor` | NPU-accelerated format conversion via `VxDelegate` |
+| `dmabuf` | DMA-BUF zero-copy inference via HAL / VxDelegate |
+| `camera_adaptor` | NPU-accelerated format conversion |
 | `metadata` | TFLite model metadata extraction (FlatBuffers) |
+| `archive` | Embedded ZIP-footer metadata (`edgefirst.json`, `labels.txt`) |
 | `full` | Enables all optional features |
 
 ## TFLite Library
@@ -54,7 +107,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 `edgefirst-tflite` does not link against TFLite at build time. The shared
 library (`libtensorflowlite_c.so` / `.dylib` / `.dll`) is loaded at runtime
 via `libloading`, so the same binary works across different TFLite versions
-without recompilation.
+without recompilation. On LiteRT hosts the *same* object may also export
+`LiteRt*` — probing is soft-optional and never fails classic TFLite load.
 
 ### Library Discovery
 
@@ -146,6 +200,7 @@ The package version matches the TFLite version it ships (e.g.,
 | Linux | aarch64 | i.MX devices, Raspberry Pi |
 | macOS | arm64 / x86_64 | Universal binary via vendored feature |
 | Windows | x86_64 | Via vendored feature |
+| Android | aarch64 / x86_64 | LiteRT Next via `libLiteRt.so` (often renamed) |
 
 ### i.MX Device Support
 
@@ -157,7 +212,8 @@ The package version matches the TFLite version it ships (e.g.,
 
 DMA-BUF zero-copy and CameraAdaptor preprocessing require the Vivante VxDelegate
 (`features = ["dmabuf"]` and `features = ["camera_adaptor"]`). On i.MX 93 and
-i.MX 95, inference uses standard tensor I/O.
+i.MX 95, inference uses standard tensor I/O. Current i.MX BSPs export classic
+`TfLite*` only — use `Interpreter`, not `litert::CompiledModel`.
 
 ## VxDelegate Extensions
 
@@ -203,12 +259,14 @@ interpreter.invoke()?;
 | Example | Description | Features |
 |---------|-------------|----------|
 | [`basic_inference`](examples/basic_inference/) | Load a model and run inference | default |
+| [`litert_compiled_model`](examples/litert_compiled_model/) | LiteRT `CompiledModel` path | default (needs LiteRT `.so`) |
 | [`dmabuf_zero_copy`](examples/dmabuf_zero_copy/) | DMA-BUF zero-copy with VxDelegate | `dmabuf` |
 | [`quantized_inference`](examples/quantized_inference/) | Quantized model I/O with dequantization | default |
 | [`error_handling`](examples/error_handling/) | Error classification and graceful fallbacks | `dmabuf` |
 | [`metadata_extraction`](examples/metadata_extraction/) | Extract model metadata | `metadata` |
 | [`delegate_options`](examples/delegate_options/) | Delegate configuration and feature probing | `dmabuf`, `camera_adaptor` |
 | [`camera_preprocessing`](examples/camera_preprocessing/) | NPU-accelerated format conversion | `camera_adaptor` |
+| [`yolov8`](examples/yolov8/) | Detection/segmentation with HAL DMA / IOSurface | `dmabuf` |
 
 ## Building
 
@@ -234,10 +292,15 @@ cargo test --workspace --all-features
 
 # Set library path for integration tests if TFLite is not in default search path
 TFLITE_TEST_LIB=/path/to/libtensorflowlite_c.so cargo test --workspace --all-features
+
+# LiteRT-gated tests also need a LiteRT-capable library
+TFLITE_TEST_LIB=/path/to/libLiteRt.so cargo test --workspace --all-features
 ```
 
 ## License
 
 Apache-2.0. See [LICENSE](LICENSE) for details.
 
-The vendored `vx_delegate_dmabuf.h` header is MIT-licensed.
+The vendored `vx_delegate_dmabuf.h` header is MIT-licensed. Vendored LiteRT
+C headers under `crates/tflite-sys/litert/` are Apache-2.0 (Google LLC); see
+[NOTICE](NOTICE).

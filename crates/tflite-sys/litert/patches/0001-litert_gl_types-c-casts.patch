@@ -1,0 +1,13 @@
+--- a/c/litert_gl_types.h
++++ b/c/litert_gl_types.h
+@@ -44,8 +44,8 @@
+ typedef struct LiteRtEglContextStruct* LiteRtEglContext;
+ typedef struct LiteRtEglDisplayStruct* LiteRtEglDisplay;
+ typedef struct LiteRtEglSyncKhrStruct* LiteRtEglSyncKhr;
+-#define LITE_RT_EGL_NO_CONTEXT static_cast<LiteRtEglContext>(0)
+-#define LITE_RT_EGL_NO_DISPLAY static_cast<LiteRtEglDisplay>(0)
++#define LITE_RT_EGL_NO_CONTEXT (LiteRtEglContext)(0)
++#define LITE_RT_EGL_NO_DISPLAY (LiteRtEglDisplay)(0)
+ #endif  // LITERT_HAS_OPENGL_SUPPORT
+ 
+ #ifdef __cplusplus

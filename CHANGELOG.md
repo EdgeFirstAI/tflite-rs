@@ -7,6 +7,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `examples/yolov8`: bump `edgefirst-hal` to **0.27.1** (EGL dynamic-loader /
+  iOS `libEGL` resolution fix, and corrected `hal_import_image` C docs).
+- `LiteRtFunctions::try_load` no longer requires
+  `LiteRtCreateTensorBufferFromHostMemory` (unused by the safe API); partial
+  LiteRT builds that omit it are no longer reported as unavailable.
+- `require_litert!()` skips without panicking if library discovery fails between
+  the availability check and the LiteRT probe.
+- Root README, `ARCHITECTURE.md`, and crate descriptions updated for the 0.9.0
+  dual-runtime surface (LiteRT Next + custom allocations).
+
+## [0.9.0] - 2026-07-31
+
+### Added
+
+- **LiteRT Next soft-optional bindings and ergonomic API.**
+  `edgefirst-tflite-sys` vendors LiteRT v2.1.6 C headers and generates
+  `LiteRt*` bindings alongside the existing `tensorflowlite_c` table. Symbols
+  are probed individually via `LiteRtFunctions::try_load`, which never panics
+  when absent and reports the *name* of the first unresolved symbol.
+- `edgefirst-tflite::litert` module with RAII wrappers: `Environment`, `Model`,
+  `Options` / `HwAccelerators`, `CompiledModel` (sync `run` +
+  `is_fully_accelerated`), `TensorBuffer` / `BufferRequirements`, and
+  accelerator enumeration (`accelerators`).
+- `Library::litert()`, `Library::has_litert()`, and
+  `Library::litert_missing_symbol()`, plus `Error::is_litert_unavailable()`,
+  `Error::litert_status_code()`, and `Error::litert_missing_symbol()` for
+  dual-runtime hosts. The named symbol distinguishes a classic TensorFlow Lite
+  library from a partial or version-skewed LiteRT build.
+- Compile-time ABI cross-check: the hand-written `LiteRtFunctions` signatures
+  are asserted identical to the bindgen-generated table, so a header re-vendor
+  that changes a signature becomes a build error rather than a silent ABI bug.
+- `HwAccelerators` gains `Display`, `contains`, `is_empty`, and `BitOrAssign`;
+  unrecognised accelerator bits round-trip and render as `unknown(0x…)`.
+- `TensorBuffer::tensor_type()` and `TensorBuffer::read_bytes_into()`.
+- `crates/tflite-sys/litert/vendor.sh` and `litert/patches/` make re-vendoring
+  reproducible; local modifications to upstream headers are recorded as patches
+  instead of being applied in place.
+- `litert-compiled-model` example and LiteRT-gated integration tests.
+- Classic TensorFlow Lite `Interpreter` / `Delegate` paths remain unchanged
+  on libraries that do not export `LiteRt*`.
+- **Zero-copy model input via TFLite custom allocations.**
+  `Interpreter::set_custom_allocation_for_input` binds a caller-owned buffer as
+  an input tensor's storage, so a GPU-resident buffer can be read by the
+  runtime directly instead of copied into the arena every inference. The call
+  is `unsafe` — the runtime keeps the raw pointer for its lifetime — but
+  validates what it can first: input range, `bytes >= tensor.byte_size()`, and
+  64-byte alignment (`kDefaultTensorAlignment`). The skip-alignment flag is
+  deliberately not exposed; upstream documents it as a crash risk in
+  `Invoke()`.
+- `edgefirst_tflite_sys::experimental_ffi` binds the two `c_api_experimental.h`
+  symbols this needs as a soft-optional table, resolved individually so a
+  runtime without them still loads. `Library::has_custom_allocation` reports
+  availability, and `Error::is_unsupported` / `Error::unsupported_api` name the
+  missing entry point so callers can fall back instead of failing.
+
+### Fixed
+
+- `CompiledModel` now borrows the `Model` it was compiled from.
+  `LiteRtCreateCompiledModel` does not take ownership and the runtime reads the
+  model's flatbuffer on every inference, so dropping the model first was a
+  use-after-free that segfaulted in practice. It is now a compile error.
+- `BufferRequirements` now borrows its `CompiledModel`. The C API documents the
+  returned requirements as owned by the compiled model and valid only during
+  its lifetime; the previous `Copy` value could outlive it.
+- `TensorBuffer` host mappings are released by an RAII guard, so an error or a
+  panic between lock and unlock can no longer leave a buffer mapped.
+- `TensorBuffer::size()` reports the size the runtime actually allocated
+  (`LiteRtGetTensorBufferSize`) rather than the size requested, which correctly
+  bounds every host mapping when a backend pads for alignment.
+- `litert::accelerators()` validates the count reported by the C API before
+  pre-allocating, and rejects a null accelerator handle.
+
+### Changed
+
+- `Options::get_hardware_accelerators` renamed to
+  `Options::hardware_accelerator_set`.
+- `TensorBuffer::read_bytes` takes `&mut self`, reflecting that host mapping
+  mutates buffer state.
+- `CompiledModel::create_input_buffer` / `create_output_buffer` no longer take a
+  `&Model` argument — they use the model the compiled model already holds,
+  removing any possibility of passing a mismatched one.
+- `CompiledModel::run` reuses internal handle arrays, so a warm inference loop
+  performs no allocation.
+- `NOTICE` attributes the vendored LiteRT headers (Apache-2.0, Google LLC).
+- `docs/superpowers/` is now gitignored: it holds local agent working notes,
+  not project documentation.
+- **`yolov8` example: `edgefirst-hal` 0.25 → 0.27.** `create_image` and
+  `TensorDyn::image` now require a `CpuAccess` declaration; each buffer in the
+  example declares what it actually does (`ReadWrite` for the decode target,
+  `None` for the GPU-only working image, `Read` for buffers the host maps).
+  Mis-declaring is not an error, only a silent slow path, so the choices are
+  documented at each allocation. (Patched to 0.27.1 in `[Unreleased]`.)
+- The `yolov8` example now requests `TensorMemory::Dma` explicitly for its
+  pipeline buffers — the HAL's portable name for a platform-native zero-copy
+  GPU buffer (DMA-BUF on Linux, IOSurface on macOS/iOS, `AHardwareBuffer` on
+  Android) — falling back to auto-selection, and prints the backend it actually
+  obtained rather than assuming.
+- The `yolov8` example binds its input buffer through the new custom-allocation
+  API on Apple platforms, removing the per-frame arena copy. This is
+  Apple-only for now: an `IOSurface` base address outlives the map guard, while
+  the HAL's DMA-BUF `map()` is a per-map `mmap` whose address does not.
+  Tracked upstream as [EdgeFirstAI/hal#134](https://github.com/EdgeFirstAI/hal/issues/134).
+- The `yolov8` example builds on non-Linux hosts again. `ImageProcessor::import_image`
+  is `#[cfg(target_os = "linux")]` in every `edgefirst-hal` release — importing
+  a delegate-owned buffer by file descriptor is a DMA-BUF concept — so the two
+  import sites go through a wrapper with a non-Linux stub, and the delegate
+  probe no longer offers the import path off Linux.
+- Replaced the YOLOv8 test fixtures with models whose embedded `edgefirst.json`
+  matches the current decoder schema, covering all three output layouts
+  (`combined`, `logical`, `smart`) for both detection and segmentation, with
+  i.MX 95 Neutron variants alongside the portable ones. These are now stored in
+  Git LFS; `testdata/minimal.tflite` deliberately is not, since it is
+  `include_bytes!`-ed into the test binaries.
+
 ## [0.8.0] - 2026-06-23
 
 ### Changed
@@ -271,7 +387,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.8.0...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.7.0...v0.8.0
 [0.7.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.6.0...v0.7.0
 [0.6.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.5.1...v0.6.0

@@ -6,10 +6,13 @@
 //! This module follows the canonical error struct pattern: a public [`Error`]
 //! struct wrapping a private `ErrorKind` enum. Callers inspect errors through
 //! [`Error::is_library_error`], [`Error::is_delegate_error`],
-//! [`Error::is_null_pointer`], and [`Error::status_code`] rather than matching
-//! on variants directly.
+//! [`Error::is_null_pointer`], [`Error::is_litert_unavailable`],
+//! [`Error::status_code`], [`Error::litert_status_code`], and
+//! [`Error::litert_missing_symbol`] rather than matching on variants directly.
 
 use std::fmt;
+
+use edgefirst_tflite_sys::litert::MissingSymbol;
 
 // ---------------------------------------------------------------------------
 // StatusCode
@@ -81,17 +84,110 @@ impl fmt::Display for StatusCode {
 // ErrorKind (private)
 // ---------------------------------------------------------------------------
 
+/// A raw `LiteRtStatus` value returned by the `LiteRT` C API.
+///
+/// The wrapped `u32` is the value defined by `LiteRtStatus` in
+/// `litert_common.h`. Obtain one from [`Error::litert_status_code`]; compare it
+/// against the constants re-exported by
+/// [`edgefirst_tflite_sys::litert::status`] rather than against integer
+/// literals, so that a header re-vendor cannot silently change the meaning of a
+/// comparison.
+///
+/// # Examples
+///
+/// ```no_run
+/// use edgefirst_tflite::{Library, litert};
+/// use edgefirst_tflite_sys::litert::status;
+///
+/// let lib = Library::new()?;
+/// let env = litert::Environment::new(&lib)?;
+/// match litert::Model::from_file(&env, "missing.tflite") {
+///     Err(e) if e.litert_status_code().map(|c| c.raw()) == Some(status::ERROR_FILE_IO) => {
+///         eprintln!("model file could not be read");
+///     }
+///     Err(e) => eprintln!("load failed: {e}"),
+///     Ok(_) => {}
+/// }
+/// # Ok::<(), edgefirst_tflite::Error>(())
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LiteRtStatusCode(pub u32);
+
+impl LiteRtStatusCode {
+    /// The raw `LiteRtStatus` value.
+    #[must_use]
+    pub const fn raw(self) -> u32 {
+        self.0
+    }
+}
+
+impl fmt::Display for LiteRtStatusCode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use edgefirst_tflite_sys::litert::status;
+
+        // Mapped from the sys constants rather than literals so the table
+        // cannot drift from the vendored headers.
+        let name = match self.0 {
+            status::OK => "ok",
+            status::ERROR_INVALID_ARGUMENT => "invalid argument",
+            status::ERROR_MEMORY_ALLOCATION_FAILURE => "memory allocation failure",
+            status::ERROR_RUNTIME_FAILURE => "runtime failure",
+            status::ERROR_MISSING_INPUT_TENSOR => "missing input tensor",
+            status::ERROR_UNSUPPORTED => "unsupported",
+            status::ERROR_NOT_FOUND => "not found",
+            status::ERROR_TIMEOUT_EXPIRED => "timeout expired",
+            status::ERROR_WRONG_VERSION => "wrong version",
+            status::ERROR_UNKNOWN => "unknown",
+            status::ERROR_ALREADY_EXISTS => "already exists",
+            status::CANCELLED => "cancelled",
+            status::ERROR_FILE_IO => "file io",
+            status::ERROR_INVALID_FLATBUFFER => "invalid flatbuffer",
+            status::ERROR_DYNAMIC_LOADING => "dynamic loading",
+            status::ERROR_SERIALIZATION => "serialization",
+            status::ERROR_COMPILATION => "compilation",
+            status::ERROR_INDEX_OOB => "index out of bounds",
+            status::ERROR_INVALID_IR_TYPE => "invalid IR type",
+            status::ERROR_INVALID_GRAPH_INVARIANT => "invalid graph invariant",
+            status::ERROR_GRAPH_MODIFICATION => "graph modification",
+            status::ERROR_INVALID_TOOL_CONFIG => "invalid tool config",
+            status::LEGALIZE_NO_MATCH => "legalize: no match",
+            status::ERROR_INVALID_LEGALIZATION => "invalid legalization",
+            status::PATTERN_NO_MATCH => "pattern: no match",
+            status::INVALID_TRANSFORMATION => "invalid transformation",
+            status::ERROR_UNSUPPORTED_RUNTIME_VERSION => "unsupported runtime version",
+            status::ERROR_UNSUPPORTED_COMPILER_VERSION => "unsupported compiler version",
+            status::ERROR_INCOMPATIBLE_BYTE_CODE_VERSION => "incompatible byte code version",
+            status::ERROR_UNSUPPORTED_OP_SHAPE_INFERER => "unsupported op shape inferer",
+            other => return write!(f, "status {other}"),
+        };
+        f.write_str(name)
+    }
+}
+
 /// Internal error classification. Not exposed to consumers.
 #[derive(Debug)]
 enum ErrorKind {
     /// The TensorFlow Lite C API returned a non-OK status.
     Status(StatusCode),
+    /// The `LiteRT` C API returned a non-OK status.
+    LiteRtStatus(LiteRtStatusCode),
+    /// `LiteRT` symbols are not available in the loaded shared library.
+    ///
+    /// Carries the name of the first symbol that failed to resolve, which
+    /// distinguishes "this is a classic `TFLite` library" from "this is a
+    /// partial or version-skewed `LiteRT` build".
+    LiteRtUnavailable(&'static str),
     /// A C API function returned a null pointer.
     NullPointer,
     /// Library loading or symbol resolution failed.
     Library(libloading::Error),
     /// An invalid argument was passed to the API.
     InvalidArgument(String),
+    /// The loaded runtime does not export an optional API the call needs.
+    ///
+    /// Distinct from [`ErrorKind::InvalidArgument`]: the call was well-formed,
+    /// but this build of `TFLite` cannot service it. Carries the API's name.
+    Unsupported(&'static str),
 }
 
 // ---------------------------------------------------------------------------
@@ -149,11 +245,89 @@ impl Error {
         matches!(self.kind, ErrorKind::InvalidArgument(_))
     }
 
+    /// Returns `true` if the loaded runtime does not export an optional API the
+    /// call required.
+    ///
+    /// The call itself was well-formed — this build of `TFLite` simply cannot
+    /// service it. [`Error::unsupported_api`] names which one.
+    #[must_use]
+    pub fn is_unsupported(&self) -> bool {
+        matches!(self.kind, ErrorKind::Unsupported(_))
+    }
+
+    /// The name of the unavailable API, when this is an unsupported-API error.
+    ///
+    /// For example `"TfLiteInterpreterSetCustomAllocationForTensor"` from
+    /// [`Interpreter::set_custom_allocation_for_input`](crate::Interpreter::set_custom_allocation_for_input)
+    /// on a runtime built without the experimental C API.
+    #[must_use]
+    pub fn unsupported_api(&self) -> Option<&'static str> {
+        if let ErrorKind::Unsupported(api) = self.kind {
+            Some(api)
+        } else {
+            None
+        }
+    }
+
     /// Returns the `TFLite` [`StatusCode`] when the error originated from a
     /// non-OK C API status, or `None` otherwise.
     #[must_use]
     pub fn status_code(&self) -> Option<StatusCode> {
         if let ErrorKind::Status(code) = self.kind {
+            Some(code)
+        } else {
+            None
+        }
+    }
+
+    /// Returns `true` if `LiteRT` symbols are missing from the loaded library.
+    ///
+    /// This is the expected outcome on a classic TensorFlow Lite build and is
+    /// not a defect — [`crate::Interpreter`] remains fully available. Use
+    /// [`Error::litert_missing_symbol`] to tell "no `LiteRT` at all" apart from
+    /// "partial `LiteRT`".
+    #[must_use]
+    pub fn is_litert_unavailable(&self) -> bool {
+        matches!(self.kind, ErrorKind::LiteRtUnavailable(_))
+    }
+
+    /// Returns the name of the `LiteRT` symbol that failed to resolve.
+    ///
+    /// `Some` only for errors where [`Error::is_litert_unavailable`] is `true`.
+    /// A value of `"LiteRtCreateEnvironment"` — the first symbol probed — means
+    /// the library exports no `LiteRT` surface at all. Any later symbol means
+    /// the library is a partial or version-skewed `LiteRT` build, which is
+    /// usually a packaging problem worth reporting.
+    ///
+    /// # Examples
+    ///
+    /// ```no_run
+    /// use edgefirst_tflite::{Library, litert};
+    ///
+    /// let lib = Library::new()?;
+    /// if let Err(e) = litert::Environment::new(&lib) {
+    ///     match e.litert_missing_symbol() {
+    ///         Some("LiteRtCreateEnvironment") => println!("classic TFLite library"),
+    ///         Some(sym) => println!("partial LiteRT build; missing {sym}"),
+    ///         None => println!("LiteRT present, but creation failed: {e}"),
+    ///     }
+    /// }
+    /// # Ok::<(), edgefirst_tflite::Error>(())
+    /// ```
+    #[must_use]
+    pub fn litert_missing_symbol(&self) -> Option<&'static str> {
+        if let ErrorKind::LiteRtUnavailable(symbol) = self.kind {
+            Some(symbol)
+        } else {
+            None
+        }
+    }
+
+    /// Returns the `LiteRT` [`LiteRtStatusCode`] when the error originated from
+    /// a non-OK `LiteRT` C API status, or `None` otherwise.
+    #[must_use]
+    pub fn litert_status_code(&self) -> Option<LiteRtStatusCode> {
+        if let ErrorKind::LiteRtStatus(code) = self.kind {
             Some(code)
         } else {
             None
@@ -201,6 +375,50 @@ impl Error {
             context: None,
         }
     }
+
+    /// Create an error for an optional API the loaded runtime does not export.
+    ///
+    /// `api` names the missing entry point; `context` should say what the
+    /// caller can do instead.
+    #[must_use]
+    pub(crate) fn unsupported(api: &'static str, context: impl Into<String>) -> Self {
+        Self {
+            kind: ErrorKind::Unsupported(api),
+            context: Some(context.into()),
+        }
+    }
+
+    /// Create an error indicating `LiteRT` is not present in the loaded library.
+    ///
+    /// `missing` is the first `LiteRt*` symbol that failed to resolve.
+    #[must_use]
+    pub(crate) fn litert_unavailable(missing: MissingSymbol) -> Self {
+        let symbol = missing.name();
+        let context = if symbol == "LiteRtCreateEnvironment" {
+            format!(
+                "no LiteRt* symbols found ({symbol} unresolved); this is a classic \
+                 TensorFlow Lite library — use Interpreter instead"
+            )
+        } else {
+            format!(
+                "incomplete LiteRT build: {symbol} unresolved; the library exports \
+                 some LiteRt* symbols but not the full required set"
+            )
+        };
+        Self {
+            kind: ErrorKind::LiteRtUnavailable(symbol),
+            context: Some(context),
+        }
+    }
+
+    /// Create an error from a raw `LiteRT` status code.
+    #[must_use]
+    pub(crate) fn litert_status(code: u32) -> Self {
+        Self {
+            kind: ErrorKind::LiteRtStatus(LiteRtStatusCode(code)),
+            context: None,
+        }
+    }
 }
 
 // -- Display ----------------------------------------------------------------
@@ -209,9 +427,12 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
             ErrorKind::Status(code) => write!(f, "TFLite status: {code}")?,
+            ErrorKind::LiteRtStatus(code) => write!(f, "LiteRT status: {code}")?,
+            ErrorKind::LiteRtUnavailable(_) => f.write_str("LiteRT unavailable")?,
             ErrorKind::NullPointer => f.write_str("null pointer from C API")?,
             ErrorKind::Library(inner) => write!(f, "library loading error: {inner}")?,
             ErrorKind::InvalidArgument(msg) => write!(f, "invalid argument: {msg}")?,
+            ErrorKind::Unsupported(api) => write!(f, "unsupported by this runtime: {api}")?,
         }
         if let Some(ctx) = &self.context {
             write!(f, " ({ctx})")?;
@@ -274,6 +495,18 @@ pub(crate) fn status_to_result(status: u32) -> Result<()> {
     }
     let code = StatusCode::from_raw(status).unwrap_or(StatusCode::RuntimeError);
     Err(Error::status(code))
+}
+
+/// Convert a raw `LiteRT` C API status code to a [`Result`].
+///
+/// `kLiteRtStatusOk` maps to `Ok(())`; every other value is preserved verbatim
+/// in a [`LiteRtStatusCode`] so that callers can distinguish, say, a missing
+/// file from a compilation failure.
+pub(crate) fn litert_status_to_result(status: u32) -> Result<()> {
+    if status == edgefirst_tflite_sys::litert::status::OK {
+        return Ok(());
+    }
+    Err(Error::litert_status(status))
 }
 
 // ---------------------------------------------------------------------------
@@ -423,5 +656,64 @@ mod tests {
         let debug = format!("{err:?}");
         assert!(debug.contains("Error"));
         assert!(debug.contains("Status"));
+    }
+
+    #[test]
+    fn litert_unavailable_error() {
+        let err = Error::litert_unavailable(MissingSymbol("LiteRtCreateEnvironment"));
+        assert!(err.is_litert_unavailable());
+        assert!(!err.is_library_error());
+        assert!(err.litert_status_code().is_none());
+        assert_eq!(err.litert_missing_symbol(), Some("LiteRtCreateEnvironment"));
+        assert!(err.to_string().contains("LiteRT unavailable"));
+        // The first symbol probed means "no LiteRT at all", not a partial build.
+        assert!(err.to_string().contains("classic"));
+    }
+
+    #[test]
+    fn litert_partial_build_error_names_symbol() {
+        let err = Error::litert_unavailable(MissingSymbol("LiteRtCreateCompiledModel"));
+        assert_eq!(
+            err.litert_missing_symbol(),
+            Some("LiteRtCreateCompiledModel")
+        );
+        let text = err.to_string();
+        assert!(text.contains("incomplete LiteRT build"), "{text}");
+        assert!(text.contains("LiteRtCreateCompiledModel"), "{text}");
+    }
+
+    #[test]
+    fn litert_status_error() {
+        use edgefirst_tflite_sys::litert::status;
+
+        let err = litert_status_to_result(status::ERROR_RUNTIME_FAILURE).unwrap_err();
+        assert_eq!(
+            err.litert_status_code(),
+            Some(LiteRtStatusCode(status::ERROR_RUNTIME_FAILURE))
+        );
+        assert_eq!(
+            err.litert_status_code().map(LiteRtStatusCode::raw),
+            Some(status::ERROR_RUNTIME_FAILURE)
+        );
+        assert!(err.to_string().contains("runtime failure"));
+        assert!(litert_status_to_result(status::OK).is_ok());
+        assert!(err.litert_missing_symbol().is_none());
+    }
+
+    #[test]
+    fn litert_status_display_covers_extended_codes() {
+        use edgefirst_tflite_sys::litert::status;
+
+        // Codes above the 500 block must still render by name, and genuinely
+        // unknown values must not panic.
+        assert_eq!(
+            LiteRtStatusCode(status::ERROR_INDEX_OOB).to_string(),
+            "index out of bounds"
+        );
+        assert_eq!(
+            LiteRtStatusCode(status::ERROR_COMPILATION).to_string(),
+            "compilation"
+        );
+        assert_eq!(LiteRtStatusCode(9_999).to_string(), "status 9999");
     }
 }

@@ -8,7 +8,7 @@
 
 mod common;
 
-use edgefirst_tflite::TensorType;
+use edgefirst_tflite::{litert, TensorType};
 
 // ---------------------------------------------------------------------------
 // Library
@@ -440,4 +440,321 @@ fn multi_interpreter_threaded() {
             h.join().expect("worker thread panicked");
         }
     });
+}
+
+// ---------------------------------------------------------------------------
+// LiteRT (soft-optional)
+// ---------------------------------------------------------------------------
+
+#[test]
+fn litert_probe_matches_has_litert() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    assert_eq!(lib.has_litert(), lib.litert().is_some());
+    // The availability flag and the diagnostic must never disagree.
+    assert_eq!(lib.has_litert(), lib.litert_missing_symbol().is_none());
+}
+
+#[test]
+fn litert_unavailable_when_symbols_missing() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    if lib.has_litert() {
+        eprintln!("SKIPPED: library has LiteRT; unavailable path not exercised");
+        return;
+    }
+    let err = litert::Environment::new(&lib).unwrap_err();
+    assert!(err.is_litert_unavailable());
+    // The error must name the unresolved symbol and agree with the probe.
+    assert!(err.litert_missing_symbol().is_some());
+    assert_eq!(err.litert_missing_symbol(), lib.litert_missing_symbol());
+}
+
+#[test]
+fn litert_environment_and_accelerators() {
+    common::require_litert!();
+    let lib = common::load_library().unwrap();
+    let env = litert::Environment::new(&lib).expect("Environment::new");
+    let accels = litert::accelerators(&env).expect("accelerators");
+
+    // Environment creation always registers the CPU accelerator.
+    assert!(
+        accels
+            .iter()
+            .any(|a| a.hardware.contains(litert::HwAccelerators::CPU)),
+        "expected a CPU accelerator, got {accels:?}"
+    );
+    for accel in &accels {
+        assert!(!accel.to_string().is_empty());
+    }
+}
+
+#[test]
+fn litert_options_round_trip_accelerators() {
+    common::require_litert!();
+    let lib = common::load_library().unwrap();
+    let requested = litert::HwAccelerators::CPU | litert::HwAccelerators::GPU;
+    let opts = litert::Options::new(&lib)
+        .unwrap()
+        .hardware_accelerators(requested)
+        .unwrap();
+    assert_eq!(opts.hardware_accelerator_set().unwrap(), requested);
+}
+
+#[test]
+fn litert_compiled_model_sync_run() {
+    common::require_litert!();
+    let lib = common::load_library().unwrap();
+    let env = litert::Environment::new(&lib).unwrap();
+    let model = litert::Model::from_buffer(&env, common::MINIMAL_MODEL).unwrap();
+    assert_eq!(model.num_signatures().unwrap(), 1);
+    assert_eq!(model.num_inputs(0).unwrap(), 1);
+    assert_eq!(model.num_outputs(0).unwrap(), 1);
+
+    let opts = litert::Options::new(&lib)
+        .unwrap()
+        .hardware_accelerators(litert::HwAccelerators::CPU)
+        .unwrap();
+    let mut compiled = litert::CompiledModel::create(&env, &model, &opts).unwrap();
+
+    // The minimal model is a single Add, which XNNPACK claims in full.
+    assert!(compiled.is_fully_accelerated().unwrap());
+
+    // Requirements report the logical size; the allocation may be padded
+    // beyond it but never below.
+    let reqs = compiled.input_buffer_requirements(0, 0).unwrap();
+    assert_eq!(reqs.size(), 16);
+
+    let mut inputs = vec![compiled.create_input_buffer(0, 0).unwrap()];
+    let mut outputs = vec![compiled.create_output_buffer(0, 0).unwrap()];
+    assert!(inputs[0].size() >= reqs.size());
+    inputs[0].tensor_type().expect("input tensor type");
+
+    let input_data = [1.0f32, 2.0, 3.0, 4.0];
+    let mut bytes = Vec::with_capacity(16);
+    for v in input_data {
+        bytes.extend_from_slice(&v.to_ne_bytes());
+    }
+    inputs[0].write_bytes(&bytes).unwrap();
+
+    compiled.run_default(&mut inputs, &mut outputs).unwrap();
+
+    let out = outputs[0].read_bytes().unwrap();
+    assert_eq!(out.len(), outputs[0].size());
+
+    // Read back only the logical tensor, skipping any alignment padding.
+    let mut logical = vec![0u8; 16];
+    outputs[0].read_bytes_into(&mut logical).unwrap();
+    assert_eq!(&out[..16], &logical[..]);
+
+    // A second run must reuse the internal handle arrays without corruption.
+    compiled.run_default(&mut inputs, &mut outputs).unwrap();
+    assert_eq!(
+        out,
+        outputs[0].read_bytes().unwrap(),
+        "repeat inference must be deterministic"
+    );
+}
+
+#[test]
+fn litert_rejects_out_of_bounds_buffer_access() {
+    common::require_litert!();
+    let lib = common::load_library().unwrap();
+    let env = litert::Environment::new(&lib).unwrap();
+    let model = litert::Model::from_buffer(&env, common::MINIMAL_MODEL).unwrap();
+    let opts = litert::Options::new(&lib)
+        .unwrap()
+        .hardware_accelerators(litert::HwAccelerators::CPU)
+        .unwrap();
+    let compiled = litert::CompiledModel::create(&env, &model, &opts).unwrap();
+    let mut buffer = compiled.create_input_buffer(0, 0).unwrap();
+
+    let too_big = vec![0u8; buffer.size() + 1];
+    let err = buffer.write_bytes(&too_big).unwrap_err();
+    assert!(err.is_invalid_argument(), "{err}");
+
+    let mut dst = vec![0u8; buffer.size() + 1];
+    let err = buffer.read_bytes_into(&mut dst).unwrap_err();
+    assert!(err.is_invalid_argument(), "{err}");
+
+    // A repeated write must still succeed — the failed attempts must not have
+    // left the buffer locked.
+    buffer.write_bytes(&vec![0u8; buffer.size()]).unwrap();
+}
+
+#[test]
+fn litert_model_rejects_invalid_buffer() {
+    common::require_litert!();
+    let lib = common::load_library().unwrap();
+    let env = litert::Environment::new(&lib).unwrap();
+    let err = litert::Model::from_buffer(&env, vec![0u8; 32]).unwrap_err();
+    assert!(err.litert_status_code().is_some(), "{err}");
+}
+
+// ---------------------------------------------------------------------------
+// Custom allocation (experimental C API)
+// ---------------------------------------------------------------------------
+
+/// A heap buffer whose usable region starts on a `kDefaultTensorAlignment`
+/// boundary, which is what
+/// [`Interpreter::set_custom_allocation_for_input`] requires.
+///
+/// Over-allocates and offsets rather than using a custom `Layout` so the
+/// storage is still an ordinary `Vec` with ordinary drop behaviour. The heap
+/// block does not move when the `AlignedBuffer` value moves, so the address
+/// handed to the runtime stays valid as long as this value is alive.
+struct AlignedBuffer {
+    storage: Vec<u8>,
+    offset: usize,
+    len: usize,
+}
+
+impl AlignedBuffer {
+    const ALIGNMENT: usize = 64;
+
+    fn new(len: usize) -> Self {
+        let storage = vec![0u8; len + Self::ALIGNMENT];
+        let offset = storage.as_ptr().align_offset(Self::ALIGNMENT);
+        assert!(offset + len <= storage.len());
+        Self {
+            storage,
+            offset,
+            len,
+        }
+    }
+
+    fn ptr(&mut self) -> std::ptr::NonNull<u8> {
+        // SAFETY: `offset + len <= storage.len()`, asserted in `new`.
+        let p = unsafe { self.storage.as_mut_ptr().add(self.offset) };
+        std::ptr::NonNull::new(p).expect("Vec never allocates at null")
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [u8] {
+        &mut self.storage[self.offset..self.offset + self.len]
+    }
+}
+
+/// Skip unless the runtime exports the experimental C API.
+macro_rules! require_custom_allocation {
+    ($lib:expr) => {
+        if !$lib.has_custom_allocation() {
+            eprintln!(
+                "SKIPPED: this TFLite build does not export \
+                 TfLiteInterpreterSetCustomAllocationForTensor."
+            );
+            return;
+        }
+    };
+}
+
+#[test]
+fn custom_allocation_backs_the_input_tensor() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    require_custom_allocation!(lib);
+    let model = common::load_model(&lib);
+
+    // Declared before the interpreter so it outlives every read of the
+    // pointer handed to the runtime.
+    let mut buffer = AlignedBuffer::new(4 * std::mem::size_of::<f32>());
+    for (i, value) in [1.0f32, 2.0, 3.0, 4.0].iter().enumerate() {
+        buffer.as_mut_slice()[i * 4..(i + 1) * 4].copy_from_slice(&value.to_ne_bytes());
+    }
+
+    let mut interp = common::build_interpreter(&lib, &model);
+    let bytes = interp.inputs().unwrap()[0].byte_size();
+    let ptr = buffer.ptr();
+
+    // SAFETY: `buffer` outlives `interp`, its heap block is not relocated
+    // while it is alive, and nothing else writes it during `invoke`.
+    unsafe {
+        interp
+            .set_custom_allocation_for_input(0, ptr, bytes)
+            .unwrap();
+    }
+    interp.allocate_tensors().unwrap();
+    interp.invoke().unwrap();
+
+    // minimal.tflite adds 1.0 elementwise, so the model read *our* buffer
+    // rather than the arena iff the output is the input plus one.
+    let outputs = interp.outputs().unwrap();
+    let out = outputs[0].as_slice::<f32>().unwrap();
+    assert_eq!(out, &[2.0f32, 3.0, 4.0, 5.0]);
+}
+
+#[test]
+fn custom_allocation_rejects_undersized_buffer() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    require_custom_allocation!(lib);
+    let model = common::load_model(&lib);
+
+    let mut buffer = AlignedBuffer::new(64);
+    let mut interp = common::build_interpreter(&lib, &model);
+    let ptr = buffer.ptr();
+
+    // SAFETY: the call is rejected before the pointer is ever dereferenced.
+    let err = unsafe { interp.set_custom_allocation_for_input(0, ptr, 4) }.unwrap_err();
+    assert!(err.is_invalid_argument(), "{err}");
+    assert!(err.to_string().contains("smaller"), "{err}");
+}
+
+#[test]
+fn custom_allocation_rejects_misaligned_buffer() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    require_custom_allocation!(lib);
+    let model = common::load_model(&lib);
+
+    let mut buffer = AlignedBuffer::new(128);
+    let aligned = buffer.ptr();
+    // One byte past the aligned start: valid memory, wrong alignment.
+    // SAFETY: `aligned + 1` is still inside the 128-byte region.
+    let misaligned = std::ptr::NonNull::new(unsafe { aligned.as_ptr().add(1) }).unwrap();
+
+    let mut interp = common::build_interpreter(&lib, &model);
+    // SAFETY: the call is rejected before the pointer is ever dereferenced.
+    let err = unsafe { interp.set_custom_allocation_for_input(0, misaligned, 64) }.unwrap_err();
+    assert!(err.is_invalid_argument(), "{err}");
+    assert!(err.to_string().contains("aligned"), "{err}");
+}
+
+#[test]
+fn custom_allocation_rejects_out_of_range_input() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    require_custom_allocation!(lib);
+    let model = common::load_model(&lib);
+
+    let mut buffer = AlignedBuffer::new(64);
+    let mut interp = common::build_interpreter(&lib, &model);
+    let inputs = interp.input_count();
+    let ptr = buffer.ptr();
+
+    // SAFETY: the call is rejected before the pointer is ever dereferenced.
+    let err = unsafe { interp.set_custom_allocation_for_input(inputs, ptr, 64) }.unwrap_err();
+    assert!(err.is_invalid_argument(), "{err}");
+    assert!(err.to_string().contains("out of range"), "{err}");
+}
+
+#[test]
+fn custom_allocation_probe_matches_symbol_presence() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    // Whatever the probe decided, the error path must agree with it: an
+    // unsupported runtime reports the API by name rather than a bare status.
+    if lib.has_custom_allocation() {
+        return;
+    }
+    let model = common::load_model(&lib);
+    let mut buffer = AlignedBuffer::new(64);
+    let mut interp = common::build_interpreter(&lib, &model);
+    let ptr = buffer.ptr();
+    // SAFETY: the call is rejected before the pointer is ever dereferenced.
+    let err = unsafe { interp.set_custom_allocation_for_input(0, ptr, 64) }.unwrap_err();
+    assert!(err.is_unsupported(), "{err}");
+    assert_eq!(
+        err.unsupported_api(),
+        Some("TfLiteInterpreterSetCustomAllocationForTensor")
+    );
 }

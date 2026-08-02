@@ -19,6 +19,25 @@
 //! Uses the portable HAL Delegate API (`tensor_info`, `import_image`) where
 //! available, with a deprecated `VxDelegate`-specific fallback.
 //!
+//! ## Platform
+//!
+//! Zero-copy comes in two halves, and only one of them is Linux-only.
+//!
+//! *Importing* a delegate-owned buffer needs `import_image`, which the HAL
+//! gates on `target_os = "linux"` — it takes a DMA-BUF file descriptor, and
+//! only the embedded-Linux delegates hand one out.
+//!
+//! *Allocating* a zero-copy GPU buffer is portable. `TensorMemory::Dma` is the
+//! HAL's platform-native GPU buffer: DMA-BUF on Linux, `IOSurface` on macOS
+//! and iOS, `AHardwareBuffer` on Android.
+//!
+//! On Apple platforms the example allocates that `IOSurface` itself and binds
+//! it as the input tensor's storage with
+//! `Interpreter::set_custom_allocation_for_input`, so the runtime reads the
+//! surface the GPU just rendered — no arena copy, the same end state the
+//! delegate-import path reaches on Linux. The `Input:` line at startup says
+//! which of the three routes is live.
+//!
 //! ## Usage
 //!
 //! ```text
@@ -54,8 +73,8 @@ use edgefirst_hal::{
         MaskOverlay, MaskResolution, Rotation,
     },
     tensor::{
-        DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMapTrait as _,
-        TensorMemory, TensorTrait as _,
+        CpuAccess, DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn,
+        TensorMapTrait as _, TensorMemory, TensorTrait as _,
     },
 };
 use edgefirst_tflite::{
@@ -313,9 +332,17 @@ impl OutputBuffers {
     }
 }
 
-/// Model input: GPU-rendered DMA-BUF (zero-copy to NPU) or CPU staging buffer.
+/// How the preprocessed frame reaches the model's input tensor.
 enum ModelInput {
+    /// The delegate's own DMA-BUF, imported and rendered into directly. The
+    /// NPU reads the buffer the GPU just wrote; nothing is copied.
     DmaBuf(TensorDyn),
+    /// Our own zero-copy buffer, bound as the input tensor's storage via
+    /// [`Interpreter::set_custom_allocation_for_input`]. The runtime reads the
+    /// surface the GPU just wrote; nothing is copied.
+    Bound(TensorDyn),
+    /// Our own buffer, copied into the `TFLite` arena each frame. The fallback
+    /// when neither zero-copy route is available.
     Staging(TensorDyn),
 }
 
@@ -337,6 +364,173 @@ fn maybe_normalize_boxes(detections: &mut [DetectBox], in_w: usize, in_h: usize)
 }
 
 // ── Pipeline helpers ─────────────────────────────────────────────────────────
+
+/// Import a *delegate-owned* DMA-BUF plane as a HAL image tensor.
+///
+/// A thin wrapper over [`ImageProcessor::import_image`], which every
+/// `edgefirst-hal` release gates on `#[cfg(target_os = "linux")]`: importing a
+/// foreign buffer by file descriptor is a Linux/DMA-BUF concept, and no
+/// `TFLite` delegate outside embedded Linux hands one out.
+///
+/// This gate covers *import* only. Allocating a zero-copy GPU buffer is
+/// portable — see [`allocate_zero_copy`], which the staging path uses to reach
+/// `IOSurface` on Apple platforms.
+#[cfg(target_os = "linux")]
+fn import_dmabuf(
+    processor: &ImageProcessor,
+    plane: PlaneDescriptor,
+    width: usize,
+    height: usize,
+    format: PixelFormat,
+    dtype: DType,
+) -> Result<TensorDyn> {
+    Ok(processor.import_image(plane, None, width, height, format, dtype, None)?)
+}
+
+/// Non-Linux stub for [`import_dmabuf`]; see that function for why it exists.
+#[cfg(not(target_os = "linux"))]
+fn import_dmabuf(
+    _processor: &ImageProcessor,
+    _plane: PlaneDescriptor,
+    _width: usize,
+    _height: usize,
+    _format: PixelFormat,
+    _dtype: DType,
+) -> Result<TensorDyn> {
+    Err(Error::unsupported(
+        "DMA-BUF import requires Linux; ImageProcessor::import_image is unavailable on this target",
+    ))
+}
+
+/// Allocate an image the GPU can render into without a host round-trip.
+///
+/// [`TensorMemory::Dma`] is the HAL's portable name for a platform-native
+/// zero-copy GPU buffer: a DRM/dma-heap DMA-BUF on Linux, an `IOSurface` on
+/// macOS and iOS, and an `AHardwareBuffer` on Android. Requesting it
+/// explicitly is a contract — the HAL returns an error rather than silently
+/// downgrading when the format/dtype pair has no zero-copy mapping (F32 has no
+/// 32-bit-float DRM `FourCC`, for instance) — so this falls back to the
+/// auto-selecting `None` request, and the caller reports what it got.
+///
+/// Callers should print [`TensorDyn::memory`] rather than assume: a `Mem` or
+/// `Pbo` result means every frame pays a host copy the timings will show.
+fn allocate_zero_copy(
+    processor: &ImageProcessor,
+    width: usize,
+    height: usize,
+    format: PixelFormat,
+    dtype: DType,
+    access: CpuAccess,
+) -> Result<TensorDyn> {
+    match processor.create_image(
+        width,
+        height,
+        format,
+        dtype,
+        Some(TensorMemory::Dma),
+        access,
+    ) {
+        Ok(image) => Ok(image),
+        Err(_) => Ok(processor.create_image(width, height, format, dtype, None, access)?),
+    }
+}
+
+/// Base address and byte length of `tensor`'s host mapping.
+///
+/// The map guard is dropped before returning: the caller wants the *address*,
+/// not a CPU-access window. See [`try_bind_input_buffer`] for why that is
+/// sound for an `IOSurface` and not for a DMA-BUF.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn host_base_address(tensor: &TensorDyn) -> Option<(std::ptr::NonNull<u8>, usize)> {
+    let (ptr, bytes) = match (tensor.as_u8(), tensor.as_i8()) {
+        (Some(t), _) => {
+            let map = t.map().ok()?;
+            (map.as_slice().as_ptr().cast_mut(), map.size())
+        }
+        (_, Some(t)) => {
+            let map = t.map().ok()?;
+            (map.as_slice().as_ptr().cast::<u8>().cast_mut(), map.size())
+        }
+        _ => return None,
+    };
+    Some((std::ptr::NonNull::new(ptr)?, bytes))
+}
+
+/// Bind `staging` as the input tensor's storage so the runtime reads the
+/// GPU-resident buffer instead of a copy of it.
+///
+/// Returns `true` when the binding took effect. Every failure is a downgrade
+/// to the copy path, never an error — this is an optimisation.
+///
+/// # Why Apple-only
+///
+/// The runtime keeps the raw pointer forever, so the buffer's host address
+/// must outlive the map used to obtain it. That holds for an `IOSurface`,
+/// where `map()` is `IOSurfaceLock` + `IOSurfaceGetBaseAddress` and the
+/// address belongs to the surface rather than the lock. It does **not** hold
+/// for a Linux DMA-BUF, where the HAL `mmap`s per map and `munmap`s when the
+/// guard drops — the address would dangle. Linux does not need this path
+/// anyway: with a delegate the example imports the delegate's own buffer
+/// ([`ModelInput::DmaBuf`]), which is already copy-free.
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+fn try_bind_input_buffer(
+    lib: &Library,
+    interpreter: &mut Interpreter<'_>,
+    staging: &TensorDyn,
+    input_type: TensorType,
+) -> bool {
+    if !lib.has_custom_allocation() {
+        println!("  Zero-copy input: unavailable (runtime lacks the experimental C API)");
+        return false;
+    }
+    if staging.memory() != TensorMemory::Dma {
+        println!("  Zero-copy input: skipped (input buffer is not GPU-resident)");
+        return false;
+    }
+    // The f32 path rescales during the copy, so there is nothing to bind.
+    if !matches!(input_type, TensorType::Int8 | TensorType::UInt8) {
+        println!("  Zero-copy input: skipped ({input_type:?} input needs a converting copy)");
+        return false;
+    }
+
+    // Map only to learn the surface's base address; see the note above on why
+    // it stays valid once the guard drops.
+    let Some((ptr, bytes)) = host_base_address(staging) else {
+        println!("  Zero-copy input: skipped (input buffer could not be mapped)");
+        return false;
+    };
+
+    // SAFETY: `ptr` is the base address of the IOSurface backing `staging`,
+    // which the caller keeps alive — and unmoved — for longer than
+    // `interpreter`. The address is a property of the surface, not of the map
+    // guard dropped above. Only the GPU convert writes the surface, and that
+    // is sequenced before `invoke()` within each iteration.
+    match unsafe { interpreter.set_custom_allocation_for_input(0, ptr, bytes) } {
+        Ok(()) => match interpreter.allocate_tensors() {
+            Ok(()) => true,
+            Err(e) => {
+                println!("  Zero-copy input: rejected at AllocateTensors ({e})");
+                false
+            }
+        },
+        Err(e) => {
+            println!("  Zero-copy input: rejected ({e})");
+            false
+        }
+    }
+}
+
+/// Non-Apple stub for [`try_bind_input_buffer`]; see that function for why the
+/// binding is Apple-only today.
+#[cfg(not(any(target_os = "macos", target_os = "ios")))]
+fn try_bind_input_buffer(
+    _lib: &Library,
+    _interpreter: &mut Interpreter<'_>,
+    _staging: &TensorDyn,
+    _input_type: TensorType,
+) -> bool {
+    false
+}
 
 /// GPU-convert `src` into the model input tensor for one frame.
 #[allow(clippy::too_many_arguments)]
@@ -360,6 +554,12 @@ fn preprocess_step(
                     .expect("dmabuf")
                     .sync_for_device(0)?;
             }
+        }
+        ModelInput::Bound(dst) => {
+            // The GPU writes the buffer the runtime will read. There is no
+            // copy and no CPU map on this path — that is the whole point of
+            // the custom allocation bound during setup.
+            processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
         }
         ModelInput::Staging(staging) => {
             processor.convert(src, staging, Rotation::None, Flip::None, letterbox)?;
@@ -515,7 +715,11 @@ fn main() -> Result<()> {
             }
         }
 
-        use_dmabuf = d.has_dmabuf();
+        // This flag selects the *import* path — binding the delegate's own
+        // buffer — which needs the Linux-only `import_image`. Off-Linux the
+        // example allocates its own zero-copy buffer instead (IOSurface on
+        // Apple platforms); see `allocate_zero_copy`.
+        use_dmabuf = d.has_dmabuf() && cfg!(target_os = "linux");
         if use_dmabuf {
             println!("  DMA-BUF: available");
         }
@@ -622,11 +826,33 @@ fn main() -> Result<()> {
     let img_h = info.height;
     println!("Image: {img_w}x{img_h}");
 
-    let mut cpu_img = TensorDyn::image(img_w, img_h, info.format, DType::U8, None)?;
+    // `ReadWrite`, not `Write`: the codec CPU-writes the decoded pixels, and
+    // if `convert` below falls back to the CPU backend — any source format the
+    // GL path cannot bind — that backend `map_read()`s this same buffer.
+    // Under-declaring is not an error, it is a silent perf cliff: the map is
+    // serviced out-of-band and, on iOS, through per-map staging allocations.
+    let mut cpu_img = TensorDyn::image(
+        img_w,
+        img_h,
+        info.format,
+        DType::U8,
+        None,
+        CpuAccess::ReadWrite,
+    )?;
     let mut img_decoder = ImageDecoder::new();
     cpu_img.load_image(&mut img_decoder, &image_bytes)?;
 
-    let mut src_rgba = processor.create_image(img_w, img_h, PixelFormat::Rgba, DType::U8, None)?;
+    // `src_rgba` is written by the GPU convert below and sampled only by the
+    // GPU afterwards, so it stays hardware-only: no CPU mapping declared,
+    // which is also what keeps it eligible for vendor tile compression.
+    let mut src_rgba = allocate_zero_copy(
+        &processor,
+        img_w,
+        img_h,
+        PixelFormat::Rgba,
+        DType::U8,
+        CpuAccess::None,
+    )?;
     processor.convert(
         &cpu_img,
         &mut src_rgba,
@@ -660,7 +886,7 @@ fn main() -> Result<()> {
             // SAFETY: info.fd is owned by the delegate; PlaneDescriptor dups it.
             let pd = PlaneDescriptor::new(unsafe { BorrowedFd::borrow_raw(info.fd) })?
                 .with_offset(info.offset);
-            let dst = processor.import_image(pd, None, in_w, in_h, input_fmt, input_dtype, None)?;
+            let dst = import_dmabuf(&processor, pd, in_w, in_h, input_fmt, input_dtype)?;
             if use_camera_adaptor {
                 println!(
                     "  Input: HAL DMA-BUF + CameraAdaptor \
@@ -700,7 +926,7 @@ fn main() -> Result<()> {
             // SAFETY: desc.fd is owned by VxDelegate for the interpreter's lifetime.
             #[allow(deprecated)]
             let pd = PlaneDescriptor::new(unsafe { BorrowedFd::borrow_raw(desc.fd) })?;
-            let dst = processor.import_image(pd, None, in_w, in_h, input_fmt, input_dtype, None)?;
+            let dst = import_dmabuf(&processor, pd, in_w, in_h, input_fmt, input_dtype)?;
             if use_camera_adaptor {
                 println!("  Input: VxDelegate DMA-BUF + CameraAdaptor (legacy, RGBA \u{2192} NPU)");
             } else {
@@ -709,16 +935,63 @@ fn main() -> Result<()> {
             ModelInput::DmaBuf(dst)
         }
     } else {
-        let staging = processor.create_image(in_w, in_h, input_fmt, input_dtype, None)?;
-        println!("  Input: CPU staging (GPU \u{2192} staging \u{2192} TFLite arena)");
-        ModelInput::Staging(staging)
+        // No delegate buffer to import, so the example owns the model input.
+        // Ask for a zero-copy GPU buffer anyway: on Apple platforms this is an
+        // IOSurface that `convert` renders into directly. `CpuAccess::Read`
+        // covers both outcomes below — the runtime reads it through the custom
+        // allocation, or `preprocess_step` maps it for the fallback copy.
+        let staging = allocate_zero_copy(
+            &processor,
+            in_w,
+            in_h,
+            input_fmt,
+            input_dtype,
+            CpuAccess::Read,
+        )?;
+
+        // Try to hand the runtime the buffer itself. When this takes, the
+        // arena copy disappears: the GPU writes exactly the memory the model
+        // reads.
+        if try_bind_input_buffer(&lib, &mut interpreter, &staging, input_type) {
+            println!("  Input: IOSurface bound as model input (GPU \u{2192} NPU/CPU, no copy)");
+            ModelInput::Bound(staging)
+        } else {
+            // Name the backend actually obtained. `Mem` or `Pbo` here means the
+            // convert result lands in host memory and the arena copy reads it
+            // back — a real cost the preprocess timings below will show.
+            match staging.memory() {
+                TensorMemory::Dma if cfg!(any(target_os = "macos", target_os = "ios")) => {
+                    println!(
+                        "  Input: IOSurface staging (GPU \u{2192} IOSurface \u{2192} TFLite arena)"
+                    );
+                }
+                TensorMemory::Dma => {
+                    println!(
+                        "  Input: DMA-BUF staging (GPU \u{2192} DMA-BUF \u{2192} TFLite arena)"
+                    );
+                }
+                other => {
+                    println!("  Input: CPU staging via {other:?} (GPU \u{2192} staging \u{2192} TFLite arena)");
+                }
+            }
+            ModelInput::Staging(staging)
+        }
     };
 
     // ── 6. Pre-allocate output buffers and render canvas ────────────
     let mut output_bufs = OutputBuffers::allocate(&interpreter)?;
 
+    // The render canvas is drawn on by the GPU and then CPU-read by
+    // `save_jpeg`, so declare `Read`.
     let mut dst = if args.save {
-        Some(processor.create_image(img_w, img_h, PixelFormat::Rgba, DType::U8, None)?)
+        Some(allocate_zero_copy(
+            &processor,
+            img_w,
+            img_h,
+            PixelFormat::Rgba,
+            DType::U8,
+            CpuAccess::Read,
+        )?)
     } else {
         None
     };
@@ -812,7 +1085,7 @@ fn main() -> Result<()> {
     // ── 11. Print timing summary ─────────────────────────────────────
     println!();
     println!(
-        "  Load+init:  {:.1}ms  (model + image → DMA-BUF, one-time)",
+        "  Load+init:  {:.1}ms  (model + image → GPU buffer, one-time)",
         ms(load_time) + ms(init_time)
     );
     println!();
