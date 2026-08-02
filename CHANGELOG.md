@@ -7,19 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-
-- `examples/yolov8`: bump `edgefirst-hal` to **0.27.1** (EGL dynamic-loader /
-  iOS `libEGL` resolution fix, and corrected `hal_import_image` C docs).
-- `LiteRtFunctions::try_load` no longer requires
-  `LiteRtCreateTensorBufferFromHostMemory` (unused by the safe API); partial
-  LiteRT builds that omit it are no longer reported as unavailable.
-- `require_litert!()` skips without panicking if library discovery fails between
-  the availability check and the LiteRT probe.
-- Root README, `ARCHITECTURE.md`, and crate descriptions updated for the 0.9.0
-  dual-runtime surface (LiteRT Next + custom allocations).
-
-## [0.9.0] - 2026-07-31
+## [0.9.0] - 2026-08-02
 
 ### Added
 
@@ -95,12 +83,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `NOTICE` attributes the vendored LiteRT headers (Apache-2.0, Google LLC).
 - `docs/superpowers/` is now gitignored: it holds local agent working notes,
   not project documentation.
-- **`yolov8` example: `edgefirst-hal` 0.25 → 0.27.** `create_image` and
+- **`yolov8` example: `edgefirst-hal` 0.25 → 0.27.1.** `create_image` and
   `TensorDyn::image` now require a `CpuAccess` declaration; each buffer in the
   example declares what it actually does (`ReadWrite` for the decode target,
   `None` for the GPU-only working image, `Read` for buffers the host maps).
   Mis-declaring is not an error, only a silent slow path, so the choices are
-  documented at each allocation. (Patched to 0.27.1 in `[Unreleased]`.)
+  documented at each allocation. 0.27.1 includes the EGL dynamic-loader /
+  iOS `libEGL` resolution fix and corrected `hal_import_image` C docs.
 - The `yolov8` example now requests `TensorMemory::Dma` explicitly for its
   pipeline buffers — the HAL's portable name for a platform-native zero-copy
   GPU buffer (DMA-BUF on Linux, IOSurface on macOS/iOS, `AHardwareBuffer` on
@@ -116,6 +105,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   a delegate-owned buffer by file descriptor is a DMA-BUF concept — so the two
   import sites go through a wrapper with a non-Linux stub, and the delegate
   probe no longer offers the import path off Linux.
+- `LiteRtFunctions::try_load` no longer requires
+  `LiteRtCreateTensorBufferFromHostMemory` (unused by the safe API); partial
+  LiteRT builds that omit it are no longer reported as unavailable.
+- `require_litert!()` skips without panicking if library discovery fails between
+  the availability check and the LiteRT probe.
+- Root README, `ARCHITECTURE.md`, and crate descriptions updated for the dual-
+  runtime surface (LiteRT Next + custom allocations).
 - Replaced the YOLOv8 test fixtures with models whose embedded `edgefirst.json`
   matches the current decoder schema, covering all three output layouts
   (`combined`, `logical`, `smart`) for both detection and segmentation, with
