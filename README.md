@@ -267,6 +267,7 @@ interpreter.invoke()?;
 | [`delegate_options`](examples/delegate_options/) | Delegate configuration and feature probing | `dmabuf`, `camera_adaptor` |
 | [`camera_preprocessing`](examples/camera_preprocessing/) | NPU-accelerated format conversion | `camera_adaptor` |
 | [`yolov8`](examples/yolov8/) | Detection/segmentation with HAL DMA / IOSurface | `dmabuf` |
+| [`neutron_multi_context`](examples/neutron_multi_context/) | Multiple Neutron delegate contexts (worker pool) with per-instance DMA-BUF verification | `dmabuf` |
 
 ## Building
 
