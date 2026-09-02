@@ -16,9 +16,14 @@
 //!
 //! # Data access
 //!
-//! Use [`Tensor::as_slice`] for read-only access and
-//! [`TensorMut::as_mut_slice`] or [`TensorMut::copy_from_slice`] for
-//! write access to the underlying tensor buffer.
+//! For typed access, use [`Tensor::as_slice`] and
+//! [`TensorMut::as_mut_slice`] / [`TensorMut::copy_from_slice`], where the
+//! type argument must match the tensor's element type (a mismatched type is
+//! rejected). To move a tensor's whole buffer as raw bytes regardless of
+//! element type — the right choice for staging a preprocessed input or
+//! reading an output of a non-`u8` model — use [`Tensor::as_bytes`],
+//! [`TensorMut::as_bytes`] / [`TensorMut::as_bytes_mut`], or
+//! [`TensorMut::copy_from_bytes`].
 
 use std::ffi::CStr;
 use std::fmt;
@@ -103,6 +108,34 @@ pub enum TensorType {
     BFloat16 = TfLiteType_kTfLiteBFloat16 as isize,
 }
 
+impl TensorType {
+    /// Size in bytes of a single element of this type, or `None` for types
+    /// with no fixed byte width: `NoType`, the variable-length `String`, the
+    /// opaque `Resource`/`Variant` handles, and the sub-byte-packed `Int4`
+    /// (two elements per byte). Callers that need to relate an element count
+    /// to a byte count must use [`Tensor::byte_size`] for those.
+    #[must_use]
+    pub fn byte_width(self) -> Option<usize> {
+        Some(match self {
+            TensorType::Bool | TensorType::Int8 | TensorType::UInt8 => 1,
+            TensorType::Float16 | TensorType::BFloat16 | TensorType::Int16 | TensorType::UInt16 => {
+                2
+            }
+            TensorType::Float32 | TensorType::Int32 | TensorType::UInt32 => 4,
+            TensorType::Float64
+            | TensorType::Int64
+            | TensorType::UInt64
+            | TensorType::Complex64 => 8,
+            TensorType::Complex128 => 16,
+            TensorType::NoType
+            | TensorType::String
+            | TensorType::Resource
+            | TensorType::Variant
+            | TensorType::Int4 => return None,
+        })
+    }
+}
+
 // ---------------------------------------------------------------------------
 // QuantizationParams
 // ---------------------------------------------------------------------------
@@ -120,6 +153,32 @@ pub struct QuantizationParams {
     pub scale: f32,
     /// Zero-point offset for dequantization.
     pub zero_point: i32,
+}
+
+/// Validates that `T` is a sound element type for a tensor of `ty` before a
+/// typed `as_slice`/`as_mut_slice` reinterprets the buffer as `[T]`.
+///
+/// Two failure modes are caught: a `T` whose size does not match the
+/// tensor's element byte width (the mismatch that silently yielded a
+/// partial view, e.g. `u8` over a `Float32` tensor), and — for the
+/// sub-byte or variable-width types whose element width is unknown — a `T`
+/// large enough that `volume` elements would overrun the allocation.
+fn check_element_type<T>(ty: TensorType, byte_size: usize, volume: usize) -> Result<()> {
+    let t_size = std::mem::size_of::<T>();
+    match ty.byte_width() {
+        Some(width) if width != t_size => Err(Error::invalid_argument(format!(
+            "element type width mismatch: {ty:?} tensor holds {width}-byte elements, \
+             but {} is {t_size} bytes; use as_bytes() to move raw bytes",
+            std::any::type_name::<T>(),
+        ))),
+        // Element width unknown (sub-byte/variable): fall back to the
+        // allocation-fits check that guarded this path before.
+        None if t_size * volume > byte_size => Err(Error::invalid_argument(format!(
+            "tensor byte size {byte_size} is too small for {volume} elements of {}",
+            std::any::type_name::<T>(),
+        ))),
+        _ => Ok(()),
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -254,25 +313,23 @@ impl Tensor<'_> {
     /// Returns an immutable slice over the tensor data, interpreted as
     /// elements of type `T`.
     ///
-    /// The slice length equals [`Tensor::volume`]. The caller must ensure
-    /// that `T` matches the tensor's actual element type (e.g., `f32` for
-    /// a `Float32` tensor, `u8` for a `UInt8` tensor).
+    /// The slice length equals [`Tensor::volume`]. `T` must match the
+    /// tensor's element type: its size must equal the element's byte width
+    /// (`f32` for a `Float32` tensor, `u8` for a `UInt8` tensor). Calling
+    /// with a mismatched `T` — e.g. `as_slice::<u8>()` on a `Float32`
+    /// tensor — is rejected rather than returning a slice that spans only
+    /// part of the buffer. To move the raw bytes of a tensor irrespective
+    /// of element type, use [`Tensor::as_bytes`].
     ///
     /// # Errors
     ///
     /// Returns an error if:
+    /// - `size_of::<T>()` does not match the tensor's element byte width
     /// - `size_of::<T>() * volume` exceeds [`Tensor::byte_size`]
     /// - The underlying data pointer is null (tensor not yet allocated)
     pub fn as_slice<T: Copy>(&self) -> Result<&[T]> {
         let volume = self.volume()?;
-        if std::mem::size_of::<T>() * volume > self.byte_size() {
-            return Err(Error::invalid_argument(format!(
-                "tensor byte size {} is too small for {} elements of {}",
-                self.byte_size(),
-                volume,
-                std::any::type_name::<T>(),
-            )));
-        }
+        check_element_type::<T>(self.tensor_type(), self.byte_size(), volume)?;
         // SAFETY: `self.ptr` is a valid tensor pointer.
         let ptr = unsafe { self.lib.TfLiteTensorData(self.ptr) };
         if ptr.is_null() {
@@ -282,6 +339,36 @@ impl Tensor<'_> {
         // bytes (checked above). The data is valid for reads for the tensor's lifetime
         // which is tied to the interpreter borrow. `T: Copy` ensures no drop glue.
         Ok(unsafe { std::slice::from_raw_parts(ptr.cast::<T>(), volume) })
+    }
+
+    /// Returns an immutable view of the tensor's entire data buffer as raw
+    /// bytes.
+    ///
+    /// The slice length equals [`Tensor::byte_size`] — the full allocation,
+    /// independent of element type — so this is the correct accessor for
+    /// copying a tensor's contents when the element type is not `u8` (for a
+    /// `Float32` tensor, [`Tensor::as_slice::<u8>`](Tensor::as_slice) would
+    /// span only a quarter of the buffer, because its length is the element
+    /// *count*).
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying data pointer is null (tensor not
+    /// yet allocated).
+    pub fn as_bytes(&self) -> Result<&[u8]> {
+        let byte_size = self.byte_size();
+        if byte_size == 0 {
+            return Ok(&[]);
+        }
+        // SAFETY: `self.ptr` is a valid tensor pointer.
+        let ptr = unsafe { self.lib.TfLiteTensorData(self.ptr) };
+        if ptr.is_null() {
+            return Err(Error::null_pointer("TfLiteTensorData returned null"));
+        }
+        // SAFETY: `ptr` is non-null and points to at least `byte_size` bytes
+        // (the runtime-reported allocation size). Valid for reads for the
+        // tensor's lifetime, which is tied to the interpreter borrow.
+        Ok(unsafe { std::slice::from_raw_parts(ptr.cast::<u8>(), byte_size) })
     }
 }
 
@@ -442,25 +529,22 @@ impl TensorMut<'_> {
     /// Returns an immutable slice over the tensor data, interpreted as
     /// elements of type `T`.
     ///
-    /// The slice length equals [`TensorMut::volume`]. The caller must
-    /// ensure that `T` matches the tensor's actual element type (e.g.,
-    /// `f32` for a `Float32` tensor, `u8` for a `UInt8` tensor).
+    /// The slice length equals [`TensorMut::volume`]. `T` must match the
+    /// tensor's element type: its size must equal the element's byte width
+    /// (`f32` for a `Float32` tensor, `u8` for a `UInt8` tensor). Calling
+    /// with a mismatched `T` is rejected rather than returning a partial
+    /// view; use [`TensorMut::as_bytes`] to move the raw bytes of a tensor
+    /// irrespective of element type.
     ///
     /// # Errors
     ///
     /// Returns an error if:
+    /// - `size_of::<T>()` does not match the tensor's element byte width
     /// - `size_of::<T>() * volume` exceeds [`TensorMut::byte_size`]
     /// - The underlying data pointer is null (tensor not yet allocated)
     pub fn as_slice<T: Copy>(&self) -> Result<&[T]> {
         let volume = self.volume()?;
-        if std::mem::size_of::<T>() * volume > self.byte_size() {
-            return Err(Error::invalid_argument(format!(
-                "tensor byte size {} is too small for {} elements of {}",
-                self.byte_size(),
-                volume,
-                std::any::type_name::<T>(),
-            )));
-        }
+        check_element_type::<T>(self.tensor_type(), self.byte_size(), volume)?;
         // SAFETY: `self.ptr` is a valid tensor pointer.
         let ptr = unsafe { self.lib.TfLiteTensorData(self.ptr.as_ptr()) };
         if ptr.is_null() {
@@ -475,25 +559,22 @@ impl TensorMut<'_> {
     /// Returns a mutable slice over the tensor data, interpreted as elements
     /// of type `T`.
     ///
-    /// The slice length equals [`TensorMut::volume`]. The caller must
-    /// ensure that `T` matches the tensor's actual element type (e.g.,
-    /// `f32` for a `Float32` tensor, `u8` for a `UInt8` tensor).
+    /// The slice length equals [`TensorMut::volume`]. `T` must match the
+    /// tensor's element type: its size must equal the element's byte width
+    /// (`f32` for a `Float32` tensor, `u8` for a `UInt8` tensor). Calling
+    /// with a mismatched `T` is rejected rather than returning a partial
+    /// view; use [`TensorMut::as_bytes_mut`] to fill the raw bytes of a
+    /// tensor irrespective of element type.
     ///
     /// # Errors
     ///
     /// Returns an error if:
+    /// - `size_of::<T>()` does not match the tensor's element byte width
     /// - `size_of::<T>() * volume` exceeds [`TensorMut::byte_size`]
     /// - The underlying data pointer is null (tensor not yet allocated)
     pub fn as_mut_slice<T: Copy>(&mut self) -> Result<&mut [T]> {
         let volume = self.volume()?;
-        if std::mem::size_of::<T>() * volume > self.byte_size() {
-            return Err(Error::invalid_argument(format!(
-                "tensor byte size {} is too small for {} elements of {}",
-                self.byte_size(),
-                volume,
-                std::any::type_name::<T>(),
-            )));
-        }
+        check_element_type::<T>(self.tensor_type(), self.byte_size(), volume)?;
         // SAFETY: `self.ptr` is a valid tensor pointer.
         let ptr = unsafe { self.lib.TfLiteTensorData(self.ptr.as_ptr()) };
         if ptr.is_null() {
@@ -503,6 +584,58 @@ impl TensorMut<'_> {
         // bytes (checked above). We hold `&mut self` ensuring exclusive access.
         // `T: Copy` ensures no drop glue.
         Ok(unsafe { std::slice::from_raw_parts_mut(ptr.cast::<T>(), volume) })
+    }
+
+    /// Returns an immutable view of the tensor's entire data buffer as raw
+    /// bytes.
+    ///
+    /// The slice length equals [`TensorMut::byte_size`] — the full
+    /// allocation, independent of element type. See [`Tensor::as_bytes`].
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying data pointer is null.
+    pub fn as_bytes(&self) -> Result<&[u8]> {
+        let byte_size = self.byte_size();
+        if byte_size == 0 {
+            return Ok(&[]);
+        }
+        // SAFETY: `self.ptr` is a valid tensor pointer.
+        let ptr = unsafe { self.lib.TfLiteTensorData(self.ptr.as_ptr()) };
+        if ptr.is_null() {
+            return Err(Error::null_pointer("TfLiteTensorData returned null"));
+        }
+        // SAFETY: `ptr` is non-null and points to at least `byte_size` bytes.
+        Ok(unsafe { std::slice::from_raw_parts(ptr.cast::<u8>(), byte_size) })
+    }
+
+    /// Returns a mutable view of the tensor's entire data buffer as raw
+    /// bytes.
+    ///
+    /// The slice length equals [`TensorMut::byte_size`] — the full
+    /// allocation, independent of element type — so this is the correct
+    /// accessor for filling a tensor's input buffer when the element type
+    /// is not `u8`. For a `Float32` tensor,
+    /// [`TensorMut::as_mut_slice::<u8>`](TensorMut::as_mut_slice) is now
+    /// rejected outright, since its length would be a quarter of the buffer.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the underlying data pointer is null (tensor not
+    /// yet allocated).
+    pub fn as_bytes_mut(&mut self) -> Result<&mut [u8]> {
+        let byte_size = self.byte_size();
+        if byte_size == 0 {
+            return Ok(&mut []);
+        }
+        // SAFETY: `self.ptr` is a valid tensor pointer.
+        let ptr = unsafe { self.lib.TfLiteTensorData(self.ptr.as_ptr()) };
+        if ptr.is_null() {
+            return Err(Error::null_pointer("TfLiteTensorData returned null"));
+        }
+        // SAFETY: `ptr` is non-null and points to at least `byte_size` bytes.
+        // We hold `&mut self`, ensuring exclusive access.
+        Ok(unsafe { std::slice::from_raw_parts_mut(ptr.cast::<u8>(), byte_size) })
     }
 
     /// Copies the contents of `data` into this tensor's buffer.
@@ -525,6 +658,32 @@ impl TensorMut<'_> {
             )));
         }
         slice.copy_from_slice(data);
+        Ok(())
+    }
+
+    /// Copies raw bytes into this tensor's buffer, filling it exactly.
+    ///
+    /// The element-type-agnostic counterpart to [`TensorMut::copy_from_slice`]:
+    /// `src` must be exactly [`TensorMut::byte_size`] bytes, matching the
+    /// full allocation. This is the correct way to stage a preprocessed
+    /// input whose bytes were produced elsewhere (e.g. a normalized image
+    /// buffer) regardless of the tensor's element type.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `src.len()` does not equal [`TensorMut::byte_size`]
+    /// - The underlying data pointer is null (tensor not yet allocated)
+    pub fn copy_from_bytes(&mut self, src: &[u8]) -> Result<()> {
+        let dst = self.as_bytes_mut()?;
+        if src.len() != dst.len() {
+            return Err(Error::invalid_argument(format!(
+                "source length {} does not match tensor byte size {}",
+                src.len(),
+                dst.len(),
+            )));
+        }
+        dst.copy_from_slice(src);
         Ok(())
     }
 }
@@ -586,6 +745,53 @@ mod tests {
     use super::*;
 
     use std::collections::HashSet;
+
+    // -----------------------------------------------------------------------
+    // TensorType::byte_width + element-type checking
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn byte_width_matches_rust_type_sizes() {
+        assert_eq!(TensorType::UInt8.byte_width(), Some(1));
+        assert_eq!(TensorType::Int8.byte_width(), Some(1));
+        assert_eq!(TensorType::Bool.byte_width(), Some(1));
+        assert_eq!(TensorType::Float16.byte_width(), Some(2));
+        assert_eq!(TensorType::Int16.byte_width(), Some(2));
+        assert_eq!(TensorType::Float32.byte_width(), Some(4));
+        assert_eq!(TensorType::Int32.byte_width(), Some(4));
+        assert_eq!(TensorType::Float64.byte_width(), Some(8));
+        assert_eq!(TensorType::Complex64.byte_width(), Some(8));
+        assert_eq!(TensorType::Complex128.byte_width(), Some(16));
+        // No fixed byte width.
+        assert_eq!(TensorType::Int4.byte_width(), None);
+        assert_eq!(TensorType::String.byte_width(), None);
+        assert_eq!(TensorType::NoType.byte_width(), None);
+    }
+
+    #[test]
+    fn check_element_type_accepts_matching_width() {
+        // f32 view of a Float32 tensor: 4 == 4.
+        assert!(check_element_type::<f32>(TensorType::Float32, 16, 4).is_ok());
+        // u8 view of a UInt8 tensor: 1 == 1.
+        assert!(check_element_type::<u8>(TensorType::UInt8, 4, 4).is_ok());
+    }
+
+    #[test]
+    fn check_element_type_rejects_u8_view_of_float32() {
+        // The exact bug: as_slice::<u8>() on a Float32 tensor. Previously
+        // this silently returned a volume-length (quarter) slice.
+        let err = check_element_type::<u8>(TensorType::Float32, 16, 4).unwrap_err();
+        assert!(err.is_invalid_argument(), "{err}");
+        assert!(err.to_string().contains("width mismatch"), "{err}");
+    }
+
+    #[test]
+    fn check_element_type_unknown_width_falls_back_to_fit_check() {
+        // Int4 has no fixed byte width; a u8 view that fits the allocation is
+        // allowed, one that overruns is rejected.
+        assert!(check_element_type::<u8>(TensorType::Int4, 8, 8).is_ok());
+        assert!(check_element_type::<u32>(TensorType::Int4, 8, 8).is_err());
+    }
 
     // -----------------------------------------------------------------------
     // TensorType -- FromPrimitive conversion

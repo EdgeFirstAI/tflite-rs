@@ -252,6 +252,90 @@ fn tensor_mut_as_mut_slice_write() {
 }
 
 // ---------------------------------------------------------------------------
+// Raw-byte accessors + element-type guard (float32 I/O)
+//
+// minimal.tflite has a Float32 input and output (4 elements, +1.0 each).
+// A raw-byte accessor must span the FULL byte_size (16 bytes), not the
+// element count (4). Before the byte accessors existed, callers reached for
+// `as_slice::<u8>()`, which returned a 4-byte (quarter) view and silently
+// truncated every float32 copy -- the on-device "Input tensor N lacks data"
+// crash. These tests pin the correct lengths and the loud rejection.
+// ---------------------------------------------------------------------------
+
+#[test]
+fn tensor_as_bytes_spans_full_byte_size() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+    let interp = common::build_interpreter(&lib, &model);
+    let inputs = interp.inputs().unwrap();
+    let byte_size = inputs[0].byte_size();
+    assert_eq!(byte_size, 16, "4 float32 elements");
+    // The bug: a u8 view must be all 16 bytes, not the 4-element volume.
+    assert_eq!(inputs[0].as_bytes().unwrap().len(), byte_size);
+}
+
+#[test]
+fn tensor_as_slice_u8_on_float32_is_rejected() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+    let interp = common::build_interpreter(&lib, &model);
+    let inputs = interp.inputs().unwrap();
+    // Previously returned a 4-byte (quarter) slice; now a typed error.
+    let err = inputs[0].as_slice::<u8>().unwrap_err();
+    assert!(err.is_invalid_argument(), "{err}");
+    assert!(err.to_string().contains("width mismatch"), "{err}");
+}
+
+#[test]
+fn tensor_mut_copy_from_bytes_roundtrip() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+    let mut interp = common::build_interpreter(&lib, &model);
+
+    // Stage four f32 values as raw little-endian bytes -- the shape the
+    // profiler's preprocess produces -- through the byte API, then invoke
+    // and confirm the model saw the whole buffer (adds 1.0 to each).
+    let values: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
+    let mut src = Vec::new();
+    for v in values {
+        src.extend_from_slice(&v.to_ne_bytes());
+    }
+    {
+        let mut inputs = interp.inputs_mut().unwrap();
+        assert_eq!(src.len(), inputs[0].byte_size());
+        inputs[0].copy_from_bytes(&src).unwrap();
+    }
+    interp.invoke().unwrap();
+
+    // Read the output back through the byte accessor and reinterpret.
+    let outputs = interp.outputs().unwrap();
+    let out_bytes = outputs[0].as_bytes().unwrap();
+    assert_eq!(out_bytes.len(), 16);
+    let (chunks, _) = out_bytes.as_chunks::<4>();
+    let out: Vec<f32> = chunks.iter().map(|c| f32::from_ne_bytes(*c)).collect();
+    for (got, want) in out.iter().zip([2.0f32, 3.0, 4.0, 5.0]) {
+        assert!((got - want).abs() < f32::EPSILON, "got {got}, want {want}");
+    }
+}
+
+#[test]
+fn tensor_mut_copy_from_bytes_wrong_length_rejected() {
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    let model = common::load_model(&lib);
+    let mut interp = common::build_interpreter(&lib, &model);
+    let mut inputs = interp.inputs_mut().unwrap();
+    // A quarter-sized buffer -- the exact truncation the old code produced --
+    // is rejected rather than silently partially copied.
+    let err = inputs[0].copy_from_bytes(&[0u8; 4]).unwrap_err();
+    assert!(err.is_invalid_argument(), "{err}");
+    assert!(err.to_string().contains("byte size"), "{err}");
+}
+
+// ---------------------------------------------------------------------------
 // XNNPACK delegate
 // ---------------------------------------------------------------------------
 
