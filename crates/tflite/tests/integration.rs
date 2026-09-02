@@ -295,9 +295,12 @@ fn tensor_mut_copy_from_bytes_roundtrip() {
     let model = common::load_model(&lib);
     let mut interp = common::build_interpreter(&lib, &model);
 
-    // Stage four f32 values as raw little-endian bytes -- the shape the
+    // Stage four f32 values as raw native-endian bytes -- the shape the
     // profiler's preprocess produces -- through the byte API, then invoke
     // and confirm the model saw the whole buffer (adds 1.0 to each).
+    // Native, not little: copy_from_bytes writes straight into the tensor
+    // allocation that TFLite reads as host-order f32, so a fixed
+    // little-endian encoding would decode as garbage on a big-endian host.
     let values: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
     let mut src = Vec::new();
     for v in values {

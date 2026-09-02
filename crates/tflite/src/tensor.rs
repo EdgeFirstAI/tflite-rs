@@ -158,27 +158,38 @@ pub struct QuantizationParams {
 /// Validates that `T` is a sound element type for a tensor of `ty` before a
 /// typed `as_slice`/`as_mut_slice` reinterprets the buffer as `[T]`.
 ///
-/// Two failure modes are caught: a `T` whose size does not match the
-/// tensor's element byte width (the mismatch that silently yielded a
-/// partial view, e.g. `u8` over a `Float32` tensor), and — for the
-/// sub-byte or variable-width types whose element width is unknown — a `T`
-/// large enough that `volume` elements would overrun the allocation.
+/// Two failure modes are caught. First, a `T` whose size does not match the
+/// tensor's element byte width (the mismatch that silently yielded a partial
+/// view, e.g. `u8` over a `Float32` tensor); types with no fixed width are
+/// exempt from this check but not from the second. Second, an allocation too
+/// small to hold `volume` elements of `T` -- `byte_size` reports the actual
+/// allocation while `volume` derives from the shape, and the two diverge
+/// between `resize_input_tensor` and `allocate_tensors`, so this must be
+/// re-checked even when the element width matches.
 fn check_element_type<T>(ty: TensorType, byte_size: usize, volume: usize) -> Result<()> {
     let t_size = std::mem::size_of::<T>();
-    match ty.byte_width() {
-        Some(width) if width != t_size => Err(Error::invalid_argument(format!(
-            "element type width mismatch: {ty:?} tensor holds {width}-byte elements, \
-             but {} is {t_size} bytes; use as_bytes() to move raw bytes",
+    if let Some(width) = ty.byte_width() {
+        if width != t_size {
+            return Err(Error::invalid_argument(format!(
+                "element type width mismatch: {ty:?} tensor holds {width}-byte elements, \
+                 but {} is {t_size} bytes; use as_bytes() to move raw bytes",
+                std::any::type_name::<T>(),
+            )));
+        }
+    }
+    let needed = t_size.checked_mul(volume).ok_or_else(|| {
+        Error::invalid_argument(format!(
+            "tensor volume {volume} of {} overflows a byte count",
             std::any::type_name::<T>(),
-        ))),
-        // Element width unknown (sub-byte/variable): fall back to the
-        // allocation-fits check that guarded this path before.
-        None if t_size * volume > byte_size => Err(Error::invalid_argument(format!(
+        ))
+    })?;
+    if needed > byte_size {
+        return Err(Error::invalid_argument(format!(
             "tensor byte size {byte_size} is too small for {volume} elements of {}",
             std::any::type_name::<T>(),
-        ))),
-        _ => Ok(()),
+        )));
     }
+    Ok(())
 }
 
 // ---------------------------------------------------------------------------
@@ -786,11 +797,31 @@ mod tests {
     }
 
     #[test]
-    fn check_element_type_unknown_width_falls_back_to_fit_check() {
+    fn check_element_type_unknown_width_still_checks_fit() {
         // Int4 has no fixed byte width; a u8 view that fits the allocation is
         // allowed, one that overruns is rejected.
         assert!(check_element_type::<u8>(TensorType::Int4, 8, 8).is_ok());
         assert!(check_element_type::<u32>(TensorType::Int4, 8, 8).is_err());
+    }
+
+    #[test]
+    fn check_element_type_rejects_matching_width_over_short_allocation() {
+        // Shape says 8 elements, allocation only holds 4 -- the state between
+        // resize_input_tensor and allocate_tensors. Matching the element width
+        // must not exempt this from the fit check: from_raw_parts would build
+        // a slice running 16 bytes past the end.
+        let err = check_element_type::<f32>(TensorType::Float32, 16, 8).unwrap_err();
+        assert!(err.is_invalid_argument(), "{err}");
+        assert!(err.to_string().contains("too small"), "{err}");
+    }
+
+    #[test]
+    fn check_element_type_rejects_overflowing_volume() {
+        // A bogus shape whose volume * size_of::<T>() wraps must not slip
+        // through the fit check as a small product.
+        let err = check_element_type::<u32>(TensorType::Float32, 16, usize::MAX).unwrap_err();
+        assert!(err.is_invalid_argument(), "{err}");
+        assert!(err.to_string().contains("overflows"), "{err}");
     }
 
     // -----------------------------------------------------------------------
