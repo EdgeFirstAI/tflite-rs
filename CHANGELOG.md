@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Raw-byte tensor accessors: `Tensor::as_bytes`, `TensorMut::as_bytes`,
+  `TensorMut::as_bytes_mut`, and `TensorMut::copy_from_bytes`.** These view or
+  fill a tensor's whole data buffer as `u8`, spanning the full `byte_size`
+  independent of element type — the correct way to move a preprocessed input
+  or read an output whose element type is not `u8`. The classic-interpreter
+  counterpart to LiteRT `TensorBuffer::write_bytes`/`read_bytes_into`.
+- `TensorType::byte_width`, returning the element size in bytes (or `None`
+  for the variable-width and sub-byte types).
+
+### Fixed
+
+- **`as_slice`/`as_mut_slice` now reject a type-argument whose size does not
+  match the tensor's element width, instead of silently returning a
+  partial-length slice.** `as_slice::<u8>()` on a `Float32` tensor previously
+  returned a slice of `volume` (element-count) bytes — a quarter of the
+  buffer — which truncated raw-byte copies of float32-I/O models to the first
+  25% of every input and output. It now errors, pointing callers at
+  `as_bytes`. Calls whose type already matched the element width (the
+  quantized-I/O path, `u8`/`i8` tensors) are unaffected.
+
 ## [0.9.0] - 2026-08-02
 
 ### Added
