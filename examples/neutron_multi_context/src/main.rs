@@ -22,7 +22,7 @@
 //!
 //! Exits 0 on PASS, 1 on FAIL — usable directly as an integration check.
 
-use edgefirst_tflite::{Delegate, Interpreter, Library, Model, TensorType};
+use edgefirst_tflite::{Delegate, Interpreter, Library, Model, Tensor};
 
 const DELEGATE_DEFAULT: &str = "/usr/lib/libneutron_delegate.so";
 const WORKER_ITERS: usize = 50;
@@ -46,38 +46,120 @@ fn mapped_tensors(interp: &Interpreter) -> usize {
         .unwrap_or(0)
 }
 
+/// Element width in bytes, derived from the tensor's own byte size.
+///
+/// `as_slice::<T>` and `copy_from_slice::<T>` are measured in *elements*
+/// (`volume`), not bytes, so touching a tensor as `u8` reaches only the
+/// first `volume` bytes of a wider buffer. Selecting an unsigned integer of
+/// the tensor's own element width covers the full `byte_size()` span for any
+/// fixed-width element type.
+fn elem_width(byte_size: usize, volume: usize) -> usize {
+    byte_size.checked_div(volume).unwrap_or(0)
+}
+
+/// Snapshot a tensor's complete data buffer as raw bytes.
+fn tensor_bytes(t: &Tensor<'_>) -> Vec<u8> {
+    let volume = t.volume().expect("volume");
+    match elem_width(t.byte_size(), volume) {
+        0 => Vec::new(),
+        1 => t.as_slice::<u8>().expect("u8 slice").to_vec(),
+        2 => bytes_of(t.as_slice::<u16>().expect("u16 slice")),
+        4 => bytes_of(t.as_slice::<u32>().expect("u32 slice")),
+        8 => bytes_of(t.as_slice::<u64>().expect("u64 slice")),
+        w => panic!("unsupported element width: {w} bytes"),
+    }
+}
+
+/// Flatten a slice of unsigned integers into their native-endian bytes.
+///
+/// Comparing floats through their bit patterns is deliberate: the check is
+/// for byte-identical buffers, and `NaN != NaN` would otherwise make an
+/// unchanged output look like a mismatch.
+fn bytes_of<T: Copy + IntoNeBytes>(values: &[T]) -> Vec<u8> {
+    values.iter().flat_map(|v| v.into_ne_bytes()).collect()
+}
+
+/// Native-endian byte expansion for the unsigned integers used as
+/// width-matched stand-ins for the real element type.
+trait IntoNeBytes {
+    type Bytes: IntoIterator<Item = u8>;
+    fn into_ne_bytes(self) -> Self::Bytes;
+}
+
+macro_rules! impl_into_ne_bytes {
+    ($($ty:ty),+) => {$(
+        impl IntoNeBytes for $ty {
+            type Bytes = [u8; std::mem::size_of::<$ty>()];
+            fn into_ne_bytes(self) -> Self::Bytes {
+                self.to_ne_bytes()
+            }
+        }
+    )+};
+}
+impl_into_ne_bytes!(u16, u32, u64);
+
 /// Snapshot every output tensor as raw bytes for exact comparison.
 fn output_bytes(interp: &Interpreter) -> Vec<Vec<u8>> {
     interp
         .outputs()
         .expect("outputs")
         .iter()
-        .map(|t| match t.tensor_type() {
-            TensorType::Int8 => t
-                .as_slice::<i8>()
-                .expect("i8 slice")
-                .iter()
-                .map(|&v| v as u8)
-                .collect(),
-            _ => t.as_slice::<u8>().expect("u8 slice").to_vec(),
-        })
+        .map(tensor_bytes)
         .collect()
 }
 
 /// Fill input 0 with a deterministic byte pattern so every invoke across
 /// every context sees identical input.
+///
+/// Writes the tensor's entire byte buffer; filling only the first `volume`
+/// bytes of a wider tensor would leave the remainder holding stale memory,
+/// and the "identical input" premise with it.
 fn fill_input(interp: &mut Interpreter) {
     let mut inputs = interp.inputs_mut().expect("inputs_mut");
-    let n = inputs[0].shape().expect("shape").iter().product::<usize>();
-    let data: Vec<u8> = (0..n).map(|i| (i * 7 % 251) as u8).collect();
-    inputs[0].copy_from_slice::<u8>(&data).expect("fill input");
+    let t = &mut inputs[0];
+    let volume = t.volume().expect("volume");
+    let byte = |i: usize| u8::try_from(i * 7 % 251).expect("pattern byte");
+
+    macro_rules! fill {
+        ($ty:ty, $w:expr) => {{
+            let data: Vec<$ty> = (0..volume)
+                .map(|e| <$ty>::from_ne_bytes(std::array::from_fn(|b| byte(e * $w + b))))
+                .collect();
+            t.copy_from_slice::<$ty>(&data).expect("fill input");
+        }};
+    }
+
+    match elem_width(t.byte_size(), volume) {
+        0 => {}
+        1 => fill!(u8, 1),
+        2 => fill!(u16, 2),
+        4 => fill!(u32, 4),
+        8 => fill!(u64, 8),
+        w => panic!("unsupported element width: {w} bytes"),
+    }
 }
 
+/// Total differing bytes between two output snapshots.
+///
+/// Length mismatches count as differences instead of being truncated away by
+/// `zip`: a changed tensor count, or a tensor whose byte size moved, is a
+/// difference, not something to pass over.
 fn diff_count(a: &[Vec<u8>], b: &[Vec<u8>]) -> usize {
-    a.iter()
+    let paired: usize = a
+        .iter()
         .zip(b.iter())
-        .map(|(x, y)| x.iter().zip(y.iter()).filter(|(p, q)| p != q).count())
-        .sum()
+        .map(|(x, y)| {
+            let differing = x.iter().zip(y.iter()).filter(|(p, q)| p != q).count();
+            differing + x.len().abs_diff(y.len())
+        })
+        .sum();
+    let unpaired: usize = a
+        .iter()
+        .skip(b.len())
+        .chain(b.iter().skip(a.len()))
+        .map(Vec::len)
+        .sum();
+    paired + unpaired
 }
 
 fn main() {
@@ -137,11 +219,9 @@ fn main() {
     fill_input(&mut ctx2);
     ctx2.invoke().expect("ctx2 invoke");
     let out2 = output_bytes(&ctx2);
-    println!(
-        "[B4] output diff vs baseline — ctx1: {} bytes, ctx2: {} bytes",
-        diff_count(&baseline, &out1),
-        diff_count(&baseline, &out2)
-    );
+    let ctx1_diff = diff_count(&baseline, &out1);
+    let ctx2_diff = diff_count(&baseline, &out2);
+    println!("[B4] output diff vs baseline — ctx1: {ctx1_diff} bytes, ctx2: {ctx2_diff} bytes");
 
     // Destroying a sibling must not disturb a surviving context.
     drop(ctx2);
@@ -152,10 +232,8 @@ fn main() {
     );
     ctx1.invoke().expect("ctx1 invoke after ctx2 drop");
     let out1b = output_bytes(&ctx1);
-    println!(
-        "[B6] ctx1 output diff vs baseline after ctx2 drop: {} bytes",
-        diff_count(&baseline, &out1b)
-    );
+    let ctx1_diff_after_drop = diff_count(&baseline, &out1b);
+    println!("[B6] ctx1 output diff vs baseline after ctx2 drop: {ctx1_diff_after_drop} bytes");
     drop(ctx1);
 
     // ── Phase C: overlapped workers on two threads ──────────────────────
@@ -209,6 +287,22 @@ fn main() {
     }
     if ctx1_dmabuf_initial && !ctx1_dmabuf_final {
         failures.push("ctx1 dmabuf state wiped by ctx2 destruction".to_string());
+    }
+    // Byte-identical outputs are part of the contract, not just diagnostics.
+    for (what, diff) in [
+        (
+            "ctx1 output differs from baseline with ctx2 alive",
+            ctx1_diff,
+        ),
+        ("ctx2 output differs from baseline", ctx2_diff),
+        (
+            "ctx1 output differs from baseline after ctx2 drop",
+            ctx1_diff_after_drop,
+        ),
+    ] {
+        if diff > 0 {
+            failures.push(format!("{what}: {diff} bytes"));
+        }
     }
     failures.extend(errs);
     if failures.is_empty() {
