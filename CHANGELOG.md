@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **Models that store constant buffers outside the flatbuffer (the ai-edge /
+  `LiteRT` "offset buffer" format, used by standard Ultralytics int8 `TFLite`
+  exports) now load and run through the C API.** Such a model references its
+  large weight/bias constants by `Buffer.offset` rather than storing them
+  inline; the `TFLite` C API does not resolve those, so inference aborted with
+  "Input tensor N lacks data" even though the same model runs through the C++
+  interpreter. The model loader now detects offset-stored buffers and inlines
+  them in memory before handing the model to the runtime — no file, temp, or
+  cache is written, and a model that already stores every buffer inline is
+  loaded unchanged with no added work.
+
 ## [0.10.0] - 2026-09-01
 
 ### Added

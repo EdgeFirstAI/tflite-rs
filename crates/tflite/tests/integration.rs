@@ -66,6 +66,35 @@ fn model_from_file_succeeds() {
     assert_eq!(model.data(), common::MINIMAL_MODEL);
 }
 
+#[test]
+fn offset_buffer_model_loads_and_invokes() {
+    // minimal_offset_buffers.tflite is minimal.tflite rewritten to store its
+    // weight/bias buffers via `Buffer.offset` (as ai-edge/Ultralytics int8
+    // exports do). The TFLite C API cannot resolve offset-stored buffers, so
+    // without the loader inlining them the interpreter aborts at invoke with
+    // "Input tensor N lacks data". This proves the inlining path end to end.
+    common::require_tflite!();
+    let lib = common::load_library().unwrap();
+    let model =
+        edgefirst_tflite::Model::from_file(&lib, "../../testdata/minimal_offset_buffers.tflite")
+            .expect("failed to load offset-buffer model");
+    let mut interp = common::build_interpreter(&lib, &model);
+
+    // minimal.tflite adds 1.0 elementwise; the offset-stored weights must be
+    // resolved for the result to be correct.
+    {
+        let data: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
+        let mut inputs = interp.inputs_mut().unwrap();
+        inputs[0].copy_from_slice(&data).unwrap();
+    }
+    interp
+        .invoke()
+        .expect("invoke on inlined offset-buffer model");
+    let outputs = interp.outputs().unwrap();
+    let out = outputs[0].as_slice::<f32>().unwrap();
+    assert_eq!(out, &[2.0f32, 3.0, 4.0, 5.0]);
+}
+
 // ---------------------------------------------------------------------------
 // Interpreter
 // ---------------------------------------------------------------------------

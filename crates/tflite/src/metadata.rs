@@ -25,26 +25,11 @@ mod metadata_schema_generated {
     include!("metadata_schema_generated.rs");
 }
 
-#[allow(
-    clippy::all,
-    clippy::pedantic,
-    clippy::nursery,
-    unused_imports,
-    unused_lifetimes,
-    redundant_lifetimes,
-    mismatched_lifetime_syntaxes,
-    dead_code,
-    non_camel_case_types,
-    non_snake_case,
-    missing_debug_implementations,
-    unreachable_pub
-)]
-mod schema_generated {
-    include!("schema_generated.rs");
-}
-
 use metadata_schema_generated::tflite::root_as_model_metadata;
-use schema_generated::tflite::root_as_model;
+// The model-schema bindings are shared with the crate-root model loader
+// (which uses their object API to inline offset-stored buffers), so this
+// feature reuses that single copy rather than including a second one.
+use crate::schema_generated::tflite::root_as_model;
 use std::fmt;
 
 /// Metadata buffer name used by the `TFLite` metadata specification.

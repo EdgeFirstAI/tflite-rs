@@ -18,7 +18,7 @@ categories = ["computer-vision", "multimedia::video", "external-ffi-bindings"]
 
 [features]
 default = []
-metadata = ["dep:flatbuffers"]
+metadata = []
 archive = ["dep:zip"]
 dmabuf = []
 camera_adaptor = []
@@ -31,8 +31,10 @@ log = "0.4"
 num-derive = "0.4"
 num-traits = "0.2"
 
-# Optional: metadata feature
-flatbuffers = { version = "25.12", optional = true }
+# Used unconditionally by the model loader to inline offset-stored buffers
+# (ai-edge/LiteRT exports) so the TFLite C API can read them; also used by
+# the optional metadata feature.
+flatbuffers = "25.12"
 
 # Optional: archive feature — embedded ZIP-footer metadata (edgefirst.json,
 # labels.txt). `default-features = false` matches the workspace's tflite-sys

@@ -20,7 +20,17 @@ use crate::Library;
 #[allow(clippy::struct_field_names)]
 pub struct Model<'lib> {
     ptr: NonNull<TfLiteModel>,
-    model_mem: Vec<u8>,
+    /// Buffer handed to `TfLiteModelCreate`; the model's constant tensors
+    /// point into it, so it must outlive the model. This is the offset-buffer
+    /// inlined rewrite when the source used offset buffers, otherwise the
+    /// source bytes themselves.
+    runtime_mem: Vec<u8>,
+    /// The original source bytes, returned by [`Model::data`]. Preserved
+    /// separately only when inlining produced a different `runtime_mem`, so a
+    /// metadata trailer the exporter appended after the flatbuffer (which the
+    /// runtime buffer drops) stays readable. `None` means `data()` returns
+    /// `runtime_mem` directly (no inlining happened — the common case).
+    source_mem: Option<Vec<u8>>,
     lib: &'lib Library,
 }
 
@@ -31,19 +41,32 @@ impl<'lib> Model<'lib> {
     /// the underlying `TFLite` C API. The data is kept alive for the
     /// lifetime of the returned `Model`.
     pub fn from_bytes(lib: &'lib Library, data: impl Into<Vec<u8>>) -> Result<Self> {
-        let model_mem: Vec<u8> = data.into();
+        let source_mem: Vec<u8> = data.into();
+        // ai-edge / LiteRT exporters (e.g. Ultralytics int8 TFLite) may store
+        // large weight/bias buffers *outside* the flatbuffer, referenced by
+        // `Buffer.offset`. The TFLite C API does not resolve those, so the
+        // interpreter would abort with "Input tensor N lacks data". Rewrite
+        // the model in memory so every buffer is inline and hand *that* to the
+        // runtime; a model that already stores all buffers inline is used
+        // as-is (no rewrite, no extra copy). The original bytes are kept for
+        // `data()` so an appended metadata trailer survives — see `source_mem`.
+        let (runtime_mem, source_mem) = match crate::inline::inline_offset_buffers(&source_mem) {
+            Some(inlined) => (inlined, Some(source_mem)),
+            None => (source_mem, None),
+        };
         // SAFETY: We pass a valid pointer and length from the owned Vec.
-        // The Vec is stored in `model_mem` and lives as long as the Model,
+        // The Vec is stored in `runtime_mem` and lives as long as the Model,
         // satisfying TFLite's requirement that the buffer outlives the model.
         let raw = unsafe {
             lib.as_sys()
-                .TfLiteModelCreate(model_mem.as_ptr().cast::<c_void>(), model_mem.len())
+                .TfLiteModelCreate(runtime_mem.as_ptr().cast::<c_void>(), runtime_mem.len())
         };
         let ptr = NonNull::new(raw)
             .ok_or_else(|| Error::null_pointer("TfLiteModelCreate returned null"))?;
         Ok(Self {
             ptr,
-            model_mem,
+            runtime_mem,
+            source_mem,
             lib,
         })
     }
@@ -63,10 +86,14 @@ impl<'lib> Model<'lib> {
         Self::from_bytes(lib, data)
     }
 
-    /// Returns the raw model data bytes.
+    /// Returns the original model bytes as provided to the loader.
+    ///
+    /// This is the source model, not the offset-buffer-inlined rewrite handed
+    /// to the runtime, so any trailing metadata the exporter appended after
+    /// the flatbuffer is preserved for metadata readers.
     #[must_use]
     pub fn data(&self) -> &[u8] {
-        &self.model_mem
+        self.source_mem.as_deref().unwrap_or(&self.runtime_mem)
     }
 
     /// Returns the raw `TfLiteModel` pointer for use by the interpreter.
