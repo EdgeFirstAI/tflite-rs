@@ -41,7 +41,7 @@ impl<'lib> Model<'lib> {
     /// the underlying `TFLite` C API. The data is kept alive for the
     /// lifetime of the returned `Model`.
     pub fn from_bytes(lib: &'lib Library, data: impl Into<Vec<u8>>) -> Result<Self> {
-        let source_mem: Vec<u8> = data.into();
+        let original: Vec<u8> = data.into();
         // ai-edge / LiteRT exporters (e.g. Ultralytics int8 TFLite) may store
         // large weight/bias buffers *outside* the flatbuffer, referenced by
         // `Buffer.offset`. The TFLite C API does not resolve those, so the
@@ -50,9 +50,9 @@ impl<'lib> Model<'lib> {
         // runtime; a model that already stores all buffers inline is used
         // as-is (no rewrite, no extra copy). The original bytes are kept for
         // `data()` so an appended metadata trailer survives — see `source_mem`.
-        let (runtime_mem, source_mem) = match crate::inline::inline_offset_buffers(&source_mem) {
-            Some(inlined) => (inlined, Some(source_mem)),
-            None => (source_mem, None),
+        let (runtime_mem, source_mem) = match crate::inline::inline_offset_buffers(&original)? {
+            Some(inlined) => (inlined, Some(original)),
+            None => (original, None),
         };
         // SAFETY: We pass a valid pointer and length from the owned Vec.
         // The Vec is stored in `runtime_mem` and lives as long as the Model,

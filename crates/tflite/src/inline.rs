@@ -21,32 +21,51 @@
 //! whose entries carry absolute file offsets) stays intact for metadata
 //! readers.
 
+use crate::error::{Error, Result};
 use crate::schema_generated::tflite;
 
-/// If `data` contains any offset-stored buffers, returns a rewritten model
-/// with every buffer inlined; otherwise returns `None` (the caller uses the
-/// original bytes unchanged, paying nothing).
-pub(crate) fn inline_offset_buffers(data: &[u8]) -> Option<Vec<u8>> {
-    let model = tflite::root_as_model(data).ok()?;
+/// Rewrites `data` so every buffer is stored inline.
+///
+/// Returns `Ok(None)` when there is nothing to do — the model stores all its
+/// buffers inline already (or is not a parseable flatbuffer, which the runtime
+/// loader will report) — so the caller uses the original bytes unchanged,
+/// paying nothing. Returns `Ok(Some(bytes))` with the rewritten model when
+/// offset-stored buffers were inlined. Returns `Err` when the model *does*
+/// declare offset-stored buffers but one cannot be resolved (its
+/// `offset`/`size` lies outside the model bytes); surfacing that here fails
+/// the load cleanly instead of deferring to a runtime "Input tensor N lacks
+/// data" abort.
+pub(crate) fn inline_offset_buffers(data: &[u8]) -> Result<Option<Vec<u8>>> {
+    // A model we cannot parse is not our concern; the runtime loader reports
+    // it. Only a parseable model with offset-stored buffers is rewritten.
+    let Ok(model) = tflite::root_as_model(data) else {
+        return Ok(None);
+    };
 
-    // Fast path: nothing to do unless a buffer is offset-stored.
     let has_offset = model
         .buffers()
         .is_some_and(|bufs| bufs.iter().any(|b| b.offset() > 0));
     if !has_offset {
-        return None;
+        return Ok(None);
     }
 
     let mut model_t = model.unpack();
     if let Some(buffers) = model_t.buffers.as_mut() {
         for buf in buffers.iter_mut() {
             if buf.offset > 0 {
-                let start = usize::try_from(buf.offset).ok()?;
-                let end = start.checked_add(usize::try_from(buf.size).ok()?)?;
-                // A malformed offset/size that does not lie within the model
-                // bytes: give up on rewriting rather than panic; the caller
-                // falls back to the original bytes.
-                let slice = data.get(start..end)?;
+                let slice = usize::try_from(buf.offset).ok().and_then(|start| {
+                    let size = usize::try_from(buf.size).ok()?;
+                    let end = start.checked_add(size)?;
+                    data.get(start..end)
+                });
+                let Some(slice) = slice else {
+                    return Err(Error::invalid_argument(format!(
+                        "offset-stored buffer [offset={}, size={}] lies outside the {}-byte model",
+                        buf.offset,
+                        buf.size,
+                        data.len(),
+                    )));
+                };
                 buf.data = Some(slice.to_vec());
                 buf.offset = 0;
                 buf.size = 0;
@@ -54,10 +73,12 @@ pub(crate) fn inline_offset_buffers(data: &[u8]) -> Option<Vec<u8>> {
         }
     }
 
-    let mut builder = flatbuffers::FlatBufferBuilder::new();
+    // The rewrite is roughly the size of the input, so pre-size the builder to
+    // avoid repeated growth reallocations on large (multi-MB) models.
+    let mut builder = flatbuffers::FlatBufferBuilder::with_capacity(data.len());
     let root = model_t.pack(&mut builder);
     builder.finish(root, Some("TFL3"));
-    Some(builder.finished_data().to_vec())
+    Ok(Some(builder.finished_data().to_vec()))
 }
 
 #[cfg(test)]
@@ -85,9 +106,26 @@ mod tests {
     #[test]
     fn inline_only_model_is_left_unchanged() {
         // The stock minimal.tflite stores every buffer inline, so there is
-        // nothing to rewrite and the fast path returns None.
+        // nothing to rewrite and the fast path returns Ok(None).
         assert_eq!(offset_buffer_count(INLINE_ONLY), 0, "fixture precondition");
-        assert!(inline_offset_buffers(INLINE_ONLY).is_none());
+        assert!(inline_offset_buffers(INLINE_ONLY).unwrap().is_none());
+    }
+
+    #[test]
+    fn offset_buffer_outside_model_bytes_is_an_error() {
+        // Truncating the fixture to just its flatbuffer leaves the buffer
+        // offsets pointing past the end. Such a model declares offset buffers
+        // it cannot resolve, so inlining must fail the load rather than fall
+        // back to bytes the C API would abort on at invoke time.
+        assert_eq!(
+            offset_buffer_count(OFFSET_BUFFERS),
+            3,
+            "fixture precondition"
+        );
+        let flatbuffer_only = &OFFSET_BUFFERS[..848];
+        let err = inline_offset_buffers(flatbuffer_only)
+            .expect_err("unresolvable offset buffer must be an error");
+        assert!(err.is_invalid_argument(), "{err}");
     }
 
     #[test]
@@ -100,8 +138,9 @@ mod tests {
             "fixture precondition"
         );
 
-        let rewritten =
-            inline_offset_buffers(OFFSET_BUFFERS).expect("model with offset buffers is rewritten");
+        let rewritten = inline_offset_buffers(OFFSET_BUFFERS)
+            .expect("rewrite must not error")
+            .expect("model with offset buffers is rewritten");
 
         // Every buffer is now inline.
         assert_eq!(offset_buffer_count(&rewritten), 0);
