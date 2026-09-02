@@ -73,6 +73,22 @@ pub mod model;
 pub mod profiler;
 pub mod tensor;
 
+// FlatBuffers bindings for the TFLite model schema. Shared by the model
+// loader (object API, to inline offset-stored buffers) and the `metadata`
+// feature (`root_as_model`). Regenerate with the FlatBuffers compiler:
+//
+//   flatc --rust --gen-object-api --gen-onefile \
+//     -o crates/tflite/src \
+//     crates/tflite-sys/tensorflow/compiler/mlir/lite/schema/schema.fbs
+//
+// `include!`d rather than declared `mod schema_generated;` so `rustfmt`
+// leaves the generated file untouched (matching the metadata bindings).
+#[allow(warnings, clippy::all, clippy::pedantic)]
+mod schema_generated {
+    include!("schema_generated.rs");
+}
+mod inline;
+
 #[cfg(feature = "dmabuf")]
 pub mod dmabuf;
 

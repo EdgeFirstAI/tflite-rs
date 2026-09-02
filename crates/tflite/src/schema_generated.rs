@@ -5,8 +5,6 @@
 
 // @generated
 
-extern crate flatbuffers;
-
 #[allow(unused_imports, dead_code)]
 pub mod tflite {
 
@@ -284,6 +282,96 @@ pub mod tflite {
     impl flatbuffers::SimpleToVerifyInSlice for QuantizationDetails {}
     pub struct QuantizationDetailsUnionTableOffset {}
 
+    #[allow(clippy::upper_case_acronyms)]
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum QuantizationDetailsT {
+        NONE,
+        CustomQuantization(Box<CustomQuantizationT>),
+        BlockwiseQuantization(Box<BlockwiseQuantizationT>),
+    }
+    impl Default for QuantizationDetailsT {
+        fn default() -> Self {
+            Self::NONE
+        }
+    }
+    impl QuantizationDetailsT {
+        pub fn quantization_details_type(&self) -> QuantizationDetails {
+            match self {
+                Self::NONE => QuantizationDetails::NONE,
+                Self::CustomQuantization(_) => QuantizationDetails::CustomQuantization,
+                Self::BlockwiseQuantization(_) => QuantizationDetails::BlockwiseQuantization,
+            }
+        }
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>> {
+            match self {
+                Self::NONE => None,
+                Self::CustomQuantization(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BlockwiseQuantization(v) => Some(v.pack(fbb).as_union_value()),
+            }
+        }
+        /// If the union variant matches, return the owned CustomQuantizationT, setting the union to NONE.
+        pub fn take_custom_quantization(&mut self) -> Option<Box<CustomQuantizationT>> {
+            if let Self::CustomQuantization(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::CustomQuantization(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the CustomQuantizationT.
+        pub fn as_custom_quantization(&self) -> Option<&CustomQuantizationT> {
+            if let Self::CustomQuantization(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the CustomQuantizationT.
+        pub fn as_custom_quantization_mut(&mut self) -> Option<&mut CustomQuantizationT> {
+            if let Self::CustomQuantization(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BlockwiseQuantizationT, setting the union to NONE.
+        pub fn take_blockwise_quantization(&mut self) -> Option<Box<BlockwiseQuantizationT>> {
+            if let Self::BlockwiseQuantization(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BlockwiseQuantization(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BlockwiseQuantizationT.
+        pub fn as_blockwise_quantization(&self) -> Option<&BlockwiseQuantizationT> {
+            if let Self::BlockwiseQuantization(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BlockwiseQuantizationT.
+        pub fn as_blockwise_quantization_mut(&mut self) -> Option<&mut BlockwiseQuantizationT> {
+            if let Self::BlockwiseQuantization(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+    }
     #[deprecated(
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
@@ -483,6 +571,128 @@ pub mod tflite {
     impl flatbuffers::SimpleToVerifyInSlice for SparseIndexVector {}
     pub struct SparseIndexVectorUnionTableOffset {}
 
+    #[allow(clippy::upper_case_acronyms)]
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum SparseIndexVectorT {
+        NONE,
+        Int32Vector(Box<Int32VectorT>),
+        Uint16Vector(Box<Uint16VectorT>),
+        Uint8Vector(Box<Uint8VectorT>),
+    }
+    impl Default for SparseIndexVectorT {
+        fn default() -> Self {
+            Self::NONE
+        }
+    }
+    impl SparseIndexVectorT {
+        pub fn sparse_index_vector_type(&self) -> SparseIndexVector {
+            match self {
+                Self::NONE => SparseIndexVector::NONE,
+                Self::Int32Vector(_) => SparseIndexVector::Int32Vector,
+                Self::Uint16Vector(_) => SparseIndexVector::Uint16Vector,
+                Self::Uint8Vector(_) => SparseIndexVector::Uint8Vector,
+            }
+        }
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>> {
+            match self {
+                Self::NONE => None,
+                Self::Int32Vector(v) => Some(v.pack(fbb).as_union_value()),
+                Self::Uint16Vector(v) => Some(v.pack(fbb).as_union_value()),
+                Self::Uint8Vector(v) => Some(v.pack(fbb).as_union_value()),
+            }
+        }
+        /// If the union variant matches, return the owned Int32VectorT, setting the union to NONE.
+        pub fn take_int_32_vector(&mut self) -> Option<Box<Int32VectorT>> {
+            if let Self::Int32Vector(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::Int32Vector(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the Int32VectorT.
+        pub fn as_int_32_vector(&self) -> Option<&Int32VectorT> {
+            if let Self::Int32Vector(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the Int32VectorT.
+        pub fn as_int_32_vector_mut(&mut self) -> Option<&mut Int32VectorT> {
+            if let Self::Int32Vector(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned Uint16VectorT, setting the union to NONE.
+        pub fn take_uint_16_vector(&mut self) -> Option<Box<Uint16VectorT>> {
+            if let Self::Uint16Vector(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::Uint16Vector(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the Uint16VectorT.
+        pub fn as_uint_16_vector(&self) -> Option<&Uint16VectorT> {
+            if let Self::Uint16Vector(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the Uint16VectorT.
+        pub fn as_uint_16_vector_mut(&mut self) -> Option<&mut Uint16VectorT> {
+            if let Self::Uint16Vector(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned Uint8VectorT, setting the union to NONE.
+        pub fn take_uint_8_vector(&mut self) -> Option<Box<Uint8VectorT>> {
+            if let Self::Uint8Vector(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::Uint8Vector(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the Uint8VectorT.
+        pub fn as_uint_8_vector(&self) -> Option<&Uint8VectorT> {
+            if let Self::Uint8Vector(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the Uint8VectorT.
+        pub fn as_uint_8_vector_mut(&mut self) -> Option<&mut Uint8VectorT> {
+            if let Self::Uint8Vector(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+    }
     #[deprecated(
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
@@ -2015,6 +2225,4142 @@ pub mod tflite {
     impl flatbuffers::SimpleToVerifyInSlice for BuiltinOptions {}
     pub struct BuiltinOptionsUnionTableOffset {}
 
+    #[allow(clippy::upper_case_acronyms)]
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum BuiltinOptionsT {
+        NONE,
+        Conv2DOptions(Box<Conv2DOptionsT>),
+        DepthwiseConv2DOptions(Box<DepthwiseConv2DOptionsT>),
+        ConcatEmbeddingsOptions(Box<ConcatEmbeddingsOptionsT>),
+        LSHProjectionOptions(Box<LSHProjectionOptionsT>),
+        Pool2DOptions(Box<Pool2DOptionsT>),
+        SVDFOptions(Box<SVDFOptionsT>),
+        RNNOptions(Box<RNNOptionsT>),
+        FullyConnectedOptions(Box<FullyConnectedOptionsT>),
+        SoftmaxOptions(Box<SoftmaxOptionsT>),
+        ConcatenationOptions(Box<ConcatenationOptionsT>),
+        AddOptions(Box<AddOptionsT>),
+        L2NormOptions(Box<L2NormOptionsT>),
+        LocalResponseNormalizationOptions(Box<LocalResponseNormalizationOptionsT>),
+        LSTMOptions(Box<LSTMOptionsT>),
+        ResizeBilinearOptions(Box<ResizeBilinearOptionsT>),
+        CallOptions(Box<CallOptionsT>),
+        ReshapeOptions(Box<ReshapeOptionsT>),
+        SkipGramOptions(Box<SkipGramOptionsT>),
+        SpaceToDepthOptions(Box<SpaceToDepthOptionsT>),
+        EmbeddingLookupSparseOptions(Box<EmbeddingLookupSparseOptionsT>),
+        MulOptions(Box<MulOptionsT>),
+        PadOptions(Box<PadOptionsT>),
+        GatherOptions(Box<GatherOptionsT>),
+        BatchToSpaceNDOptions(Box<BatchToSpaceNDOptionsT>),
+        SpaceToBatchNDOptions(Box<SpaceToBatchNDOptionsT>),
+        TransposeOptions(Box<TransposeOptionsT>),
+        ReducerOptions(Box<ReducerOptionsT>),
+        SubOptions(Box<SubOptionsT>),
+        DivOptions(Box<DivOptionsT>),
+        SqueezeOptions(Box<SqueezeOptionsT>),
+        SequenceRNNOptions(Box<SequenceRNNOptionsT>),
+        StridedSliceOptions(Box<StridedSliceOptionsT>),
+        ExpOptions(Box<ExpOptionsT>),
+        TopKV2Options(Box<TopKV2OptionsT>),
+        SplitOptions(Box<SplitOptionsT>),
+        LogSoftmaxOptions(Box<LogSoftmaxOptionsT>),
+        CastOptions(Box<CastOptionsT>),
+        DequantizeOptions(Box<DequantizeOptionsT>),
+        MaximumMinimumOptions(Box<MaximumMinimumOptionsT>),
+        ArgMaxOptions(Box<ArgMaxOptionsT>),
+        LessOptions(Box<LessOptionsT>),
+        NegOptions(Box<NegOptionsT>),
+        PadV2Options(Box<PadV2OptionsT>),
+        GreaterOptions(Box<GreaterOptionsT>),
+        GreaterEqualOptions(Box<GreaterEqualOptionsT>),
+        LessEqualOptions(Box<LessEqualOptionsT>),
+        SelectOptions(Box<SelectOptionsT>),
+        SliceOptions(Box<SliceOptionsT>),
+        TransposeConvOptions(Box<TransposeConvOptionsT>),
+        SparseToDenseOptions(Box<SparseToDenseOptionsT>),
+        TileOptions(Box<TileOptionsT>),
+        ExpandDimsOptions(Box<ExpandDimsOptionsT>),
+        EqualOptions(Box<EqualOptionsT>),
+        NotEqualOptions(Box<NotEqualOptionsT>),
+        ShapeOptions(Box<ShapeOptionsT>),
+        PowOptions(Box<PowOptionsT>),
+        ArgMinOptions(Box<ArgMinOptionsT>),
+        FakeQuantOptions(Box<FakeQuantOptionsT>),
+        PackOptions(Box<PackOptionsT>),
+        LogicalOrOptions(Box<LogicalOrOptionsT>),
+        OneHotOptions(Box<OneHotOptionsT>),
+        LogicalAndOptions(Box<LogicalAndOptionsT>),
+        LogicalNotOptions(Box<LogicalNotOptionsT>),
+        UnpackOptions(Box<UnpackOptionsT>),
+        FloorDivOptions(Box<FloorDivOptionsT>),
+        SquareOptions(Box<SquareOptionsT>),
+        ZerosLikeOptions(Box<ZerosLikeOptionsT>),
+        FillOptions(Box<FillOptionsT>),
+        BidirectionalSequenceLSTMOptions(Box<BidirectionalSequenceLSTMOptionsT>),
+        BidirectionalSequenceRNNOptions(Box<BidirectionalSequenceRNNOptionsT>),
+        UnidirectionalSequenceLSTMOptions(Box<UnidirectionalSequenceLSTMOptionsT>),
+        FloorModOptions(Box<FloorModOptionsT>),
+        RangeOptions(Box<RangeOptionsT>),
+        ResizeNearestNeighborOptions(Box<ResizeNearestNeighborOptionsT>),
+        LeakyReluOptions(Box<LeakyReluOptionsT>),
+        SquaredDifferenceOptions(Box<SquaredDifferenceOptionsT>),
+        MirrorPadOptions(Box<MirrorPadOptionsT>),
+        AbsOptions(Box<AbsOptionsT>),
+        SplitVOptions(Box<SplitVOptionsT>),
+        UniqueOptions(Box<UniqueOptionsT>),
+        ReverseV2Options(Box<ReverseV2OptionsT>),
+        AddNOptions(Box<AddNOptionsT>),
+        GatherNdOptions(Box<GatherNdOptionsT>),
+        CosOptions(Box<CosOptionsT>),
+        WhereOptions(Box<WhereOptionsT>),
+        RankOptions(Box<RankOptionsT>),
+        ReverseSequenceOptions(Box<ReverseSequenceOptionsT>),
+        MatrixDiagOptions(Box<MatrixDiagOptionsT>),
+        QuantizeOptions(Box<QuantizeOptionsT>),
+        MatrixSetDiagOptions(Box<MatrixSetDiagOptionsT>),
+        HardSwishOptions(Box<HardSwishOptionsT>),
+        IfOptions(Box<IfOptionsT>),
+        WhileOptions(Box<WhileOptionsT>),
+        DepthToSpaceOptions(Box<DepthToSpaceOptionsT>),
+        NonMaxSuppressionV4Options(Box<NonMaxSuppressionV4OptionsT>),
+        NonMaxSuppressionV5Options(Box<NonMaxSuppressionV5OptionsT>),
+        ScatterNdOptions(Box<ScatterNdOptionsT>),
+        SelectV2Options(Box<SelectV2OptionsT>),
+        DensifyOptions(Box<DensifyOptionsT>),
+        SegmentSumOptions(Box<SegmentSumOptionsT>),
+        BatchMatMulOptions(Box<BatchMatMulOptionsT>),
+        CumsumOptions(Box<CumsumOptionsT>),
+        CallOnceOptions(Box<CallOnceOptionsT>),
+        BroadcastToOptions(Box<BroadcastToOptionsT>),
+        Rfft2dOptions(Box<Rfft2dOptionsT>),
+        Conv3DOptions(Box<Conv3DOptionsT>),
+        HashtableOptions(Box<HashtableOptionsT>),
+        HashtableFindOptions(Box<HashtableFindOptionsT>),
+        HashtableImportOptions(Box<HashtableImportOptionsT>),
+        HashtableSizeOptions(Box<HashtableSizeOptionsT>),
+        VarHandleOptions(Box<VarHandleOptionsT>),
+        ReadVariableOptions(Box<ReadVariableOptionsT>),
+        AssignVariableOptions(Box<AssignVariableOptionsT>),
+        RandomOptions(Box<RandomOptionsT>),
+        BucketizeOptions(Box<BucketizeOptionsT>),
+        GeluOptions(Box<GeluOptionsT>),
+        DynamicUpdateSliceOptions(Box<DynamicUpdateSliceOptionsT>),
+        UnsortedSegmentProdOptions(Box<UnsortedSegmentProdOptionsT>),
+        UnsortedSegmentMaxOptions(Box<UnsortedSegmentMaxOptionsT>),
+        UnsortedSegmentMinOptions(Box<UnsortedSegmentMinOptionsT>),
+        UnsortedSegmentSumOptions(Box<UnsortedSegmentSumOptionsT>),
+        ATan2Options(Box<ATan2OptionsT>),
+        SignOptions(Box<SignOptionsT>),
+        BitcastOptions(Box<BitcastOptionsT>),
+        BitwiseXorOptions(Box<BitwiseXorOptionsT>),
+        RightShiftOptions(Box<RightShiftOptionsT>),
+    }
+    impl Default for BuiltinOptionsT {
+        fn default() -> Self {
+            Self::NONE
+        }
+    }
+    impl BuiltinOptionsT {
+        pub fn builtin_options_type(&self) -> BuiltinOptions {
+            match self {
+                Self::NONE => BuiltinOptions::NONE,
+                Self::Conv2DOptions(_) => BuiltinOptions::Conv2DOptions,
+                Self::DepthwiseConv2DOptions(_) => BuiltinOptions::DepthwiseConv2DOptions,
+                Self::ConcatEmbeddingsOptions(_) => BuiltinOptions::ConcatEmbeddingsOptions,
+                Self::LSHProjectionOptions(_) => BuiltinOptions::LSHProjectionOptions,
+                Self::Pool2DOptions(_) => BuiltinOptions::Pool2DOptions,
+                Self::SVDFOptions(_) => BuiltinOptions::SVDFOptions,
+                Self::RNNOptions(_) => BuiltinOptions::RNNOptions,
+                Self::FullyConnectedOptions(_) => BuiltinOptions::FullyConnectedOptions,
+                Self::SoftmaxOptions(_) => BuiltinOptions::SoftmaxOptions,
+                Self::ConcatenationOptions(_) => BuiltinOptions::ConcatenationOptions,
+                Self::AddOptions(_) => BuiltinOptions::AddOptions,
+                Self::L2NormOptions(_) => BuiltinOptions::L2NormOptions,
+                Self::LocalResponseNormalizationOptions(_) => {
+                    BuiltinOptions::LocalResponseNormalizationOptions
+                }
+                Self::LSTMOptions(_) => BuiltinOptions::LSTMOptions,
+                Self::ResizeBilinearOptions(_) => BuiltinOptions::ResizeBilinearOptions,
+                Self::CallOptions(_) => BuiltinOptions::CallOptions,
+                Self::ReshapeOptions(_) => BuiltinOptions::ReshapeOptions,
+                Self::SkipGramOptions(_) => BuiltinOptions::SkipGramOptions,
+                Self::SpaceToDepthOptions(_) => BuiltinOptions::SpaceToDepthOptions,
+                Self::EmbeddingLookupSparseOptions(_) => {
+                    BuiltinOptions::EmbeddingLookupSparseOptions
+                }
+                Self::MulOptions(_) => BuiltinOptions::MulOptions,
+                Self::PadOptions(_) => BuiltinOptions::PadOptions,
+                Self::GatherOptions(_) => BuiltinOptions::GatherOptions,
+                Self::BatchToSpaceNDOptions(_) => BuiltinOptions::BatchToSpaceNDOptions,
+                Self::SpaceToBatchNDOptions(_) => BuiltinOptions::SpaceToBatchNDOptions,
+                Self::TransposeOptions(_) => BuiltinOptions::TransposeOptions,
+                Self::ReducerOptions(_) => BuiltinOptions::ReducerOptions,
+                Self::SubOptions(_) => BuiltinOptions::SubOptions,
+                Self::DivOptions(_) => BuiltinOptions::DivOptions,
+                Self::SqueezeOptions(_) => BuiltinOptions::SqueezeOptions,
+                Self::SequenceRNNOptions(_) => BuiltinOptions::SequenceRNNOptions,
+                Self::StridedSliceOptions(_) => BuiltinOptions::StridedSliceOptions,
+                Self::ExpOptions(_) => BuiltinOptions::ExpOptions,
+                Self::TopKV2Options(_) => BuiltinOptions::TopKV2Options,
+                Self::SplitOptions(_) => BuiltinOptions::SplitOptions,
+                Self::LogSoftmaxOptions(_) => BuiltinOptions::LogSoftmaxOptions,
+                Self::CastOptions(_) => BuiltinOptions::CastOptions,
+                Self::DequantizeOptions(_) => BuiltinOptions::DequantizeOptions,
+                Self::MaximumMinimumOptions(_) => BuiltinOptions::MaximumMinimumOptions,
+                Self::ArgMaxOptions(_) => BuiltinOptions::ArgMaxOptions,
+                Self::LessOptions(_) => BuiltinOptions::LessOptions,
+                Self::NegOptions(_) => BuiltinOptions::NegOptions,
+                Self::PadV2Options(_) => BuiltinOptions::PadV2Options,
+                Self::GreaterOptions(_) => BuiltinOptions::GreaterOptions,
+                Self::GreaterEqualOptions(_) => BuiltinOptions::GreaterEqualOptions,
+                Self::LessEqualOptions(_) => BuiltinOptions::LessEqualOptions,
+                Self::SelectOptions(_) => BuiltinOptions::SelectOptions,
+                Self::SliceOptions(_) => BuiltinOptions::SliceOptions,
+                Self::TransposeConvOptions(_) => BuiltinOptions::TransposeConvOptions,
+                Self::SparseToDenseOptions(_) => BuiltinOptions::SparseToDenseOptions,
+                Self::TileOptions(_) => BuiltinOptions::TileOptions,
+                Self::ExpandDimsOptions(_) => BuiltinOptions::ExpandDimsOptions,
+                Self::EqualOptions(_) => BuiltinOptions::EqualOptions,
+                Self::NotEqualOptions(_) => BuiltinOptions::NotEqualOptions,
+                Self::ShapeOptions(_) => BuiltinOptions::ShapeOptions,
+                Self::PowOptions(_) => BuiltinOptions::PowOptions,
+                Self::ArgMinOptions(_) => BuiltinOptions::ArgMinOptions,
+                Self::FakeQuantOptions(_) => BuiltinOptions::FakeQuantOptions,
+                Self::PackOptions(_) => BuiltinOptions::PackOptions,
+                Self::LogicalOrOptions(_) => BuiltinOptions::LogicalOrOptions,
+                Self::OneHotOptions(_) => BuiltinOptions::OneHotOptions,
+                Self::LogicalAndOptions(_) => BuiltinOptions::LogicalAndOptions,
+                Self::LogicalNotOptions(_) => BuiltinOptions::LogicalNotOptions,
+                Self::UnpackOptions(_) => BuiltinOptions::UnpackOptions,
+                Self::FloorDivOptions(_) => BuiltinOptions::FloorDivOptions,
+                Self::SquareOptions(_) => BuiltinOptions::SquareOptions,
+                Self::ZerosLikeOptions(_) => BuiltinOptions::ZerosLikeOptions,
+                Self::FillOptions(_) => BuiltinOptions::FillOptions,
+                Self::BidirectionalSequenceLSTMOptions(_) => {
+                    BuiltinOptions::BidirectionalSequenceLSTMOptions
+                }
+                Self::BidirectionalSequenceRNNOptions(_) => {
+                    BuiltinOptions::BidirectionalSequenceRNNOptions
+                }
+                Self::UnidirectionalSequenceLSTMOptions(_) => {
+                    BuiltinOptions::UnidirectionalSequenceLSTMOptions
+                }
+                Self::FloorModOptions(_) => BuiltinOptions::FloorModOptions,
+                Self::RangeOptions(_) => BuiltinOptions::RangeOptions,
+                Self::ResizeNearestNeighborOptions(_) => {
+                    BuiltinOptions::ResizeNearestNeighborOptions
+                }
+                Self::LeakyReluOptions(_) => BuiltinOptions::LeakyReluOptions,
+                Self::SquaredDifferenceOptions(_) => BuiltinOptions::SquaredDifferenceOptions,
+                Self::MirrorPadOptions(_) => BuiltinOptions::MirrorPadOptions,
+                Self::AbsOptions(_) => BuiltinOptions::AbsOptions,
+                Self::SplitVOptions(_) => BuiltinOptions::SplitVOptions,
+                Self::UniqueOptions(_) => BuiltinOptions::UniqueOptions,
+                Self::ReverseV2Options(_) => BuiltinOptions::ReverseV2Options,
+                Self::AddNOptions(_) => BuiltinOptions::AddNOptions,
+                Self::GatherNdOptions(_) => BuiltinOptions::GatherNdOptions,
+                Self::CosOptions(_) => BuiltinOptions::CosOptions,
+                Self::WhereOptions(_) => BuiltinOptions::WhereOptions,
+                Self::RankOptions(_) => BuiltinOptions::RankOptions,
+                Self::ReverseSequenceOptions(_) => BuiltinOptions::ReverseSequenceOptions,
+                Self::MatrixDiagOptions(_) => BuiltinOptions::MatrixDiagOptions,
+                Self::QuantizeOptions(_) => BuiltinOptions::QuantizeOptions,
+                Self::MatrixSetDiagOptions(_) => BuiltinOptions::MatrixSetDiagOptions,
+                Self::HardSwishOptions(_) => BuiltinOptions::HardSwishOptions,
+                Self::IfOptions(_) => BuiltinOptions::IfOptions,
+                Self::WhileOptions(_) => BuiltinOptions::WhileOptions,
+                Self::DepthToSpaceOptions(_) => BuiltinOptions::DepthToSpaceOptions,
+                Self::NonMaxSuppressionV4Options(_) => BuiltinOptions::NonMaxSuppressionV4Options,
+                Self::NonMaxSuppressionV5Options(_) => BuiltinOptions::NonMaxSuppressionV5Options,
+                Self::ScatterNdOptions(_) => BuiltinOptions::ScatterNdOptions,
+                Self::SelectV2Options(_) => BuiltinOptions::SelectV2Options,
+                Self::DensifyOptions(_) => BuiltinOptions::DensifyOptions,
+                Self::SegmentSumOptions(_) => BuiltinOptions::SegmentSumOptions,
+                Self::BatchMatMulOptions(_) => BuiltinOptions::BatchMatMulOptions,
+                Self::CumsumOptions(_) => BuiltinOptions::CumsumOptions,
+                Self::CallOnceOptions(_) => BuiltinOptions::CallOnceOptions,
+                Self::BroadcastToOptions(_) => BuiltinOptions::BroadcastToOptions,
+                Self::Rfft2dOptions(_) => BuiltinOptions::Rfft2dOptions,
+                Self::Conv3DOptions(_) => BuiltinOptions::Conv3DOptions,
+                Self::HashtableOptions(_) => BuiltinOptions::HashtableOptions,
+                Self::HashtableFindOptions(_) => BuiltinOptions::HashtableFindOptions,
+                Self::HashtableImportOptions(_) => BuiltinOptions::HashtableImportOptions,
+                Self::HashtableSizeOptions(_) => BuiltinOptions::HashtableSizeOptions,
+                Self::VarHandleOptions(_) => BuiltinOptions::VarHandleOptions,
+                Self::ReadVariableOptions(_) => BuiltinOptions::ReadVariableOptions,
+                Self::AssignVariableOptions(_) => BuiltinOptions::AssignVariableOptions,
+                Self::RandomOptions(_) => BuiltinOptions::RandomOptions,
+                Self::BucketizeOptions(_) => BuiltinOptions::BucketizeOptions,
+                Self::GeluOptions(_) => BuiltinOptions::GeluOptions,
+                Self::DynamicUpdateSliceOptions(_) => BuiltinOptions::DynamicUpdateSliceOptions,
+                Self::UnsortedSegmentProdOptions(_) => BuiltinOptions::UnsortedSegmentProdOptions,
+                Self::UnsortedSegmentMaxOptions(_) => BuiltinOptions::UnsortedSegmentMaxOptions,
+                Self::UnsortedSegmentMinOptions(_) => BuiltinOptions::UnsortedSegmentMinOptions,
+                Self::UnsortedSegmentSumOptions(_) => BuiltinOptions::UnsortedSegmentSumOptions,
+                Self::ATan2Options(_) => BuiltinOptions::ATan2Options,
+                Self::SignOptions(_) => BuiltinOptions::SignOptions,
+                Self::BitcastOptions(_) => BuiltinOptions::BitcastOptions,
+                Self::BitwiseXorOptions(_) => BuiltinOptions::BitwiseXorOptions,
+                Self::RightShiftOptions(_) => BuiltinOptions::RightShiftOptions,
+            }
+        }
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>> {
+            match self {
+                Self::NONE => None,
+                Self::Conv2DOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::DepthwiseConv2DOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ConcatEmbeddingsOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LSHProjectionOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::Pool2DOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SVDFOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::RNNOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::FullyConnectedOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SoftmaxOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ConcatenationOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::AddOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::L2NormOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LocalResponseNormalizationOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LSTMOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ResizeBilinearOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::CallOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ReshapeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SkipGramOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SpaceToDepthOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::EmbeddingLookupSparseOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::MulOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::PadOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::GatherOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BatchToSpaceNDOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SpaceToBatchNDOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::TransposeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ReducerOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SubOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::DivOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SqueezeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SequenceRNNOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StridedSliceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ExpOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::TopKV2Options(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SplitOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LogSoftmaxOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::CastOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::DequantizeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::MaximumMinimumOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ArgMaxOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LessOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::NegOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::PadV2Options(v) => Some(v.pack(fbb).as_union_value()),
+                Self::GreaterOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::GreaterEqualOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LessEqualOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SelectOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SliceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::TransposeConvOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SparseToDenseOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::TileOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ExpandDimsOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::EqualOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::NotEqualOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ShapeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::PowOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ArgMinOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::FakeQuantOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::PackOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LogicalOrOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::OneHotOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LogicalAndOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LogicalNotOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::UnpackOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::FloorDivOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SquareOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ZerosLikeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::FillOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BidirectionalSequenceLSTMOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BidirectionalSequenceRNNOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::UnidirectionalSequenceLSTMOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::FloorModOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::RangeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ResizeNearestNeighborOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::LeakyReluOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SquaredDifferenceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::MirrorPadOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::AbsOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SplitVOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::UniqueOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ReverseV2Options(v) => Some(v.pack(fbb).as_union_value()),
+                Self::AddNOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::GatherNdOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::CosOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::WhereOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::RankOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ReverseSequenceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::MatrixDiagOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::QuantizeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::MatrixSetDiagOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::HardSwishOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::IfOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::WhileOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::DepthToSpaceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::NonMaxSuppressionV4Options(v) => Some(v.pack(fbb).as_union_value()),
+                Self::NonMaxSuppressionV5Options(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ScatterNdOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SelectV2Options(v) => Some(v.pack(fbb).as_union_value()),
+                Self::DensifyOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SegmentSumOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BatchMatMulOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::CumsumOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::CallOnceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BroadcastToOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::Rfft2dOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::Conv3DOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::HashtableOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::HashtableFindOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::HashtableImportOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::HashtableSizeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::VarHandleOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ReadVariableOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::AssignVariableOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::RandomOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BucketizeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::GeluOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::DynamicUpdateSliceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::UnsortedSegmentProdOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::UnsortedSegmentMaxOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::UnsortedSegmentMinOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::UnsortedSegmentSumOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ATan2Options(v) => Some(v.pack(fbb).as_union_value()),
+                Self::SignOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BitcastOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::BitwiseXorOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::RightShiftOptions(v) => Some(v.pack(fbb).as_union_value()),
+            }
+        }
+        /// If the union variant matches, return the owned Conv2DOptionsT, setting the union to NONE.
+        pub fn take_conv_2_doptions(&mut self) -> Option<Box<Conv2DOptionsT>> {
+            if let Self::Conv2DOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::Conv2DOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the Conv2DOptionsT.
+        pub fn as_conv_2_doptions(&self) -> Option<&Conv2DOptionsT> {
+            if let Self::Conv2DOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the Conv2DOptionsT.
+        pub fn as_conv_2_doptions_mut(&mut self) -> Option<&mut Conv2DOptionsT> {
+            if let Self::Conv2DOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned DepthwiseConv2DOptionsT, setting the union to NONE.
+        pub fn take_depthwise_conv_2_doptions(&mut self) -> Option<Box<DepthwiseConv2DOptionsT>> {
+            if let Self::DepthwiseConv2DOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::DepthwiseConv2DOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the DepthwiseConv2DOptionsT.
+        pub fn as_depthwise_conv_2_doptions(&self) -> Option<&DepthwiseConv2DOptionsT> {
+            if let Self::DepthwiseConv2DOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the DepthwiseConv2DOptionsT.
+        pub fn as_depthwise_conv_2_doptions_mut(&mut self) -> Option<&mut DepthwiseConv2DOptionsT> {
+            if let Self::DepthwiseConv2DOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ConcatEmbeddingsOptionsT, setting the union to NONE.
+        pub fn take_concat_embeddings_options(&mut self) -> Option<Box<ConcatEmbeddingsOptionsT>> {
+            if let Self::ConcatEmbeddingsOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ConcatEmbeddingsOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ConcatEmbeddingsOptionsT.
+        pub fn as_concat_embeddings_options(&self) -> Option<&ConcatEmbeddingsOptionsT> {
+            if let Self::ConcatEmbeddingsOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ConcatEmbeddingsOptionsT.
+        pub fn as_concat_embeddings_options_mut(
+            &mut self,
+        ) -> Option<&mut ConcatEmbeddingsOptionsT> {
+            if let Self::ConcatEmbeddingsOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LSHProjectionOptionsT, setting the union to NONE.
+        pub fn take_lshprojection_options(&mut self) -> Option<Box<LSHProjectionOptionsT>> {
+            if let Self::LSHProjectionOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LSHProjectionOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LSHProjectionOptionsT.
+        pub fn as_lshprojection_options(&self) -> Option<&LSHProjectionOptionsT> {
+            if let Self::LSHProjectionOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LSHProjectionOptionsT.
+        pub fn as_lshprojection_options_mut(&mut self) -> Option<&mut LSHProjectionOptionsT> {
+            if let Self::LSHProjectionOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned Pool2DOptionsT, setting the union to NONE.
+        pub fn take_pool_2_doptions(&mut self) -> Option<Box<Pool2DOptionsT>> {
+            if let Self::Pool2DOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::Pool2DOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the Pool2DOptionsT.
+        pub fn as_pool_2_doptions(&self) -> Option<&Pool2DOptionsT> {
+            if let Self::Pool2DOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the Pool2DOptionsT.
+        pub fn as_pool_2_doptions_mut(&mut self) -> Option<&mut Pool2DOptionsT> {
+            if let Self::Pool2DOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SVDFOptionsT, setting the union to NONE.
+        pub fn take_svdfoptions(&mut self) -> Option<Box<SVDFOptionsT>> {
+            if let Self::SVDFOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SVDFOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SVDFOptionsT.
+        pub fn as_svdfoptions(&self) -> Option<&SVDFOptionsT> {
+            if let Self::SVDFOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SVDFOptionsT.
+        pub fn as_svdfoptions_mut(&mut self) -> Option<&mut SVDFOptionsT> {
+            if let Self::SVDFOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned RNNOptionsT, setting the union to NONE.
+        pub fn take_rnnoptions(&mut self) -> Option<Box<RNNOptionsT>> {
+            if let Self::RNNOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::RNNOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the RNNOptionsT.
+        pub fn as_rnnoptions(&self) -> Option<&RNNOptionsT> {
+            if let Self::RNNOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the RNNOptionsT.
+        pub fn as_rnnoptions_mut(&mut self) -> Option<&mut RNNOptionsT> {
+            if let Self::RNNOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned FullyConnectedOptionsT, setting the union to NONE.
+        pub fn take_fully_connected_options(&mut self) -> Option<Box<FullyConnectedOptionsT>> {
+            if let Self::FullyConnectedOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::FullyConnectedOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the FullyConnectedOptionsT.
+        pub fn as_fully_connected_options(&self) -> Option<&FullyConnectedOptionsT> {
+            if let Self::FullyConnectedOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the FullyConnectedOptionsT.
+        pub fn as_fully_connected_options_mut(&mut self) -> Option<&mut FullyConnectedOptionsT> {
+            if let Self::FullyConnectedOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SoftmaxOptionsT, setting the union to NONE.
+        pub fn take_softmax_options(&mut self) -> Option<Box<SoftmaxOptionsT>> {
+            if let Self::SoftmaxOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SoftmaxOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SoftmaxOptionsT.
+        pub fn as_softmax_options(&self) -> Option<&SoftmaxOptionsT> {
+            if let Self::SoftmaxOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SoftmaxOptionsT.
+        pub fn as_softmax_options_mut(&mut self) -> Option<&mut SoftmaxOptionsT> {
+            if let Self::SoftmaxOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ConcatenationOptionsT, setting the union to NONE.
+        pub fn take_concatenation_options(&mut self) -> Option<Box<ConcatenationOptionsT>> {
+            if let Self::ConcatenationOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ConcatenationOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ConcatenationOptionsT.
+        pub fn as_concatenation_options(&self) -> Option<&ConcatenationOptionsT> {
+            if let Self::ConcatenationOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ConcatenationOptionsT.
+        pub fn as_concatenation_options_mut(&mut self) -> Option<&mut ConcatenationOptionsT> {
+            if let Self::ConcatenationOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned AddOptionsT, setting the union to NONE.
+        pub fn take_add_options(&mut self) -> Option<Box<AddOptionsT>> {
+            if let Self::AddOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::AddOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the AddOptionsT.
+        pub fn as_add_options(&self) -> Option<&AddOptionsT> {
+            if let Self::AddOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the AddOptionsT.
+        pub fn as_add_options_mut(&mut self) -> Option<&mut AddOptionsT> {
+            if let Self::AddOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned L2NormOptionsT, setting the union to NONE.
+        pub fn take_l2_norm_options(&mut self) -> Option<Box<L2NormOptionsT>> {
+            if let Self::L2NormOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::L2NormOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the L2NormOptionsT.
+        pub fn as_l2_norm_options(&self) -> Option<&L2NormOptionsT> {
+            if let Self::L2NormOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the L2NormOptionsT.
+        pub fn as_l2_norm_options_mut(&mut self) -> Option<&mut L2NormOptionsT> {
+            if let Self::L2NormOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LocalResponseNormalizationOptionsT, setting the union to NONE.
+        pub fn take_local_response_normalization_options(
+            &mut self,
+        ) -> Option<Box<LocalResponseNormalizationOptionsT>> {
+            if let Self::LocalResponseNormalizationOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LocalResponseNormalizationOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LocalResponseNormalizationOptionsT.
+        pub fn as_local_response_normalization_options(
+            &self,
+        ) -> Option<&LocalResponseNormalizationOptionsT> {
+            if let Self::LocalResponseNormalizationOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LocalResponseNormalizationOptionsT.
+        pub fn as_local_response_normalization_options_mut(
+            &mut self,
+        ) -> Option<&mut LocalResponseNormalizationOptionsT> {
+            if let Self::LocalResponseNormalizationOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LSTMOptionsT, setting the union to NONE.
+        pub fn take_lstmoptions(&mut self) -> Option<Box<LSTMOptionsT>> {
+            if let Self::LSTMOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LSTMOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LSTMOptionsT.
+        pub fn as_lstmoptions(&self) -> Option<&LSTMOptionsT> {
+            if let Self::LSTMOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LSTMOptionsT.
+        pub fn as_lstmoptions_mut(&mut self) -> Option<&mut LSTMOptionsT> {
+            if let Self::LSTMOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ResizeBilinearOptionsT, setting the union to NONE.
+        pub fn take_resize_bilinear_options(&mut self) -> Option<Box<ResizeBilinearOptionsT>> {
+            if let Self::ResizeBilinearOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ResizeBilinearOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ResizeBilinearOptionsT.
+        pub fn as_resize_bilinear_options(&self) -> Option<&ResizeBilinearOptionsT> {
+            if let Self::ResizeBilinearOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ResizeBilinearOptionsT.
+        pub fn as_resize_bilinear_options_mut(&mut self) -> Option<&mut ResizeBilinearOptionsT> {
+            if let Self::ResizeBilinearOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned CallOptionsT, setting the union to NONE.
+        pub fn take_call_options(&mut self) -> Option<Box<CallOptionsT>> {
+            if let Self::CallOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::CallOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the CallOptionsT.
+        pub fn as_call_options(&self) -> Option<&CallOptionsT> {
+            if let Self::CallOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the CallOptionsT.
+        pub fn as_call_options_mut(&mut self) -> Option<&mut CallOptionsT> {
+            if let Self::CallOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ReshapeOptionsT, setting the union to NONE.
+        pub fn take_reshape_options(&mut self) -> Option<Box<ReshapeOptionsT>> {
+            if let Self::ReshapeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ReshapeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ReshapeOptionsT.
+        pub fn as_reshape_options(&self) -> Option<&ReshapeOptionsT> {
+            if let Self::ReshapeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ReshapeOptionsT.
+        pub fn as_reshape_options_mut(&mut self) -> Option<&mut ReshapeOptionsT> {
+            if let Self::ReshapeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SkipGramOptionsT, setting the union to NONE.
+        pub fn take_skip_gram_options(&mut self) -> Option<Box<SkipGramOptionsT>> {
+            if let Self::SkipGramOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SkipGramOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SkipGramOptionsT.
+        pub fn as_skip_gram_options(&self) -> Option<&SkipGramOptionsT> {
+            if let Self::SkipGramOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SkipGramOptionsT.
+        pub fn as_skip_gram_options_mut(&mut self) -> Option<&mut SkipGramOptionsT> {
+            if let Self::SkipGramOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SpaceToDepthOptionsT, setting the union to NONE.
+        pub fn take_space_to_depth_options(&mut self) -> Option<Box<SpaceToDepthOptionsT>> {
+            if let Self::SpaceToDepthOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SpaceToDepthOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SpaceToDepthOptionsT.
+        pub fn as_space_to_depth_options(&self) -> Option<&SpaceToDepthOptionsT> {
+            if let Self::SpaceToDepthOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SpaceToDepthOptionsT.
+        pub fn as_space_to_depth_options_mut(&mut self) -> Option<&mut SpaceToDepthOptionsT> {
+            if let Self::SpaceToDepthOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned EmbeddingLookupSparseOptionsT, setting the union to NONE.
+        pub fn take_embedding_lookup_sparse_options(
+            &mut self,
+        ) -> Option<Box<EmbeddingLookupSparseOptionsT>> {
+            if let Self::EmbeddingLookupSparseOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::EmbeddingLookupSparseOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the EmbeddingLookupSparseOptionsT.
+        pub fn as_embedding_lookup_sparse_options(&self) -> Option<&EmbeddingLookupSparseOptionsT> {
+            if let Self::EmbeddingLookupSparseOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the EmbeddingLookupSparseOptionsT.
+        pub fn as_embedding_lookup_sparse_options_mut(
+            &mut self,
+        ) -> Option<&mut EmbeddingLookupSparseOptionsT> {
+            if let Self::EmbeddingLookupSparseOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned MulOptionsT, setting the union to NONE.
+        pub fn take_mul_options(&mut self) -> Option<Box<MulOptionsT>> {
+            if let Self::MulOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::MulOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the MulOptionsT.
+        pub fn as_mul_options(&self) -> Option<&MulOptionsT> {
+            if let Self::MulOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the MulOptionsT.
+        pub fn as_mul_options_mut(&mut self) -> Option<&mut MulOptionsT> {
+            if let Self::MulOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned PadOptionsT, setting the union to NONE.
+        pub fn take_pad_options(&mut self) -> Option<Box<PadOptionsT>> {
+            if let Self::PadOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::PadOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the PadOptionsT.
+        pub fn as_pad_options(&self) -> Option<&PadOptionsT> {
+            if let Self::PadOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the PadOptionsT.
+        pub fn as_pad_options_mut(&mut self) -> Option<&mut PadOptionsT> {
+            if let Self::PadOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned GatherOptionsT, setting the union to NONE.
+        pub fn take_gather_options(&mut self) -> Option<Box<GatherOptionsT>> {
+            if let Self::GatherOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::GatherOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the GatherOptionsT.
+        pub fn as_gather_options(&self) -> Option<&GatherOptionsT> {
+            if let Self::GatherOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the GatherOptionsT.
+        pub fn as_gather_options_mut(&mut self) -> Option<&mut GatherOptionsT> {
+            if let Self::GatherOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BatchToSpaceNDOptionsT, setting the union to NONE.
+        pub fn take_batch_to_space_ndoptions(&mut self) -> Option<Box<BatchToSpaceNDOptionsT>> {
+            if let Self::BatchToSpaceNDOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BatchToSpaceNDOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BatchToSpaceNDOptionsT.
+        pub fn as_batch_to_space_ndoptions(&self) -> Option<&BatchToSpaceNDOptionsT> {
+            if let Self::BatchToSpaceNDOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BatchToSpaceNDOptionsT.
+        pub fn as_batch_to_space_ndoptions_mut(&mut self) -> Option<&mut BatchToSpaceNDOptionsT> {
+            if let Self::BatchToSpaceNDOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SpaceToBatchNDOptionsT, setting the union to NONE.
+        pub fn take_space_to_batch_ndoptions(&mut self) -> Option<Box<SpaceToBatchNDOptionsT>> {
+            if let Self::SpaceToBatchNDOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SpaceToBatchNDOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SpaceToBatchNDOptionsT.
+        pub fn as_space_to_batch_ndoptions(&self) -> Option<&SpaceToBatchNDOptionsT> {
+            if let Self::SpaceToBatchNDOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SpaceToBatchNDOptionsT.
+        pub fn as_space_to_batch_ndoptions_mut(&mut self) -> Option<&mut SpaceToBatchNDOptionsT> {
+            if let Self::SpaceToBatchNDOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned TransposeOptionsT, setting the union to NONE.
+        pub fn take_transpose_options(&mut self) -> Option<Box<TransposeOptionsT>> {
+            if let Self::TransposeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::TransposeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the TransposeOptionsT.
+        pub fn as_transpose_options(&self) -> Option<&TransposeOptionsT> {
+            if let Self::TransposeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the TransposeOptionsT.
+        pub fn as_transpose_options_mut(&mut self) -> Option<&mut TransposeOptionsT> {
+            if let Self::TransposeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ReducerOptionsT, setting the union to NONE.
+        pub fn take_reducer_options(&mut self) -> Option<Box<ReducerOptionsT>> {
+            if let Self::ReducerOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ReducerOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ReducerOptionsT.
+        pub fn as_reducer_options(&self) -> Option<&ReducerOptionsT> {
+            if let Self::ReducerOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ReducerOptionsT.
+        pub fn as_reducer_options_mut(&mut self) -> Option<&mut ReducerOptionsT> {
+            if let Self::ReducerOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SubOptionsT, setting the union to NONE.
+        pub fn take_sub_options(&mut self) -> Option<Box<SubOptionsT>> {
+            if let Self::SubOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SubOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SubOptionsT.
+        pub fn as_sub_options(&self) -> Option<&SubOptionsT> {
+            if let Self::SubOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SubOptionsT.
+        pub fn as_sub_options_mut(&mut self) -> Option<&mut SubOptionsT> {
+            if let Self::SubOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned DivOptionsT, setting the union to NONE.
+        pub fn take_div_options(&mut self) -> Option<Box<DivOptionsT>> {
+            if let Self::DivOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::DivOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the DivOptionsT.
+        pub fn as_div_options(&self) -> Option<&DivOptionsT> {
+            if let Self::DivOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the DivOptionsT.
+        pub fn as_div_options_mut(&mut self) -> Option<&mut DivOptionsT> {
+            if let Self::DivOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SqueezeOptionsT, setting the union to NONE.
+        pub fn take_squeeze_options(&mut self) -> Option<Box<SqueezeOptionsT>> {
+            if let Self::SqueezeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SqueezeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SqueezeOptionsT.
+        pub fn as_squeeze_options(&self) -> Option<&SqueezeOptionsT> {
+            if let Self::SqueezeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SqueezeOptionsT.
+        pub fn as_squeeze_options_mut(&mut self) -> Option<&mut SqueezeOptionsT> {
+            if let Self::SqueezeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SequenceRNNOptionsT, setting the union to NONE.
+        pub fn take_sequence_rnnoptions(&mut self) -> Option<Box<SequenceRNNOptionsT>> {
+            if let Self::SequenceRNNOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SequenceRNNOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SequenceRNNOptionsT.
+        pub fn as_sequence_rnnoptions(&self) -> Option<&SequenceRNNOptionsT> {
+            if let Self::SequenceRNNOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SequenceRNNOptionsT.
+        pub fn as_sequence_rnnoptions_mut(&mut self) -> Option<&mut SequenceRNNOptionsT> {
+            if let Self::SequenceRNNOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StridedSliceOptionsT, setting the union to NONE.
+        pub fn take_strided_slice_options(&mut self) -> Option<Box<StridedSliceOptionsT>> {
+            if let Self::StridedSliceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StridedSliceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StridedSliceOptionsT.
+        pub fn as_strided_slice_options(&self) -> Option<&StridedSliceOptionsT> {
+            if let Self::StridedSliceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StridedSliceOptionsT.
+        pub fn as_strided_slice_options_mut(&mut self) -> Option<&mut StridedSliceOptionsT> {
+            if let Self::StridedSliceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ExpOptionsT, setting the union to NONE.
+        pub fn take_exp_options(&mut self) -> Option<Box<ExpOptionsT>> {
+            if let Self::ExpOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ExpOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ExpOptionsT.
+        pub fn as_exp_options(&self) -> Option<&ExpOptionsT> {
+            if let Self::ExpOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ExpOptionsT.
+        pub fn as_exp_options_mut(&mut self) -> Option<&mut ExpOptionsT> {
+            if let Self::ExpOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned TopKV2OptionsT, setting the union to NONE.
+        pub fn take_top_kv2_options(&mut self) -> Option<Box<TopKV2OptionsT>> {
+            if let Self::TopKV2Options(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::TopKV2Options(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the TopKV2OptionsT.
+        pub fn as_top_kv2_options(&self) -> Option<&TopKV2OptionsT> {
+            if let Self::TopKV2Options(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the TopKV2OptionsT.
+        pub fn as_top_kv2_options_mut(&mut self) -> Option<&mut TopKV2OptionsT> {
+            if let Self::TopKV2Options(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SplitOptionsT, setting the union to NONE.
+        pub fn take_split_options(&mut self) -> Option<Box<SplitOptionsT>> {
+            if let Self::SplitOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SplitOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SplitOptionsT.
+        pub fn as_split_options(&self) -> Option<&SplitOptionsT> {
+            if let Self::SplitOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SplitOptionsT.
+        pub fn as_split_options_mut(&mut self) -> Option<&mut SplitOptionsT> {
+            if let Self::SplitOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LogSoftmaxOptionsT, setting the union to NONE.
+        pub fn take_log_softmax_options(&mut self) -> Option<Box<LogSoftmaxOptionsT>> {
+            if let Self::LogSoftmaxOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LogSoftmaxOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LogSoftmaxOptionsT.
+        pub fn as_log_softmax_options(&self) -> Option<&LogSoftmaxOptionsT> {
+            if let Self::LogSoftmaxOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LogSoftmaxOptionsT.
+        pub fn as_log_softmax_options_mut(&mut self) -> Option<&mut LogSoftmaxOptionsT> {
+            if let Self::LogSoftmaxOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned CastOptionsT, setting the union to NONE.
+        pub fn take_cast_options(&mut self) -> Option<Box<CastOptionsT>> {
+            if let Self::CastOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::CastOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the CastOptionsT.
+        pub fn as_cast_options(&self) -> Option<&CastOptionsT> {
+            if let Self::CastOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the CastOptionsT.
+        pub fn as_cast_options_mut(&mut self) -> Option<&mut CastOptionsT> {
+            if let Self::CastOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned DequantizeOptionsT, setting the union to NONE.
+        pub fn take_dequantize_options(&mut self) -> Option<Box<DequantizeOptionsT>> {
+            if let Self::DequantizeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::DequantizeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the DequantizeOptionsT.
+        pub fn as_dequantize_options(&self) -> Option<&DequantizeOptionsT> {
+            if let Self::DequantizeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the DequantizeOptionsT.
+        pub fn as_dequantize_options_mut(&mut self) -> Option<&mut DequantizeOptionsT> {
+            if let Self::DequantizeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned MaximumMinimumOptionsT, setting the union to NONE.
+        pub fn take_maximum_minimum_options(&mut self) -> Option<Box<MaximumMinimumOptionsT>> {
+            if let Self::MaximumMinimumOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::MaximumMinimumOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the MaximumMinimumOptionsT.
+        pub fn as_maximum_minimum_options(&self) -> Option<&MaximumMinimumOptionsT> {
+            if let Self::MaximumMinimumOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the MaximumMinimumOptionsT.
+        pub fn as_maximum_minimum_options_mut(&mut self) -> Option<&mut MaximumMinimumOptionsT> {
+            if let Self::MaximumMinimumOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ArgMaxOptionsT, setting the union to NONE.
+        pub fn take_arg_max_options(&mut self) -> Option<Box<ArgMaxOptionsT>> {
+            if let Self::ArgMaxOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ArgMaxOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ArgMaxOptionsT.
+        pub fn as_arg_max_options(&self) -> Option<&ArgMaxOptionsT> {
+            if let Self::ArgMaxOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ArgMaxOptionsT.
+        pub fn as_arg_max_options_mut(&mut self) -> Option<&mut ArgMaxOptionsT> {
+            if let Self::ArgMaxOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LessOptionsT, setting the union to NONE.
+        pub fn take_less_options(&mut self) -> Option<Box<LessOptionsT>> {
+            if let Self::LessOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LessOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LessOptionsT.
+        pub fn as_less_options(&self) -> Option<&LessOptionsT> {
+            if let Self::LessOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LessOptionsT.
+        pub fn as_less_options_mut(&mut self) -> Option<&mut LessOptionsT> {
+            if let Self::LessOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned NegOptionsT, setting the union to NONE.
+        pub fn take_neg_options(&mut self) -> Option<Box<NegOptionsT>> {
+            if let Self::NegOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::NegOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the NegOptionsT.
+        pub fn as_neg_options(&self) -> Option<&NegOptionsT> {
+            if let Self::NegOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the NegOptionsT.
+        pub fn as_neg_options_mut(&mut self) -> Option<&mut NegOptionsT> {
+            if let Self::NegOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned PadV2OptionsT, setting the union to NONE.
+        pub fn take_pad_v2_options(&mut self) -> Option<Box<PadV2OptionsT>> {
+            if let Self::PadV2Options(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::PadV2Options(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the PadV2OptionsT.
+        pub fn as_pad_v2_options(&self) -> Option<&PadV2OptionsT> {
+            if let Self::PadV2Options(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the PadV2OptionsT.
+        pub fn as_pad_v2_options_mut(&mut self) -> Option<&mut PadV2OptionsT> {
+            if let Self::PadV2Options(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned GreaterOptionsT, setting the union to NONE.
+        pub fn take_greater_options(&mut self) -> Option<Box<GreaterOptionsT>> {
+            if let Self::GreaterOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::GreaterOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the GreaterOptionsT.
+        pub fn as_greater_options(&self) -> Option<&GreaterOptionsT> {
+            if let Self::GreaterOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the GreaterOptionsT.
+        pub fn as_greater_options_mut(&mut self) -> Option<&mut GreaterOptionsT> {
+            if let Self::GreaterOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned GreaterEqualOptionsT, setting the union to NONE.
+        pub fn take_greater_equal_options(&mut self) -> Option<Box<GreaterEqualOptionsT>> {
+            if let Self::GreaterEqualOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::GreaterEqualOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the GreaterEqualOptionsT.
+        pub fn as_greater_equal_options(&self) -> Option<&GreaterEqualOptionsT> {
+            if let Self::GreaterEqualOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the GreaterEqualOptionsT.
+        pub fn as_greater_equal_options_mut(&mut self) -> Option<&mut GreaterEqualOptionsT> {
+            if let Self::GreaterEqualOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LessEqualOptionsT, setting the union to NONE.
+        pub fn take_less_equal_options(&mut self) -> Option<Box<LessEqualOptionsT>> {
+            if let Self::LessEqualOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LessEqualOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LessEqualOptionsT.
+        pub fn as_less_equal_options(&self) -> Option<&LessEqualOptionsT> {
+            if let Self::LessEqualOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LessEqualOptionsT.
+        pub fn as_less_equal_options_mut(&mut self) -> Option<&mut LessEqualOptionsT> {
+            if let Self::LessEqualOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SelectOptionsT, setting the union to NONE.
+        pub fn take_select_options(&mut self) -> Option<Box<SelectOptionsT>> {
+            if let Self::SelectOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SelectOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SelectOptionsT.
+        pub fn as_select_options(&self) -> Option<&SelectOptionsT> {
+            if let Self::SelectOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SelectOptionsT.
+        pub fn as_select_options_mut(&mut self) -> Option<&mut SelectOptionsT> {
+            if let Self::SelectOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SliceOptionsT, setting the union to NONE.
+        pub fn take_slice_options(&mut self) -> Option<Box<SliceOptionsT>> {
+            if let Self::SliceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SliceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SliceOptionsT.
+        pub fn as_slice_options(&self) -> Option<&SliceOptionsT> {
+            if let Self::SliceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SliceOptionsT.
+        pub fn as_slice_options_mut(&mut self) -> Option<&mut SliceOptionsT> {
+            if let Self::SliceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned TransposeConvOptionsT, setting the union to NONE.
+        pub fn take_transpose_conv_options(&mut self) -> Option<Box<TransposeConvOptionsT>> {
+            if let Self::TransposeConvOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::TransposeConvOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the TransposeConvOptionsT.
+        pub fn as_transpose_conv_options(&self) -> Option<&TransposeConvOptionsT> {
+            if let Self::TransposeConvOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the TransposeConvOptionsT.
+        pub fn as_transpose_conv_options_mut(&mut self) -> Option<&mut TransposeConvOptionsT> {
+            if let Self::TransposeConvOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SparseToDenseOptionsT, setting the union to NONE.
+        pub fn take_sparse_to_dense_options(&mut self) -> Option<Box<SparseToDenseOptionsT>> {
+            if let Self::SparseToDenseOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SparseToDenseOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SparseToDenseOptionsT.
+        pub fn as_sparse_to_dense_options(&self) -> Option<&SparseToDenseOptionsT> {
+            if let Self::SparseToDenseOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SparseToDenseOptionsT.
+        pub fn as_sparse_to_dense_options_mut(&mut self) -> Option<&mut SparseToDenseOptionsT> {
+            if let Self::SparseToDenseOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned TileOptionsT, setting the union to NONE.
+        pub fn take_tile_options(&mut self) -> Option<Box<TileOptionsT>> {
+            if let Self::TileOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::TileOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the TileOptionsT.
+        pub fn as_tile_options(&self) -> Option<&TileOptionsT> {
+            if let Self::TileOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the TileOptionsT.
+        pub fn as_tile_options_mut(&mut self) -> Option<&mut TileOptionsT> {
+            if let Self::TileOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ExpandDimsOptionsT, setting the union to NONE.
+        pub fn take_expand_dims_options(&mut self) -> Option<Box<ExpandDimsOptionsT>> {
+            if let Self::ExpandDimsOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ExpandDimsOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ExpandDimsOptionsT.
+        pub fn as_expand_dims_options(&self) -> Option<&ExpandDimsOptionsT> {
+            if let Self::ExpandDimsOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ExpandDimsOptionsT.
+        pub fn as_expand_dims_options_mut(&mut self) -> Option<&mut ExpandDimsOptionsT> {
+            if let Self::ExpandDimsOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned EqualOptionsT, setting the union to NONE.
+        pub fn take_equal_options(&mut self) -> Option<Box<EqualOptionsT>> {
+            if let Self::EqualOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::EqualOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the EqualOptionsT.
+        pub fn as_equal_options(&self) -> Option<&EqualOptionsT> {
+            if let Self::EqualOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the EqualOptionsT.
+        pub fn as_equal_options_mut(&mut self) -> Option<&mut EqualOptionsT> {
+            if let Self::EqualOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned NotEqualOptionsT, setting the union to NONE.
+        pub fn take_not_equal_options(&mut self) -> Option<Box<NotEqualOptionsT>> {
+            if let Self::NotEqualOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::NotEqualOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the NotEqualOptionsT.
+        pub fn as_not_equal_options(&self) -> Option<&NotEqualOptionsT> {
+            if let Self::NotEqualOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the NotEqualOptionsT.
+        pub fn as_not_equal_options_mut(&mut self) -> Option<&mut NotEqualOptionsT> {
+            if let Self::NotEqualOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ShapeOptionsT, setting the union to NONE.
+        pub fn take_shape_options(&mut self) -> Option<Box<ShapeOptionsT>> {
+            if let Self::ShapeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ShapeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ShapeOptionsT.
+        pub fn as_shape_options(&self) -> Option<&ShapeOptionsT> {
+            if let Self::ShapeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ShapeOptionsT.
+        pub fn as_shape_options_mut(&mut self) -> Option<&mut ShapeOptionsT> {
+            if let Self::ShapeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned PowOptionsT, setting the union to NONE.
+        pub fn take_pow_options(&mut self) -> Option<Box<PowOptionsT>> {
+            if let Self::PowOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::PowOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the PowOptionsT.
+        pub fn as_pow_options(&self) -> Option<&PowOptionsT> {
+            if let Self::PowOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the PowOptionsT.
+        pub fn as_pow_options_mut(&mut self) -> Option<&mut PowOptionsT> {
+            if let Self::PowOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ArgMinOptionsT, setting the union to NONE.
+        pub fn take_arg_min_options(&mut self) -> Option<Box<ArgMinOptionsT>> {
+            if let Self::ArgMinOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ArgMinOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ArgMinOptionsT.
+        pub fn as_arg_min_options(&self) -> Option<&ArgMinOptionsT> {
+            if let Self::ArgMinOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ArgMinOptionsT.
+        pub fn as_arg_min_options_mut(&mut self) -> Option<&mut ArgMinOptionsT> {
+            if let Self::ArgMinOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned FakeQuantOptionsT, setting the union to NONE.
+        pub fn take_fake_quant_options(&mut self) -> Option<Box<FakeQuantOptionsT>> {
+            if let Self::FakeQuantOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::FakeQuantOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the FakeQuantOptionsT.
+        pub fn as_fake_quant_options(&self) -> Option<&FakeQuantOptionsT> {
+            if let Self::FakeQuantOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the FakeQuantOptionsT.
+        pub fn as_fake_quant_options_mut(&mut self) -> Option<&mut FakeQuantOptionsT> {
+            if let Self::FakeQuantOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned PackOptionsT, setting the union to NONE.
+        pub fn take_pack_options(&mut self) -> Option<Box<PackOptionsT>> {
+            if let Self::PackOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::PackOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the PackOptionsT.
+        pub fn as_pack_options(&self) -> Option<&PackOptionsT> {
+            if let Self::PackOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the PackOptionsT.
+        pub fn as_pack_options_mut(&mut self) -> Option<&mut PackOptionsT> {
+            if let Self::PackOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LogicalOrOptionsT, setting the union to NONE.
+        pub fn take_logical_or_options(&mut self) -> Option<Box<LogicalOrOptionsT>> {
+            if let Self::LogicalOrOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LogicalOrOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LogicalOrOptionsT.
+        pub fn as_logical_or_options(&self) -> Option<&LogicalOrOptionsT> {
+            if let Self::LogicalOrOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LogicalOrOptionsT.
+        pub fn as_logical_or_options_mut(&mut self) -> Option<&mut LogicalOrOptionsT> {
+            if let Self::LogicalOrOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned OneHotOptionsT, setting the union to NONE.
+        pub fn take_one_hot_options(&mut self) -> Option<Box<OneHotOptionsT>> {
+            if let Self::OneHotOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::OneHotOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the OneHotOptionsT.
+        pub fn as_one_hot_options(&self) -> Option<&OneHotOptionsT> {
+            if let Self::OneHotOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the OneHotOptionsT.
+        pub fn as_one_hot_options_mut(&mut self) -> Option<&mut OneHotOptionsT> {
+            if let Self::OneHotOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LogicalAndOptionsT, setting the union to NONE.
+        pub fn take_logical_and_options(&mut self) -> Option<Box<LogicalAndOptionsT>> {
+            if let Self::LogicalAndOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LogicalAndOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LogicalAndOptionsT.
+        pub fn as_logical_and_options(&self) -> Option<&LogicalAndOptionsT> {
+            if let Self::LogicalAndOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LogicalAndOptionsT.
+        pub fn as_logical_and_options_mut(&mut self) -> Option<&mut LogicalAndOptionsT> {
+            if let Self::LogicalAndOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LogicalNotOptionsT, setting the union to NONE.
+        pub fn take_logical_not_options(&mut self) -> Option<Box<LogicalNotOptionsT>> {
+            if let Self::LogicalNotOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LogicalNotOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LogicalNotOptionsT.
+        pub fn as_logical_not_options(&self) -> Option<&LogicalNotOptionsT> {
+            if let Self::LogicalNotOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LogicalNotOptionsT.
+        pub fn as_logical_not_options_mut(&mut self) -> Option<&mut LogicalNotOptionsT> {
+            if let Self::LogicalNotOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned UnpackOptionsT, setting the union to NONE.
+        pub fn take_unpack_options(&mut self) -> Option<Box<UnpackOptionsT>> {
+            if let Self::UnpackOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::UnpackOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the UnpackOptionsT.
+        pub fn as_unpack_options(&self) -> Option<&UnpackOptionsT> {
+            if let Self::UnpackOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the UnpackOptionsT.
+        pub fn as_unpack_options_mut(&mut self) -> Option<&mut UnpackOptionsT> {
+            if let Self::UnpackOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned FloorDivOptionsT, setting the union to NONE.
+        pub fn take_floor_div_options(&mut self) -> Option<Box<FloorDivOptionsT>> {
+            if let Self::FloorDivOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::FloorDivOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the FloorDivOptionsT.
+        pub fn as_floor_div_options(&self) -> Option<&FloorDivOptionsT> {
+            if let Self::FloorDivOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the FloorDivOptionsT.
+        pub fn as_floor_div_options_mut(&mut self) -> Option<&mut FloorDivOptionsT> {
+            if let Self::FloorDivOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SquareOptionsT, setting the union to NONE.
+        pub fn take_square_options(&mut self) -> Option<Box<SquareOptionsT>> {
+            if let Self::SquareOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SquareOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SquareOptionsT.
+        pub fn as_square_options(&self) -> Option<&SquareOptionsT> {
+            if let Self::SquareOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SquareOptionsT.
+        pub fn as_square_options_mut(&mut self) -> Option<&mut SquareOptionsT> {
+            if let Self::SquareOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ZerosLikeOptionsT, setting the union to NONE.
+        pub fn take_zeros_like_options(&mut self) -> Option<Box<ZerosLikeOptionsT>> {
+            if let Self::ZerosLikeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ZerosLikeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ZerosLikeOptionsT.
+        pub fn as_zeros_like_options(&self) -> Option<&ZerosLikeOptionsT> {
+            if let Self::ZerosLikeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ZerosLikeOptionsT.
+        pub fn as_zeros_like_options_mut(&mut self) -> Option<&mut ZerosLikeOptionsT> {
+            if let Self::ZerosLikeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned FillOptionsT, setting the union to NONE.
+        pub fn take_fill_options(&mut self) -> Option<Box<FillOptionsT>> {
+            if let Self::FillOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::FillOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the FillOptionsT.
+        pub fn as_fill_options(&self) -> Option<&FillOptionsT> {
+            if let Self::FillOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the FillOptionsT.
+        pub fn as_fill_options_mut(&mut self) -> Option<&mut FillOptionsT> {
+            if let Self::FillOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BidirectionalSequenceLSTMOptionsT, setting the union to NONE.
+        pub fn take_bidirectional_sequence_lstmoptions(
+            &mut self,
+        ) -> Option<Box<BidirectionalSequenceLSTMOptionsT>> {
+            if let Self::BidirectionalSequenceLSTMOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BidirectionalSequenceLSTMOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BidirectionalSequenceLSTMOptionsT.
+        pub fn as_bidirectional_sequence_lstmoptions(
+            &self,
+        ) -> Option<&BidirectionalSequenceLSTMOptionsT> {
+            if let Self::BidirectionalSequenceLSTMOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BidirectionalSequenceLSTMOptionsT.
+        pub fn as_bidirectional_sequence_lstmoptions_mut(
+            &mut self,
+        ) -> Option<&mut BidirectionalSequenceLSTMOptionsT> {
+            if let Self::BidirectionalSequenceLSTMOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BidirectionalSequenceRNNOptionsT, setting the union to NONE.
+        pub fn take_bidirectional_sequence_rnnoptions(
+            &mut self,
+        ) -> Option<Box<BidirectionalSequenceRNNOptionsT>> {
+            if let Self::BidirectionalSequenceRNNOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BidirectionalSequenceRNNOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BidirectionalSequenceRNNOptionsT.
+        pub fn as_bidirectional_sequence_rnnoptions(
+            &self,
+        ) -> Option<&BidirectionalSequenceRNNOptionsT> {
+            if let Self::BidirectionalSequenceRNNOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BidirectionalSequenceRNNOptionsT.
+        pub fn as_bidirectional_sequence_rnnoptions_mut(
+            &mut self,
+        ) -> Option<&mut BidirectionalSequenceRNNOptionsT> {
+            if let Self::BidirectionalSequenceRNNOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned UnidirectionalSequenceLSTMOptionsT, setting the union to NONE.
+        pub fn take_unidirectional_sequence_lstmoptions(
+            &mut self,
+        ) -> Option<Box<UnidirectionalSequenceLSTMOptionsT>> {
+            if let Self::UnidirectionalSequenceLSTMOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::UnidirectionalSequenceLSTMOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the UnidirectionalSequenceLSTMOptionsT.
+        pub fn as_unidirectional_sequence_lstmoptions(
+            &self,
+        ) -> Option<&UnidirectionalSequenceLSTMOptionsT> {
+            if let Self::UnidirectionalSequenceLSTMOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the UnidirectionalSequenceLSTMOptionsT.
+        pub fn as_unidirectional_sequence_lstmoptions_mut(
+            &mut self,
+        ) -> Option<&mut UnidirectionalSequenceLSTMOptionsT> {
+            if let Self::UnidirectionalSequenceLSTMOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned FloorModOptionsT, setting the union to NONE.
+        pub fn take_floor_mod_options(&mut self) -> Option<Box<FloorModOptionsT>> {
+            if let Self::FloorModOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::FloorModOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the FloorModOptionsT.
+        pub fn as_floor_mod_options(&self) -> Option<&FloorModOptionsT> {
+            if let Self::FloorModOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the FloorModOptionsT.
+        pub fn as_floor_mod_options_mut(&mut self) -> Option<&mut FloorModOptionsT> {
+            if let Self::FloorModOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned RangeOptionsT, setting the union to NONE.
+        pub fn take_range_options(&mut self) -> Option<Box<RangeOptionsT>> {
+            if let Self::RangeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::RangeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the RangeOptionsT.
+        pub fn as_range_options(&self) -> Option<&RangeOptionsT> {
+            if let Self::RangeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the RangeOptionsT.
+        pub fn as_range_options_mut(&mut self) -> Option<&mut RangeOptionsT> {
+            if let Self::RangeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ResizeNearestNeighborOptionsT, setting the union to NONE.
+        pub fn take_resize_nearest_neighbor_options(
+            &mut self,
+        ) -> Option<Box<ResizeNearestNeighborOptionsT>> {
+            if let Self::ResizeNearestNeighborOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ResizeNearestNeighborOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ResizeNearestNeighborOptionsT.
+        pub fn as_resize_nearest_neighbor_options(&self) -> Option<&ResizeNearestNeighborOptionsT> {
+            if let Self::ResizeNearestNeighborOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ResizeNearestNeighborOptionsT.
+        pub fn as_resize_nearest_neighbor_options_mut(
+            &mut self,
+        ) -> Option<&mut ResizeNearestNeighborOptionsT> {
+            if let Self::ResizeNearestNeighborOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned LeakyReluOptionsT, setting the union to NONE.
+        pub fn take_leaky_relu_options(&mut self) -> Option<Box<LeakyReluOptionsT>> {
+            if let Self::LeakyReluOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::LeakyReluOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the LeakyReluOptionsT.
+        pub fn as_leaky_relu_options(&self) -> Option<&LeakyReluOptionsT> {
+            if let Self::LeakyReluOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the LeakyReluOptionsT.
+        pub fn as_leaky_relu_options_mut(&mut self) -> Option<&mut LeakyReluOptionsT> {
+            if let Self::LeakyReluOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SquaredDifferenceOptionsT, setting the union to NONE.
+        pub fn take_squared_difference_options(
+            &mut self,
+        ) -> Option<Box<SquaredDifferenceOptionsT>> {
+            if let Self::SquaredDifferenceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SquaredDifferenceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SquaredDifferenceOptionsT.
+        pub fn as_squared_difference_options(&self) -> Option<&SquaredDifferenceOptionsT> {
+            if let Self::SquaredDifferenceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SquaredDifferenceOptionsT.
+        pub fn as_squared_difference_options_mut(
+            &mut self,
+        ) -> Option<&mut SquaredDifferenceOptionsT> {
+            if let Self::SquaredDifferenceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned MirrorPadOptionsT, setting the union to NONE.
+        pub fn take_mirror_pad_options(&mut self) -> Option<Box<MirrorPadOptionsT>> {
+            if let Self::MirrorPadOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::MirrorPadOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the MirrorPadOptionsT.
+        pub fn as_mirror_pad_options(&self) -> Option<&MirrorPadOptionsT> {
+            if let Self::MirrorPadOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the MirrorPadOptionsT.
+        pub fn as_mirror_pad_options_mut(&mut self) -> Option<&mut MirrorPadOptionsT> {
+            if let Self::MirrorPadOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned AbsOptionsT, setting the union to NONE.
+        pub fn take_abs_options(&mut self) -> Option<Box<AbsOptionsT>> {
+            if let Self::AbsOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::AbsOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the AbsOptionsT.
+        pub fn as_abs_options(&self) -> Option<&AbsOptionsT> {
+            if let Self::AbsOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the AbsOptionsT.
+        pub fn as_abs_options_mut(&mut self) -> Option<&mut AbsOptionsT> {
+            if let Self::AbsOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SplitVOptionsT, setting the union to NONE.
+        pub fn take_split_voptions(&mut self) -> Option<Box<SplitVOptionsT>> {
+            if let Self::SplitVOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SplitVOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SplitVOptionsT.
+        pub fn as_split_voptions(&self) -> Option<&SplitVOptionsT> {
+            if let Self::SplitVOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SplitVOptionsT.
+        pub fn as_split_voptions_mut(&mut self) -> Option<&mut SplitVOptionsT> {
+            if let Self::SplitVOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned UniqueOptionsT, setting the union to NONE.
+        pub fn take_unique_options(&mut self) -> Option<Box<UniqueOptionsT>> {
+            if let Self::UniqueOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::UniqueOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the UniqueOptionsT.
+        pub fn as_unique_options(&self) -> Option<&UniqueOptionsT> {
+            if let Self::UniqueOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the UniqueOptionsT.
+        pub fn as_unique_options_mut(&mut self) -> Option<&mut UniqueOptionsT> {
+            if let Self::UniqueOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ReverseV2OptionsT, setting the union to NONE.
+        pub fn take_reverse_v2_options(&mut self) -> Option<Box<ReverseV2OptionsT>> {
+            if let Self::ReverseV2Options(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ReverseV2Options(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ReverseV2OptionsT.
+        pub fn as_reverse_v2_options(&self) -> Option<&ReverseV2OptionsT> {
+            if let Self::ReverseV2Options(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ReverseV2OptionsT.
+        pub fn as_reverse_v2_options_mut(&mut self) -> Option<&mut ReverseV2OptionsT> {
+            if let Self::ReverseV2Options(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned AddNOptionsT, setting the union to NONE.
+        pub fn take_add_noptions(&mut self) -> Option<Box<AddNOptionsT>> {
+            if let Self::AddNOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::AddNOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the AddNOptionsT.
+        pub fn as_add_noptions(&self) -> Option<&AddNOptionsT> {
+            if let Self::AddNOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the AddNOptionsT.
+        pub fn as_add_noptions_mut(&mut self) -> Option<&mut AddNOptionsT> {
+            if let Self::AddNOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned GatherNdOptionsT, setting the union to NONE.
+        pub fn take_gather_nd_options(&mut self) -> Option<Box<GatherNdOptionsT>> {
+            if let Self::GatherNdOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::GatherNdOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the GatherNdOptionsT.
+        pub fn as_gather_nd_options(&self) -> Option<&GatherNdOptionsT> {
+            if let Self::GatherNdOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the GatherNdOptionsT.
+        pub fn as_gather_nd_options_mut(&mut self) -> Option<&mut GatherNdOptionsT> {
+            if let Self::GatherNdOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned CosOptionsT, setting the union to NONE.
+        pub fn take_cos_options(&mut self) -> Option<Box<CosOptionsT>> {
+            if let Self::CosOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::CosOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the CosOptionsT.
+        pub fn as_cos_options(&self) -> Option<&CosOptionsT> {
+            if let Self::CosOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the CosOptionsT.
+        pub fn as_cos_options_mut(&mut self) -> Option<&mut CosOptionsT> {
+            if let Self::CosOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned WhereOptionsT, setting the union to NONE.
+        pub fn take_where_options(&mut self) -> Option<Box<WhereOptionsT>> {
+            if let Self::WhereOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::WhereOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the WhereOptionsT.
+        pub fn as_where_options(&self) -> Option<&WhereOptionsT> {
+            if let Self::WhereOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the WhereOptionsT.
+        pub fn as_where_options_mut(&mut self) -> Option<&mut WhereOptionsT> {
+            if let Self::WhereOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned RankOptionsT, setting the union to NONE.
+        pub fn take_rank_options(&mut self) -> Option<Box<RankOptionsT>> {
+            if let Self::RankOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::RankOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the RankOptionsT.
+        pub fn as_rank_options(&self) -> Option<&RankOptionsT> {
+            if let Self::RankOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the RankOptionsT.
+        pub fn as_rank_options_mut(&mut self) -> Option<&mut RankOptionsT> {
+            if let Self::RankOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ReverseSequenceOptionsT, setting the union to NONE.
+        pub fn take_reverse_sequence_options(&mut self) -> Option<Box<ReverseSequenceOptionsT>> {
+            if let Self::ReverseSequenceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ReverseSequenceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ReverseSequenceOptionsT.
+        pub fn as_reverse_sequence_options(&self) -> Option<&ReverseSequenceOptionsT> {
+            if let Self::ReverseSequenceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ReverseSequenceOptionsT.
+        pub fn as_reverse_sequence_options_mut(&mut self) -> Option<&mut ReverseSequenceOptionsT> {
+            if let Self::ReverseSequenceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned MatrixDiagOptionsT, setting the union to NONE.
+        pub fn take_matrix_diag_options(&mut self) -> Option<Box<MatrixDiagOptionsT>> {
+            if let Self::MatrixDiagOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::MatrixDiagOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the MatrixDiagOptionsT.
+        pub fn as_matrix_diag_options(&self) -> Option<&MatrixDiagOptionsT> {
+            if let Self::MatrixDiagOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the MatrixDiagOptionsT.
+        pub fn as_matrix_diag_options_mut(&mut self) -> Option<&mut MatrixDiagOptionsT> {
+            if let Self::MatrixDiagOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned QuantizeOptionsT, setting the union to NONE.
+        pub fn take_quantize_options(&mut self) -> Option<Box<QuantizeOptionsT>> {
+            if let Self::QuantizeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::QuantizeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the QuantizeOptionsT.
+        pub fn as_quantize_options(&self) -> Option<&QuantizeOptionsT> {
+            if let Self::QuantizeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the QuantizeOptionsT.
+        pub fn as_quantize_options_mut(&mut self) -> Option<&mut QuantizeOptionsT> {
+            if let Self::QuantizeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned MatrixSetDiagOptionsT, setting the union to NONE.
+        pub fn take_matrix_set_diag_options(&mut self) -> Option<Box<MatrixSetDiagOptionsT>> {
+            if let Self::MatrixSetDiagOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::MatrixSetDiagOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the MatrixSetDiagOptionsT.
+        pub fn as_matrix_set_diag_options(&self) -> Option<&MatrixSetDiagOptionsT> {
+            if let Self::MatrixSetDiagOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the MatrixSetDiagOptionsT.
+        pub fn as_matrix_set_diag_options_mut(&mut self) -> Option<&mut MatrixSetDiagOptionsT> {
+            if let Self::MatrixSetDiagOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned HardSwishOptionsT, setting the union to NONE.
+        pub fn take_hard_swish_options(&mut self) -> Option<Box<HardSwishOptionsT>> {
+            if let Self::HardSwishOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::HardSwishOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the HardSwishOptionsT.
+        pub fn as_hard_swish_options(&self) -> Option<&HardSwishOptionsT> {
+            if let Self::HardSwishOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the HardSwishOptionsT.
+        pub fn as_hard_swish_options_mut(&mut self) -> Option<&mut HardSwishOptionsT> {
+            if let Self::HardSwishOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned IfOptionsT, setting the union to NONE.
+        pub fn take_if_options(&mut self) -> Option<Box<IfOptionsT>> {
+            if let Self::IfOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::IfOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the IfOptionsT.
+        pub fn as_if_options(&self) -> Option<&IfOptionsT> {
+            if let Self::IfOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the IfOptionsT.
+        pub fn as_if_options_mut(&mut self) -> Option<&mut IfOptionsT> {
+            if let Self::IfOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned WhileOptionsT, setting the union to NONE.
+        pub fn take_while_options(&mut self) -> Option<Box<WhileOptionsT>> {
+            if let Self::WhileOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::WhileOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the WhileOptionsT.
+        pub fn as_while_options(&self) -> Option<&WhileOptionsT> {
+            if let Self::WhileOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the WhileOptionsT.
+        pub fn as_while_options_mut(&mut self) -> Option<&mut WhileOptionsT> {
+            if let Self::WhileOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned DepthToSpaceOptionsT, setting the union to NONE.
+        pub fn take_depth_to_space_options(&mut self) -> Option<Box<DepthToSpaceOptionsT>> {
+            if let Self::DepthToSpaceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::DepthToSpaceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the DepthToSpaceOptionsT.
+        pub fn as_depth_to_space_options(&self) -> Option<&DepthToSpaceOptionsT> {
+            if let Self::DepthToSpaceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the DepthToSpaceOptionsT.
+        pub fn as_depth_to_space_options_mut(&mut self) -> Option<&mut DepthToSpaceOptionsT> {
+            if let Self::DepthToSpaceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned NonMaxSuppressionV4OptionsT, setting the union to NONE.
+        pub fn take_non_max_suppression_v4_options(
+            &mut self,
+        ) -> Option<Box<NonMaxSuppressionV4OptionsT>> {
+            if let Self::NonMaxSuppressionV4Options(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::NonMaxSuppressionV4Options(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the NonMaxSuppressionV4OptionsT.
+        pub fn as_non_max_suppression_v4_options(&self) -> Option<&NonMaxSuppressionV4OptionsT> {
+            if let Self::NonMaxSuppressionV4Options(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the NonMaxSuppressionV4OptionsT.
+        pub fn as_non_max_suppression_v4_options_mut(
+            &mut self,
+        ) -> Option<&mut NonMaxSuppressionV4OptionsT> {
+            if let Self::NonMaxSuppressionV4Options(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned NonMaxSuppressionV5OptionsT, setting the union to NONE.
+        pub fn take_non_max_suppression_v5_options(
+            &mut self,
+        ) -> Option<Box<NonMaxSuppressionV5OptionsT>> {
+            if let Self::NonMaxSuppressionV5Options(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::NonMaxSuppressionV5Options(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the NonMaxSuppressionV5OptionsT.
+        pub fn as_non_max_suppression_v5_options(&self) -> Option<&NonMaxSuppressionV5OptionsT> {
+            if let Self::NonMaxSuppressionV5Options(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the NonMaxSuppressionV5OptionsT.
+        pub fn as_non_max_suppression_v5_options_mut(
+            &mut self,
+        ) -> Option<&mut NonMaxSuppressionV5OptionsT> {
+            if let Self::NonMaxSuppressionV5Options(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ScatterNdOptionsT, setting the union to NONE.
+        pub fn take_scatter_nd_options(&mut self) -> Option<Box<ScatterNdOptionsT>> {
+            if let Self::ScatterNdOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ScatterNdOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ScatterNdOptionsT.
+        pub fn as_scatter_nd_options(&self) -> Option<&ScatterNdOptionsT> {
+            if let Self::ScatterNdOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ScatterNdOptionsT.
+        pub fn as_scatter_nd_options_mut(&mut self) -> Option<&mut ScatterNdOptionsT> {
+            if let Self::ScatterNdOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SelectV2OptionsT, setting the union to NONE.
+        pub fn take_select_v2_options(&mut self) -> Option<Box<SelectV2OptionsT>> {
+            if let Self::SelectV2Options(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SelectV2Options(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SelectV2OptionsT.
+        pub fn as_select_v2_options(&self) -> Option<&SelectV2OptionsT> {
+            if let Self::SelectV2Options(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SelectV2OptionsT.
+        pub fn as_select_v2_options_mut(&mut self) -> Option<&mut SelectV2OptionsT> {
+            if let Self::SelectV2Options(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned DensifyOptionsT, setting the union to NONE.
+        pub fn take_densify_options(&mut self) -> Option<Box<DensifyOptionsT>> {
+            if let Self::DensifyOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::DensifyOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the DensifyOptionsT.
+        pub fn as_densify_options(&self) -> Option<&DensifyOptionsT> {
+            if let Self::DensifyOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the DensifyOptionsT.
+        pub fn as_densify_options_mut(&mut self) -> Option<&mut DensifyOptionsT> {
+            if let Self::DensifyOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SegmentSumOptionsT, setting the union to NONE.
+        pub fn take_segment_sum_options(&mut self) -> Option<Box<SegmentSumOptionsT>> {
+            if let Self::SegmentSumOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SegmentSumOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SegmentSumOptionsT.
+        pub fn as_segment_sum_options(&self) -> Option<&SegmentSumOptionsT> {
+            if let Self::SegmentSumOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SegmentSumOptionsT.
+        pub fn as_segment_sum_options_mut(&mut self) -> Option<&mut SegmentSumOptionsT> {
+            if let Self::SegmentSumOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BatchMatMulOptionsT, setting the union to NONE.
+        pub fn take_batch_mat_mul_options(&mut self) -> Option<Box<BatchMatMulOptionsT>> {
+            if let Self::BatchMatMulOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BatchMatMulOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BatchMatMulOptionsT.
+        pub fn as_batch_mat_mul_options(&self) -> Option<&BatchMatMulOptionsT> {
+            if let Self::BatchMatMulOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BatchMatMulOptionsT.
+        pub fn as_batch_mat_mul_options_mut(&mut self) -> Option<&mut BatchMatMulOptionsT> {
+            if let Self::BatchMatMulOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned CumsumOptionsT, setting the union to NONE.
+        pub fn take_cumsum_options(&mut self) -> Option<Box<CumsumOptionsT>> {
+            if let Self::CumsumOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::CumsumOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the CumsumOptionsT.
+        pub fn as_cumsum_options(&self) -> Option<&CumsumOptionsT> {
+            if let Self::CumsumOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the CumsumOptionsT.
+        pub fn as_cumsum_options_mut(&mut self) -> Option<&mut CumsumOptionsT> {
+            if let Self::CumsumOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned CallOnceOptionsT, setting the union to NONE.
+        pub fn take_call_once_options(&mut self) -> Option<Box<CallOnceOptionsT>> {
+            if let Self::CallOnceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::CallOnceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the CallOnceOptionsT.
+        pub fn as_call_once_options(&self) -> Option<&CallOnceOptionsT> {
+            if let Self::CallOnceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the CallOnceOptionsT.
+        pub fn as_call_once_options_mut(&mut self) -> Option<&mut CallOnceOptionsT> {
+            if let Self::CallOnceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BroadcastToOptionsT, setting the union to NONE.
+        pub fn take_broadcast_to_options(&mut self) -> Option<Box<BroadcastToOptionsT>> {
+            if let Self::BroadcastToOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BroadcastToOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BroadcastToOptionsT.
+        pub fn as_broadcast_to_options(&self) -> Option<&BroadcastToOptionsT> {
+            if let Self::BroadcastToOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BroadcastToOptionsT.
+        pub fn as_broadcast_to_options_mut(&mut self) -> Option<&mut BroadcastToOptionsT> {
+            if let Self::BroadcastToOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned Rfft2dOptionsT, setting the union to NONE.
+        pub fn take_rfft_2d_options(&mut self) -> Option<Box<Rfft2dOptionsT>> {
+            if let Self::Rfft2dOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::Rfft2dOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the Rfft2dOptionsT.
+        pub fn as_rfft_2d_options(&self) -> Option<&Rfft2dOptionsT> {
+            if let Self::Rfft2dOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the Rfft2dOptionsT.
+        pub fn as_rfft_2d_options_mut(&mut self) -> Option<&mut Rfft2dOptionsT> {
+            if let Self::Rfft2dOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned Conv3DOptionsT, setting the union to NONE.
+        pub fn take_conv_3_doptions(&mut self) -> Option<Box<Conv3DOptionsT>> {
+            if let Self::Conv3DOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::Conv3DOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the Conv3DOptionsT.
+        pub fn as_conv_3_doptions(&self) -> Option<&Conv3DOptionsT> {
+            if let Self::Conv3DOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the Conv3DOptionsT.
+        pub fn as_conv_3_doptions_mut(&mut self) -> Option<&mut Conv3DOptionsT> {
+            if let Self::Conv3DOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned HashtableOptionsT, setting the union to NONE.
+        pub fn take_hashtable_options(&mut self) -> Option<Box<HashtableOptionsT>> {
+            if let Self::HashtableOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::HashtableOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the HashtableOptionsT.
+        pub fn as_hashtable_options(&self) -> Option<&HashtableOptionsT> {
+            if let Self::HashtableOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the HashtableOptionsT.
+        pub fn as_hashtable_options_mut(&mut self) -> Option<&mut HashtableOptionsT> {
+            if let Self::HashtableOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned HashtableFindOptionsT, setting the union to NONE.
+        pub fn take_hashtable_find_options(&mut self) -> Option<Box<HashtableFindOptionsT>> {
+            if let Self::HashtableFindOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::HashtableFindOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the HashtableFindOptionsT.
+        pub fn as_hashtable_find_options(&self) -> Option<&HashtableFindOptionsT> {
+            if let Self::HashtableFindOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the HashtableFindOptionsT.
+        pub fn as_hashtable_find_options_mut(&mut self) -> Option<&mut HashtableFindOptionsT> {
+            if let Self::HashtableFindOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned HashtableImportOptionsT, setting the union to NONE.
+        pub fn take_hashtable_import_options(&mut self) -> Option<Box<HashtableImportOptionsT>> {
+            if let Self::HashtableImportOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::HashtableImportOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the HashtableImportOptionsT.
+        pub fn as_hashtable_import_options(&self) -> Option<&HashtableImportOptionsT> {
+            if let Self::HashtableImportOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the HashtableImportOptionsT.
+        pub fn as_hashtable_import_options_mut(&mut self) -> Option<&mut HashtableImportOptionsT> {
+            if let Self::HashtableImportOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned HashtableSizeOptionsT, setting the union to NONE.
+        pub fn take_hashtable_size_options(&mut self) -> Option<Box<HashtableSizeOptionsT>> {
+            if let Self::HashtableSizeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::HashtableSizeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the HashtableSizeOptionsT.
+        pub fn as_hashtable_size_options(&self) -> Option<&HashtableSizeOptionsT> {
+            if let Self::HashtableSizeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the HashtableSizeOptionsT.
+        pub fn as_hashtable_size_options_mut(&mut self) -> Option<&mut HashtableSizeOptionsT> {
+            if let Self::HashtableSizeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned VarHandleOptionsT, setting the union to NONE.
+        pub fn take_var_handle_options(&mut self) -> Option<Box<VarHandleOptionsT>> {
+            if let Self::VarHandleOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::VarHandleOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the VarHandleOptionsT.
+        pub fn as_var_handle_options(&self) -> Option<&VarHandleOptionsT> {
+            if let Self::VarHandleOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the VarHandleOptionsT.
+        pub fn as_var_handle_options_mut(&mut self) -> Option<&mut VarHandleOptionsT> {
+            if let Self::VarHandleOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ReadVariableOptionsT, setting the union to NONE.
+        pub fn take_read_variable_options(&mut self) -> Option<Box<ReadVariableOptionsT>> {
+            if let Self::ReadVariableOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ReadVariableOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ReadVariableOptionsT.
+        pub fn as_read_variable_options(&self) -> Option<&ReadVariableOptionsT> {
+            if let Self::ReadVariableOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ReadVariableOptionsT.
+        pub fn as_read_variable_options_mut(&mut self) -> Option<&mut ReadVariableOptionsT> {
+            if let Self::ReadVariableOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned AssignVariableOptionsT, setting the union to NONE.
+        pub fn take_assign_variable_options(&mut self) -> Option<Box<AssignVariableOptionsT>> {
+            if let Self::AssignVariableOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::AssignVariableOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the AssignVariableOptionsT.
+        pub fn as_assign_variable_options(&self) -> Option<&AssignVariableOptionsT> {
+            if let Self::AssignVariableOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the AssignVariableOptionsT.
+        pub fn as_assign_variable_options_mut(&mut self) -> Option<&mut AssignVariableOptionsT> {
+            if let Self::AssignVariableOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned RandomOptionsT, setting the union to NONE.
+        pub fn take_random_options(&mut self) -> Option<Box<RandomOptionsT>> {
+            if let Self::RandomOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::RandomOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the RandomOptionsT.
+        pub fn as_random_options(&self) -> Option<&RandomOptionsT> {
+            if let Self::RandomOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the RandomOptionsT.
+        pub fn as_random_options_mut(&mut self) -> Option<&mut RandomOptionsT> {
+            if let Self::RandomOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BucketizeOptionsT, setting the union to NONE.
+        pub fn take_bucketize_options(&mut self) -> Option<Box<BucketizeOptionsT>> {
+            if let Self::BucketizeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BucketizeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BucketizeOptionsT.
+        pub fn as_bucketize_options(&self) -> Option<&BucketizeOptionsT> {
+            if let Self::BucketizeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BucketizeOptionsT.
+        pub fn as_bucketize_options_mut(&mut self) -> Option<&mut BucketizeOptionsT> {
+            if let Self::BucketizeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned GeluOptionsT, setting the union to NONE.
+        pub fn take_gelu_options(&mut self) -> Option<Box<GeluOptionsT>> {
+            if let Self::GeluOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::GeluOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the GeluOptionsT.
+        pub fn as_gelu_options(&self) -> Option<&GeluOptionsT> {
+            if let Self::GeluOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the GeluOptionsT.
+        pub fn as_gelu_options_mut(&mut self) -> Option<&mut GeluOptionsT> {
+            if let Self::GeluOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned DynamicUpdateSliceOptionsT, setting the union to NONE.
+        pub fn take_dynamic_update_slice_options(
+            &mut self,
+        ) -> Option<Box<DynamicUpdateSliceOptionsT>> {
+            if let Self::DynamicUpdateSliceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::DynamicUpdateSliceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the DynamicUpdateSliceOptionsT.
+        pub fn as_dynamic_update_slice_options(&self) -> Option<&DynamicUpdateSliceOptionsT> {
+            if let Self::DynamicUpdateSliceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the DynamicUpdateSliceOptionsT.
+        pub fn as_dynamic_update_slice_options_mut(
+            &mut self,
+        ) -> Option<&mut DynamicUpdateSliceOptionsT> {
+            if let Self::DynamicUpdateSliceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned UnsortedSegmentProdOptionsT, setting the union to NONE.
+        pub fn take_unsorted_segment_prod_options(
+            &mut self,
+        ) -> Option<Box<UnsortedSegmentProdOptionsT>> {
+            if let Self::UnsortedSegmentProdOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::UnsortedSegmentProdOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the UnsortedSegmentProdOptionsT.
+        pub fn as_unsorted_segment_prod_options(&self) -> Option<&UnsortedSegmentProdOptionsT> {
+            if let Self::UnsortedSegmentProdOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the UnsortedSegmentProdOptionsT.
+        pub fn as_unsorted_segment_prod_options_mut(
+            &mut self,
+        ) -> Option<&mut UnsortedSegmentProdOptionsT> {
+            if let Self::UnsortedSegmentProdOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned UnsortedSegmentMaxOptionsT, setting the union to NONE.
+        pub fn take_unsorted_segment_max_options(
+            &mut self,
+        ) -> Option<Box<UnsortedSegmentMaxOptionsT>> {
+            if let Self::UnsortedSegmentMaxOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::UnsortedSegmentMaxOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the UnsortedSegmentMaxOptionsT.
+        pub fn as_unsorted_segment_max_options(&self) -> Option<&UnsortedSegmentMaxOptionsT> {
+            if let Self::UnsortedSegmentMaxOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the UnsortedSegmentMaxOptionsT.
+        pub fn as_unsorted_segment_max_options_mut(
+            &mut self,
+        ) -> Option<&mut UnsortedSegmentMaxOptionsT> {
+            if let Self::UnsortedSegmentMaxOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned UnsortedSegmentMinOptionsT, setting the union to NONE.
+        pub fn take_unsorted_segment_min_options(
+            &mut self,
+        ) -> Option<Box<UnsortedSegmentMinOptionsT>> {
+            if let Self::UnsortedSegmentMinOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::UnsortedSegmentMinOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the UnsortedSegmentMinOptionsT.
+        pub fn as_unsorted_segment_min_options(&self) -> Option<&UnsortedSegmentMinOptionsT> {
+            if let Self::UnsortedSegmentMinOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the UnsortedSegmentMinOptionsT.
+        pub fn as_unsorted_segment_min_options_mut(
+            &mut self,
+        ) -> Option<&mut UnsortedSegmentMinOptionsT> {
+            if let Self::UnsortedSegmentMinOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned UnsortedSegmentSumOptionsT, setting the union to NONE.
+        pub fn take_unsorted_segment_sum_options(
+            &mut self,
+        ) -> Option<Box<UnsortedSegmentSumOptionsT>> {
+            if let Self::UnsortedSegmentSumOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::UnsortedSegmentSumOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the UnsortedSegmentSumOptionsT.
+        pub fn as_unsorted_segment_sum_options(&self) -> Option<&UnsortedSegmentSumOptionsT> {
+            if let Self::UnsortedSegmentSumOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the UnsortedSegmentSumOptionsT.
+        pub fn as_unsorted_segment_sum_options_mut(
+            &mut self,
+        ) -> Option<&mut UnsortedSegmentSumOptionsT> {
+            if let Self::UnsortedSegmentSumOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ATan2OptionsT, setting the union to NONE.
+        pub fn take_atan_2_options(&mut self) -> Option<Box<ATan2OptionsT>> {
+            if let Self::ATan2Options(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ATan2Options(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ATan2OptionsT.
+        pub fn as_atan_2_options(&self) -> Option<&ATan2OptionsT> {
+            if let Self::ATan2Options(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ATan2OptionsT.
+        pub fn as_atan_2_options_mut(&mut self) -> Option<&mut ATan2OptionsT> {
+            if let Self::ATan2Options(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned SignOptionsT, setting the union to NONE.
+        pub fn take_sign_options(&mut self) -> Option<Box<SignOptionsT>> {
+            if let Self::SignOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::SignOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the SignOptionsT.
+        pub fn as_sign_options(&self) -> Option<&SignOptionsT> {
+            if let Self::SignOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the SignOptionsT.
+        pub fn as_sign_options_mut(&mut self) -> Option<&mut SignOptionsT> {
+            if let Self::SignOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BitcastOptionsT, setting the union to NONE.
+        pub fn take_bitcast_options(&mut self) -> Option<Box<BitcastOptionsT>> {
+            if let Self::BitcastOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BitcastOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BitcastOptionsT.
+        pub fn as_bitcast_options(&self) -> Option<&BitcastOptionsT> {
+            if let Self::BitcastOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BitcastOptionsT.
+        pub fn as_bitcast_options_mut(&mut self) -> Option<&mut BitcastOptionsT> {
+            if let Self::BitcastOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned BitwiseXorOptionsT, setting the union to NONE.
+        pub fn take_bitwise_xor_options(&mut self) -> Option<Box<BitwiseXorOptionsT>> {
+            if let Self::BitwiseXorOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::BitwiseXorOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the BitwiseXorOptionsT.
+        pub fn as_bitwise_xor_options(&self) -> Option<&BitwiseXorOptionsT> {
+            if let Self::BitwiseXorOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the BitwiseXorOptionsT.
+        pub fn as_bitwise_xor_options_mut(&mut self) -> Option<&mut BitwiseXorOptionsT> {
+            if let Self::BitwiseXorOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned RightShiftOptionsT, setting the union to NONE.
+        pub fn take_right_shift_options(&mut self) -> Option<Box<RightShiftOptionsT>> {
+            if let Self::RightShiftOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::RightShiftOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the RightShiftOptionsT.
+        pub fn as_right_shift_options(&self) -> Option<&RightShiftOptionsT> {
+            if let Self::RightShiftOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the RightShiftOptionsT.
+        pub fn as_right_shift_options_mut(&mut self) -> Option<&mut RightShiftOptionsT> {
+            if let Self::RightShiftOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+    }
     #[deprecated(
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
@@ -2202,6 +6548,832 @@ pub mod tflite {
     impl flatbuffers::SimpleToVerifyInSlice for BuiltinOptions2 {}
     pub struct BuiltinOptions2UnionTableOffset {}
 
+    #[allow(clippy::upper_case_acronyms)]
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub enum BuiltinOptions2T {
+        NONE,
+        StablehloConcatenateOptions(Box<StablehloConcatenateOptionsT>),
+        StablehloBroadcastInDimOptions(Box<StablehloBroadcastInDimOptionsT>),
+        StablehloSliceOptions(Box<StablehloSliceOptionsT>),
+        StablehloConvolutionOptions(Box<StablehloConvolutionOptionsT>),
+        StablehloCustomCallOptions(Box<StablehloCustomCallOptionsT>),
+        StablehloReduceOptions(Box<StablehloReduceOptionsT>),
+        StablehloScatterOptions(Box<StablehloScatterOptionsT>),
+        StablehloCompareOptions(Box<StablehloCompareOptionsT>),
+        StablehloDynamicSliceOptions(Box<StablehloDynamicSliceOptionsT>),
+        StablehloPadOptions(Box<StablehloPadOptionsT>),
+        StablehloIotaOptions(Box<StablehloIotaOptionsT>),
+        StablehloDotGeneralOptions(Box<StablehloDotGeneralOptionsT>),
+        StablehloReduceWindowOptions(Box<StablehloReduceWindowOptionsT>),
+        StablehloSortOptions(Box<StablehloSortOptionsT>),
+        StablehloWhileOptions(Box<StablehloWhileOptionsT>),
+        StablehloGatherOptions(Box<StablehloGatherOptionsT>),
+        StablehloTransposeOptions(Box<StablehloTransposeOptionsT>),
+        DilateOptions(Box<DilateOptionsT>),
+        StablehloRngBitGeneratorOptions(Box<StablehloRngBitGeneratorOptionsT>),
+        ReduceWindowOptions(Box<ReduceWindowOptionsT>),
+        StableHLOCompositeOptions(Box<StableHLOCompositeOptionsT>),
+        StablehloShiftLeftOptions(Box<StablehloShiftLeftOptionsT>),
+        StablehloCaseOptions(Box<StablehloCaseOptionsT>),
+    }
+    impl Default for BuiltinOptions2T {
+        fn default() -> Self {
+            Self::NONE
+        }
+    }
+    impl BuiltinOptions2T {
+        pub fn builtin_options_2_type(&self) -> BuiltinOptions2 {
+            match self {
+                Self::NONE => BuiltinOptions2::NONE,
+                Self::StablehloConcatenateOptions(_) => {
+                    BuiltinOptions2::StablehloConcatenateOptions
+                }
+                Self::StablehloBroadcastInDimOptions(_) => {
+                    BuiltinOptions2::StablehloBroadcastInDimOptions
+                }
+                Self::StablehloSliceOptions(_) => BuiltinOptions2::StablehloSliceOptions,
+                Self::StablehloConvolutionOptions(_) => {
+                    BuiltinOptions2::StablehloConvolutionOptions
+                }
+                Self::StablehloCustomCallOptions(_) => BuiltinOptions2::StablehloCustomCallOptions,
+                Self::StablehloReduceOptions(_) => BuiltinOptions2::StablehloReduceOptions,
+                Self::StablehloScatterOptions(_) => BuiltinOptions2::StablehloScatterOptions,
+                Self::StablehloCompareOptions(_) => BuiltinOptions2::StablehloCompareOptions,
+                Self::StablehloDynamicSliceOptions(_) => {
+                    BuiltinOptions2::StablehloDynamicSliceOptions
+                }
+                Self::StablehloPadOptions(_) => BuiltinOptions2::StablehloPadOptions,
+                Self::StablehloIotaOptions(_) => BuiltinOptions2::StablehloIotaOptions,
+                Self::StablehloDotGeneralOptions(_) => BuiltinOptions2::StablehloDotGeneralOptions,
+                Self::StablehloReduceWindowOptions(_) => {
+                    BuiltinOptions2::StablehloReduceWindowOptions
+                }
+                Self::StablehloSortOptions(_) => BuiltinOptions2::StablehloSortOptions,
+                Self::StablehloWhileOptions(_) => BuiltinOptions2::StablehloWhileOptions,
+                Self::StablehloGatherOptions(_) => BuiltinOptions2::StablehloGatherOptions,
+                Self::StablehloTransposeOptions(_) => BuiltinOptions2::StablehloTransposeOptions,
+                Self::DilateOptions(_) => BuiltinOptions2::DilateOptions,
+                Self::StablehloRngBitGeneratorOptions(_) => {
+                    BuiltinOptions2::StablehloRngBitGeneratorOptions
+                }
+                Self::ReduceWindowOptions(_) => BuiltinOptions2::ReduceWindowOptions,
+                Self::StableHLOCompositeOptions(_) => BuiltinOptions2::StableHLOCompositeOptions,
+                Self::StablehloShiftLeftOptions(_) => BuiltinOptions2::StablehloShiftLeftOptions,
+                Self::StablehloCaseOptions(_) => BuiltinOptions2::StablehloCaseOptions,
+            }
+        }
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> Option<flatbuffers::WIPOffset<flatbuffers::UnionWIPOffset>> {
+            match self {
+                Self::NONE => None,
+                Self::StablehloConcatenateOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloBroadcastInDimOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloSliceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloConvolutionOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloCustomCallOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloReduceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloScatterOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloCompareOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloDynamicSliceOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloPadOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloIotaOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloDotGeneralOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloReduceWindowOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloSortOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloWhileOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloGatherOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloTransposeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::DilateOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloRngBitGeneratorOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::ReduceWindowOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StableHLOCompositeOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloShiftLeftOptions(v) => Some(v.pack(fbb).as_union_value()),
+                Self::StablehloCaseOptions(v) => Some(v.pack(fbb).as_union_value()),
+            }
+        }
+        /// If the union variant matches, return the owned StablehloConcatenateOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_concatenate_options(
+            &mut self,
+        ) -> Option<Box<StablehloConcatenateOptionsT>> {
+            if let Self::StablehloConcatenateOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloConcatenateOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloConcatenateOptionsT.
+        pub fn as_stablehlo_concatenate_options(&self) -> Option<&StablehloConcatenateOptionsT> {
+            if let Self::StablehloConcatenateOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloConcatenateOptionsT.
+        pub fn as_stablehlo_concatenate_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloConcatenateOptionsT> {
+            if let Self::StablehloConcatenateOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloBroadcastInDimOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_broadcast_in_dim_options(
+            &mut self,
+        ) -> Option<Box<StablehloBroadcastInDimOptionsT>> {
+            if let Self::StablehloBroadcastInDimOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloBroadcastInDimOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloBroadcastInDimOptionsT.
+        pub fn as_stablehlo_broadcast_in_dim_options(
+            &self,
+        ) -> Option<&StablehloBroadcastInDimOptionsT> {
+            if let Self::StablehloBroadcastInDimOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloBroadcastInDimOptionsT.
+        pub fn as_stablehlo_broadcast_in_dim_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloBroadcastInDimOptionsT> {
+            if let Self::StablehloBroadcastInDimOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloSliceOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_slice_options(&mut self) -> Option<Box<StablehloSliceOptionsT>> {
+            if let Self::StablehloSliceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloSliceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloSliceOptionsT.
+        pub fn as_stablehlo_slice_options(&self) -> Option<&StablehloSliceOptionsT> {
+            if let Self::StablehloSliceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloSliceOptionsT.
+        pub fn as_stablehlo_slice_options_mut(&mut self) -> Option<&mut StablehloSliceOptionsT> {
+            if let Self::StablehloSliceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloConvolutionOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_convolution_options(
+            &mut self,
+        ) -> Option<Box<StablehloConvolutionOptionsT>> {
+            if let Self::StablehloConvolutionOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloConvolutionOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloConvolutionOptionsT.
+        pub fn as_stablehlo_convolution_options(&self) -> Option<&StablehloConvolutionOptionsT> {
+            if let Self::StablehloConvolutionOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloConvolutionOptionsT.
+        pub fn as_stablehlo_convolution_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloConvolutionOptionsT> {
+            if let Self::StablehloConvolutionOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloCustomCallOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_custom_call_options(
+            &mut self,
+        ) -> Option<Box<StablehloCustomCallOptionsT>> {
+            if let Self::StablehloCustomCallOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloCustomCallOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloCustomCallOptionsT.
+        pub fn as_stablehlo_custom_call_options(&self) -> Option<&StablehloCustomCallOptionsT> {
+            if let Self::StablehloCustomCallOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloCustomCallOptionsT.
+        pub fn as_stablehlo_custom_call_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloCustomCallOptionsT> {
+            if let Self::StablehloCustomCallOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloReduceOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_reduce_options(&mut self) -> Option<Box<StablehloReduceOptionsT>> {
+            if let Self::StablehloReduceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloReduceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloReduceOptionsT.
+        pub fn as_stablehlo_reduce_options(&self) -> Option<&StablehloReduceOptionsT> {
+            if let Self::StablehloReduceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloReduceOptionsT.
+        pub fn as_stablehlo_reduce_options_mut(&mut self) -> Option<&mut StablehloReduceOptionsT> {
+            if let Self::StablehloReduceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloScatterOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_scatter_options(&mut self) -> Option<Box<StablehloScatterOptionsT>> {
+            if let Self::StablehloScatterOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloScatterOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloScatterOptionsT.
+        pub fn as_stablehlo_scatter_options(&self) -> Option<&StablehloScatterOptionsT> {
+            if let Self::StablehloScatterOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloScatterOptionsT.
+        pub fn as_stablehlo_scatter_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloScatterOptionsT> {
+            if let Self::StablehloScatterOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloCompareOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_compare_options(&mut self) -> Option<Box<StablehloCompareOptionsT>> {
+            if let Self::StablehloCompareOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloCompareOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloCompareOptionsT.
+        pub fn as_stablehlo_compare_options(&self) -> Option<&StablehloCompareOptionsT> {
+            if let Self::StablehloCompareOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloCompareOptionsT.
+        pub fn as_stablehlo_compare_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloCompareOptionsT> {
+            if let Self::StablehloCompareOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloDynamicSliceOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_dynamic_slice_options(
+            &mut self,
+        ) -> Option<Box<StablehloDynamicSliceOptionsT>> {
+            if let Self::StablehloDynamicSliceOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloDynamicSliceOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloDynamicSliceOptionsT.
+        pub fn as_stablehlo_dynamic_slice_options(&self) -> Option<&StablehloDynamicSliceOptionsT> {
+            if let Self::StablehloDynamicSliceOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloDynamicSliceOptionsT.
+        pub fn as_stablehlo_dynamic_slice_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloDynamicSliceOptionsT> {
+            if let Self::StablehloDynamicSliceOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloPadOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_pad_options(&mut self) -> Option<Box<StablehloPadOptionsT>> {
+            if let Self::StablehloPadOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloPadOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloPadOptionsT.
+        pub fn as_stablehlo_pad_options(&self) -> Option<&StablehloPadOptionsT> {
+            if let Self::StablehloPadOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloPadOptionsT.
+        pub fn as_stablehlo_pad_options_mut(&mut self) -> Option<&mut StablehloPadOptionsT> {
+            if let Self::StablehloPadOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloIotaOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_iota_options(&mut self) -> Option<Box<StablehloIotaOptionsT>> {
+            if let Self::StablehloIotaOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloIotaOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloIotaOptionsT.
+        pub fn as_stablehlo_iota_options(&self) -> Option<&StablehloIotaOptionsT> {
+            if let Self::StablehloIotaOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloIotaOptionsT.
+        pub fn as_stablehlo_iota_options_mut(&mut self) -> Option<&mut StablehloIotaOptionsT> {
+            if let Self::StablehloIotaOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloDotGeneralOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_dot_general_options(
+            &mut self,
+        ) -> Option<Box<StablehloDotGeneralOptionsT>> {
+            if let Self::StablehloDotGeneralOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloDotGeneralOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloDotGeneralOptionsT.
+        pub fn as_stablehlo_dot_general_options(&self) -> Option<&StablehloDotGeneralOptionsT> {
+            if let Self::StablehloDotGeneralOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloDotGeneralOptionsT.
+        pub fn as_stablehlo_dot_general_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloDotGeneralOptionsT> {
+            if let Self::StablehloDotGeneralOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloReduceWindowOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_reduce_window_options(
+            &mut self,
+        ) -> Option<Box<StablehloReduceWindowOptionsT>> {
+            if let Self::StablehloReduceWindowOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloReduceWindowOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloReduceWindowOptionsT.
+        pub fn as_stablehlo_reduce_window_options(&self) -> Option<&StablehloReduceWindowOptionsT> {
+            if let Self::StablehloReduceWindowOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloReduceWindowOptionsT.
+        pub fn as_stablehlo_reduce_window_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloReduceWindowOptionsT> {
+            if let Self::StablehloReduceWindowOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloSortOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_sort_options(&mut self) -> Option<Box<StablehloSortOptionsT>> {
+            if let Self::StablehloSortOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloSortOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloSortOptionsT.
+        pub fn as_stablehlo_sort_options(&self) -> Option<&StablehloSortOptionsT> {
+            if let Self::StablehloSortOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloSortOptionsT.
+        pub fn as_stablehlo_sort_options_mut(&mut self) -> Option<&mut StablehloSortOptionsT> {
+            if let Self::StablehloSortOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloWhileOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_while_options(&mut self) -> Option<Box<StablehloWhileOptionsT>> {
+            if let Self::StablehloWhileOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloWhileOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloWhileOptionsT.
+        pub fn as_stablehlo_while_options(&self) -> Option<&StablehloWhileOptionsT> {
+            if let Self::StablehloWhileOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloWhileOptionsT.
+        pub fn as_stablehlo_while_options_mut(&mut self) -> Option<&mut StablehloWhileOptionsT> {
+            if let Self::StablehloWhileOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloGatherOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_gather_options(&mut self) -> Option<Box<StablehloGatherOptionsT>> {
+            if let Self::StablehloGatherOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloGatherOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloGatherOptionsT.
+        pub fn as_stablehlo_gather_options(&self) -> Option<&StablehloGatherOptionsT> {
+            if let Self::StablehloGatherOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloGatherOptionsT.
+        pub fn as_stablehlo_gather_options_mut(&mut self) -> Option<&mut StablehloGatherOptionsT> {
+            if let Self::StablehloGatherOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloTransposeOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_transpose_options(
+            &mut self,
+        ) -> Option<Box<StablehloTransposeOptionsT>> {
+            if let Self::StablehloTransposeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloTransposeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloTransposeOptionsT.
+        pub fn as_stablehlo_transpose_options(&self) -> Option<&StablehloTransposeOptionsT> {
+            if let Self::StablehloTransposeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloTransposeOptionsT.
+        pub fn as_stablehlo_transpose_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloTransposeOptionsT> {
+            if let Self::StablehloTransposeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned DilateOptionsT, setting the union to NONE.
+        pub fn take_dilate_options(&mut self) -> Option<Box<DilateOptionsT>> {
+            if let Self::DilateOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::DilateOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the DilateOptionsT.
+        pub fn as_dilate_options(&self) -> Option<&DilateOptionsT> {
+            if let Self::DilateOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the DilateOptionsT.
+        pub fn as_dilate_options_mut(&mut self) -> Option<&mut DilateOptionsT> {
+            if let Self::DilateOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloRngBitGeneratorOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_rng_bit_generator_options(
+            &mut self,
+        ) -> Option<Box<StablehloRngBitGeneratorOptionsT>> {
+            if let Self::StablehloRngBitGeneratorOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloRngBitGeneratorOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloRngBitGeneratorOptionsT.
+        pub fn as_stablehlo_rng_bit_generator_options(
+            &self,
+        ) -> Option<&StablehloRngBitGeneratorOptionsT> {
+            if let Self::StablehloRngBitGeneratorOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloRngBitGeneratorOptionsT.
+        pub fn as_stablehlo_rng_bit_generator_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloRngBitGeneratorOptionsT> {
+            if let Self::StablehloRngBitGeneratorOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned ReduceWindowOptionsT, setting the union to NONE.
+        pub fn take_reduce_window_options(&mut self) -> Option<Box<ReduceWindowOptionsT>> {
+            if let Self::ReduceWindowOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::ReduceWindowOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the ReduceWindowOptionsT.
+        pub fn as_reduce_window_options(&self) -> Option<&ReduceWindowOptionsT> {
+            if let Self::ReduceWindowOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the ReduceWindowOptionsT.
+        pub fn as_reduce_window_options_mut(&mut self) -> Option<&mut ReduceWindowOptionsT> {
+            if let Self::ReduceWindowOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StableHLOCompositeOptionsT, setting the union to NONE.
+        pub fn take_stable_hlocomposite_options(
+            &mut self,
+        ) -> Option<Box<StableHLOCompositeOptionsT>> {
+            if let Self::StableHLOCompositeOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StableHLOCompositeOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StableHLOCompositeOptionsT.
+        pub fn as_stable_hlocomposite_options(&self) -> Option<&StableHLOCompositeOptionsT> {
+            if let Self::StableHLOCompositeOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StableHLOCompositeOptionsT.
+        pub fn as_stable_hlocomposite_options_mut(
+            &mut self,
+        ) -> Option<&mut StableHLOCompositeOptionsT> {
+            if let Self::StableHLOCompositeOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloShiftLeftOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_shift_left_options(
+            &mut self,
+        ) -> Option<Box<StablehloShiftLeftOptionsT>> {
+            if let Self::StablehloShiftLeftOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloShiftLeftOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloShiftLeftOptionsT.
+        pub fn as_stablehlo_shift_left_options(&self) -> Option<&StablehloShiftLeftOptionsT> {
+            if let Self::StablehloShiftLeftOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloShiftLeftOptionsT.
+        pub fn as_stablehlo_shift_left_options_mut(
+            &mut self,
+        ) -> Option<&mut StablehloShiftLeftOptionsT> {
+            if let Self::StablehloShiftLeftOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return the owned StablehloCaseOptionsT, setting the union to NONE.
+        pub fn take_stablehlo_case_options(&mut self) -> Option<Box<StablehloCaseOptionsT>> {
+            if let Self::StablehloCaseOptions(_) = self {
+                let v = core::mem::replace(self, Self::NONE);
+                if let Self::StablehloCaseOptions(w) = v {
+                    Some(w)
+                } else {
+                    unreachable!()
+                }
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a reference to the StablehloCaseOptionsT.
+        pub fn as_stablehlo_case_options(&self) -> Option<&StablehloCaseOptionsT> {
+            if let Self::StablehloCaseOptions(v) = self {
+                Some(v.as_ref())
+            } else {
+                None
+            }
+        }
+        /// If the union variant matches, return a mutable reference to the StablehloCaseOptionsT.
+        pub fn as_stablehlo_case_options_mut(&mut self) -> Option<&mut StablehloCaseOptionsT> {
+            if let Self::StablehloCaseOptions(v) = self {
+                Some(v.as_mut())
+            } else {
+                None
+            }
+        }
+    }
     #[deprecated(
         since = "2.0.0",
         note = "Use associated constants instead. This will no longer be generated in 2021."
@@ -3556,6 +8728,11 @@ pub mod tflite {
             builder.finish()
         }
 
+        pub fn unpack(&self) -> CustomQuantizationT {
+            let custom = self.custom().map(|x| x.into_iter().collect());
+            CustomQuantizationT { custom }
+        }
+
         #[inline]
         pub fn custom(&self) -> Option<flatbuffers::Vector<'a, u8>> {
             // Safety:
@@ -3634,6 +8811,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CustomQuantizationT {
+        pub custom: Option<Vec<u8>>,
+    }
+    impl Default for CustomQuantizationT {
+        fn default() -> Self {
+            Self { custom: None }
+        }
+    }
+    impl CustomQuantizationT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<CustomQuantization<'b>> {
+            let custom = self.custom.as_ref().map(|x| _fbb.create_vector(x));
+            CustomQuantization::create(_fbb, &CustomQuantizationArgs { custom })
+        }
+    }
     pub enum BlockwiseQuantizationOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -3675,6 +8871,17 @@ pub mod tflite {
             builder.add_zero_points(args.zero_points);
             builder.add_scales(args.scales);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BlockwiseQuantizationT {
+            let scales = self.scales();
+            let zero_points = self.zero_points();
+            let block_size = self.block_size();
+            BlockwiseQuantizationT {
+                scales,
+                zero_points,
+                block_size,
+            }
         }
 
         #[inline]
@@ -3789,6 +8996,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BlockwiseQuantizationT {
+        pub scales: i32,
+        pub zero_points: i32,
+        pub block_size: i32,
+    }
+    impl Default for BlockwiseQuantizationT {
+        fn default() -> Self {
+            Self {
+                scales: 0,
+                zero_points: 0,
+                block_size: 0,
+            }
+        }
+    }
+    impl BlockwiseQuantizationT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BlockwiseQuantization<'b>> {
+            let scales = self.scales;
+            let zero_points = self.zero_points;
+            let block_size = self.block_size;
+            BlockwiseQuantization::create(
+                _fbb,
+                &BlockwiseQuantizationArgs {
+                    scales,
+                    zero_points,
+                    block_size,
+                },
+            )
+        }
+    }
     pub enum QuantizationParametersOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -3848,6 +9089,36 @@ pub mod tflite {
             }
             builder.add_details_type(args.details_type);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> QuantizationParametersT {
+            let min = self.min().map(|x| x.into_iter().collect());
+            let max = self.max().map(|x| x.into_iter().collect());
+            let scale = self.scale().map(|x| x.into_iter().collect());
+            let zero_point = self.zero_point().map(|x| x.into_iter().collect());
+            let details = match self.details_type() {
+      QuantizationDetails::NONE => QuantizationDetailsT::NONE,
+      QuantizationDetails::CustomQuantization => QuantizationDetailsT::CustomQuantization(Box::new(
+        self.details_as_custom_quantization()
+            .expect("Invalid union table, expected `QuantizationDetails::CustomQuantization`.")
+            .unpack()
+      )),
+      QuantizationDetails::BlockwiseQuantization => QuantizationDetailsT::BlockwiseQuantization(Box::new(
+        self.details_as_blockwise_quantization()
+            .expect("Invalid union table, expected `QuantizationDetails::BlockwiseQuantization`.")
+            .unpack()
+      )),
+      _ => QuantizationDetailsT::NONE,
+    };
+            let quantized_dimension = self.quantized_dimension();
+            QuantizationParametersT {
+                min,
+                max,
+                scale,
+                zero_point,
+                details,
+                quantized_dimension,
+            }
         }
 
         #[inline]
@@ -4132,6 +9403,54 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct QuantizationParametersT {
+        pub min: Option<Vec<f32>>,
+        pub max: Option<Vec<f32>>,
+        pub scale: Option<Vec<f32>>,
+        pub zero_point: Option<Vec<i64>>,
+        pub details: QuantizationDetailsT,
+        pub quantized_dimension: i32,
+    }
+    impl Default for QuantizationParametersT {
+        fn default() -> Self {
+            Self {
+                min: None,
+                max: None,
+                scale: None,
+                zero_point: None,
+                details: QuantizationDetailsT::NONE,
+                quantized_dimension: 0,
+            }
+        }
+    }
+    impl QuantizationParametersT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<QuantizationParameters<'b>> {
+            let min = self.min.as_ref().map(|x| _fbb.create_vector(x));
+            let max = self.max.as_ref().map(|x| _fbb.create_vector(x));
+            let scale = self.scale.as_ref().map(|x| _fbb.create_vector(x));
+            let zero_point = self.zero_point.as_ref().map(|x| _fbb.create_vector(x));
+            let details_type = self.details.quantization_details_type();
+            let details = self.details.pack(_fbb);
+            let quantized_dimension = self.quantized_dimension;
+            QuantizationParameters::create(
+                _fbb,
+                &QuantizationParametersArgs {
+                    min,
+                    max,
+                    scale,
+                    zero_point,
+                    details_type,
+                    details,
+                    quantized_dimension,
+                },
+            )
+        }
+    }
     pub enum Int32VectorOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -4171,6 +9490,11 @@ pub mod tflite {
                 builder.add_values(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> Int32VectorT {
+            let values = self.values().map(|x| x.into_iter().collect());
+            Int32VectorT { values }
         }
 
         #[inline]
@@ -4249,6 +9573,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Int32VectorT {
+        pub values: Option<Vec<i32>>,
+    }
+    impl Default for Int32VectorT {
+        fn default() -> Self {
+            Self { values: None }
+        }
+    }
+    impl Int32VectorT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Int32Vector<'b>> {
+            let values = self.values.as_ref().map(|x| _fbb.create_vector(x));
+            Int32Vector::create(_fbb, &Int32VectorArgs { values })
+        }
+    }
     pub enum Uint16VectorOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -4288,6 +9631,11 @@ pub mod tflite {
                 builder.add_values(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> Uint16VectorT {
+            let values = self.values().map(|x| x.into_iter().collect());
+            Uint16VectorT { values }
         }
 
         #[inline]
@@ -4366,6 +9714,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Uint16VectorT {
+        pub values: Option<Vec<u16>>,
+    }
+    impl Default for Uint16VectorT {
+        fn default() -> Self {
+            Self { values: None }
+        }
+    }
+    impl Uint16VectorT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Uint16Vector<'b>> {
+            let values = self.values.as_ref().map(|x| _fbb.create_vector(x));
+            Uint16Vector::create(_fbb, &Uint16VectorArgs { values })
+        }
+    }
     pub enum Uint8VectorOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -4405,6 +9772,11 @@ pub mod tflite {
                 builder.add_values(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> Uint8VectorT {
+            let values = self.values().map(|x| x.into_iter().collect());
+            Uint8VectorT { values }
         }
 
         #[inline]
@@ -4483,6 +9855,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Uint8VectorT {
+        pub values: Option<Vec<u8>>,
+    }
+    impl Default for Uint8VectorT {
+        fn default() -> Self {
+            Self { values: None }
+        }
+    }
+    impl Uint8VectorT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Uint8Vector<'b>> {
+            let values = self.values.as_ref().map(|x| _fbb.create_vector(x));
+            Uint8Vector::create(_fbb, &Uint8VectorArgs { values })
+        }
+    }
     pub enum DimensionMetadataOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -4534,6 +9925,55 @@ pub mod tflite {
             builder.add_array_segments_type(args.array_segments_type);
             builder.add_format(args.format);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DimensionMetadataT {
+            let format = self.format();
+            let dense_size = self.dense_size();
+            let array_segments = match self.array_segments_type() {
+                SparseIndexVector::NONE => SparseIndexVectorT::NONE,
+                SparseIndexVector::Int32Vector => SparseIndexVectorT::Int32Vector(Box::new(
+                    self.array_segments_as_int_32_vector()
+                        .expect("Invalid union table, expected `SparseIndexVector::Int32Vector`.")
+                        .unpack(),
+                )),
+                SparseIndexVector::Uint16Vector => SparseIndexVectorT::Uint16Vector(Box::new(
+                    self.array_segments_as_uint_16_vector()
+                        .expect("Invalid union table, expected `SparseIndexVector::Uint16Vector`.")
+                        .unpack(),
+                )),
+                SparseIndexVector::Uint8Vector => SparseIndexVectorT::Uint8Vector(Box::new(
+                    self.array_segments_as_uint_8_vector()
+                        .expect("Invalid union table, expected `SparseIndexVector::Uint8Vector`.")
+                        .unpack(),
+                )),
+                _ => SparseIndexVectorT::NONE,
+            };
+            let array_indices = match self.array_indices_type() {
+                SparseIndexVector::NONE => SparseIndexVectorT::NONE,
+                SparseIndexVector::Int32Vector => SparseIndexVectorT::Int32Vector(Box::new(
+                    self.array_indices_as_int_32_vector()
+                        .expect("Invalid union table, expected `SparseIndexVector::Int32Vector`.")
+                        .unpack(),
+                )),
+                SparseIndexVector::Uint16Vector => SparseIndexVectorT::Uint16Vector(Box::new(
+                    self.array_indices_as_uint_16_vector()
+                        .expect("Invalid union table, expected `SparseIndexVector::Uint16Vector`.")
+                        .unpack(),
+                )),
+                SparseIndexVector::Uint8Vector => SparseIndexVectorT::Uint8Vector(Box::new(
+                    self.array_indices_as_uint_8_vector()
+                        .expect("Invalid union table, expected `SparseIndexVector::Uint8Vector`.")
+                        .unpack(),
+                )),
+                _ => SparseIndexVectorT::NONE,
+            };
+            DimensionMetadataT {
+                format,
+                dense_size,
+                array_segments,
+                array_indices,
+            }
         }
 
         #[inline]
@@ -4942,6 +10382,48 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DimensionMetadataT {
+        pub format: DimensionType,
+        pub dense_size: i32,
+        pub array_segments: SparseIndexVectorT,
+        pub array_indices: SparseIndexVectorT,
+    }
+    impl Default for DimensionMetadataT {
+        fn default() -> Self {
+            Self {
+                format: DimensionType::DENSE,
+                dense_size: 0,
+                array_segments: SparseIndexVectorT::NONE,
+                array_indices: SparseIndexVectorT::NONE,
+            }
+        }
+    }
+    impl DimensionMetadataT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DimensionMetadata<'b>> {
+            let format = self.format;
+            let dense_size = self.dense_size;
+            let array_segments_type = self.array_segments.sparse_index_vector_type();
+            let array_segments = self.array_segments.pack(_fbb);
+            let array_indices_type = self.array_indices.sparse_index_vector_type();
+            let array_indices = self.array_indices.pack(_fbb);
+            DimensionMetadata::create(
+                _fbb,
+                &DimensionMetadataArgs {
+                    format,
+                    dense_size,
+                    array_segments_type,
+                    array_segments,
+                    array_indices_type,
+                    array_indices,
+                },
+            )
+        }
+    }
     pub enum SparsityParametersOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -4989,6 +10471,19 @@ pub mod tflite {
                 builder.add_traversal_order(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SparsityParametersT {
+            let traversal_order = self.traversal_order().map(|x| x.into_iter().collect());
+            let block_map = self.block_map().map(|x| x.into_iter().collect());
+            let dim_metadata = self
+                .dim_metadata()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            SparsityParametersT {
+                traversal_order,
+                block_map,
+                dim_metadata,
+            }
         }
 
         #[inline]
@@ -5141,6 +10636,43 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SparsityParametersT {
+        pub traversal_order: Option<Vec<i32>>,
+        pub block_map: Option<Vec<i32>>,
+        pub dim_metadata: Option<Vec<DimensionMetadataT>>,
+    }
+    impl Default for SparsityParametersT {
+        fn default() -> Self {
+            Self {
+                traversal_order: None,
+                block_map: None,
+                dim_metadata: None,
+            }
+        }
+    }
+    impl SparsityParametersT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SparsityParameters<'b>> {
+            let traversal_order = self.traversal_order.as_ref().map(|x| _fbb.create_vector(x));
+            let block_map = self.block_map.as_ref().map(|x| _fbb.create_vector(x));
+            let dim_metadata = self.dim_metadata.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            SparsityParameters::create(
+                _fbb,
+                &SparsityParametersArgs {
+                    traversal_order,
+                    block_map,
+                    dim_metadata,
+                },
+            )
+        }
+    }
     pub enum VariantSubTypeOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -5184,6 +10716,17 @@ pub mod tflite {
             builder.add_has_rank(args.has_rank);
             builder.add_type_(args.type_);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> VariantSubTypeT {
+            let shape = self.shape().map(|x| x.into_iter().collect());
+            let type_ = self.type_();
+            let has_rank = self.has_rank();
+            VariantSubTypeT {
+                shape,
+                type_,
+                has_rank,
+            }
         }
 
         #[inline]
@@ -5304,6 +10847,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct VariantSubTypeT {
+        pub shape: Option<Vec<i32>>,
+        pub type_: TensorType,
+        pub has_rank: bool,
+    }
+    impl Default for VariantSubTypeT {
+        fn default() -> Self {
+            Self {
+                shape: None,
+                type_: TensorType::FLOAT32,
+                has_rank: false,
+            }
+        }
+    }
+    impl VariantSubTypeT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<VariantSubType<'b>> {
+            let shape = self.shape.as_ref().map(|x| _fbb.create_vector(x));
+            let type_ = self.type_;
+            let has_rank = self.has_rank;
+            VariantSubType::create(
+                _fbb,
+                &VariantSubTypeArgs {
+                    shape,
+                    type_,
+                    has_rank,
+                },
+            )
+        }
+    }
     pub enum TensorOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -5371,6 +10948,33 @@ pub mod tflite {
             builder.add_is_variable(args.is_variable);
             builder.add_type_(args.type_);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> TensorT {
+            let shape = self.shape().map(|x| x.into_iter().collect());
+            let type_ = self.type_();
+            let buffer = self.buffer();
+            let name = self.name().map(|x| x.to_string());
+            let quantization = self.quantization().map(|x| Box::new(x.unpack()));
+            let is_variable = self.is_variable();
+            let sparsity = self.sparsity().map(|x| Box::new(x.unpack()));
+            let shape_signature = self.shape_signature().map(|x| x.into_iter().collect());
+            let has_rank = self.has_rank();
+            let variant_tensors = self
+                .variant_tensors()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            TensorT {
+                shape,
+                type_,
+                buffer,
+                name,
+                quantization,
+                is_variable,
+                sparsity,
+                shape_signature,
+                has_rank,
+                variant_tensors,
+            }
         }
 
         #[inline]
@@ -5673,6 +11277,71 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TensorT {
+        pub shape: Option<Vec<i32>>,
+        pub type_: TensorType,
+        pub buffer: u32,
+        pub name: Option<String>,
+        pub quantization: Option<Box<QuantizationParametersT>>,
+        pub is_variable: bool,
+        pub sparsity: Option<Box<SparsityParametersT>>,
+        pub shape_signature: Option<Vec<i32>>,
+        pub has_rank: bool,
+        pub variant_tensors: Option<Vec<VariantSubTypeT>>,
+    }
+    impl Default for TensorT {
+        fn default() -> Self {
+            Self {
+                shape: None,
+                type_: TensorType::FLOAT32,
+                buffer: 0,
+                name: None,
+                quantization: None,
+                is_variable: false,
+                sparsity: None,
+                shape_signature: None,
+                has_rank: false,
+                variant_tensors: None,
+            }
+        }
+    }
+    impl TensorT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Tensor<'b>> {
+            let shape = self.shape.as_ref().map(|x| _fbb.create_vector(x));
+            let type_ = self.type_;
+            let buffer = self.buffer;
+            let name = self.name.as_ref().map(|x| _fbb.create_string(x));
+            let quantization = self.quantization.as_ref().map(|x| x.pack(_fbb));
+            let is_variable = self.is_variable;
+            let sparsity = self.sparsity.as_ref().map(|x| x.pack(_fbb));
+            let shape_signature = self.shape_signature.as_ref().map(|x| _fbb.create_vector(x));
+            let has_rank = self.has_rank;
+            let variant_tensors = self.variant_tensors.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            Tensor::create(
+                _fbb,
+                &TensorArgs {
+                    shape,
+                    type_,
+                    buffer,
+                    name,
+                    quantization,
+                    is_variable,
+                    sparsity,
+                    shape_signature,
+                    has_rank,
+                    variant_tensors,
+                },
+            )
+        }
+    }
     pub enum StablehloGatherOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -5728,6 +11397,23 @@ pub mod tflite {
             }
             builder.add_indices_are_sorted(args.indices_are_sorted);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloGatherOptionsT {
+            let offset_dims = self.offset_dims().map(|x| x.into_iter().collect());
+            let collapsed_slice_dims = self.collapsed_slice_dims().map(|x| x.into_iter().collect());
+            let start_index_map = self.start_index_map().map(|x| x.into_iter().collect());
+            let index_vector_dim = self.index_vector_dim();
+            let slice_sizes = self.slice_sizes().map(|x| x.into_iter().collect());
+            let indices_are_sorted = self.indices_are_sorted();
+            StablehloGatherOptionsT {
+                offset_dims,
+                collapsed_slice_dims,
+                start_index_map,
+                index_vector_dim,
+                slice_sizes,
+                indices_are_sorted,
+            }
         }
 
         #[inline]
@@ -5952,6 +11638,55 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloGatherOptionsT {
+        pub offset_dims: Option<Vec<i64>>,
+        pub collapsed_slice_dims: Option<Vec<i64>>,
+        pub start_index_map: Option<Vec<i64>>,
+        pub index_vector_dim: i64,
+        pub slice_sizes: Option<Vec<i64>>,
+        pub indices_are_sorted: bool,
+    }
+    impl Default for StablehloGatherOptionsT {
+        fn default() -> Self {
+            Self {
+                offset_dims: None,
+                collapsed_slice_dims: None,
+                start_index_map: None,
+                index_vector_dim: 0,
+                slice_sizes: None,
+                indices_are_sorted: false,
+            }
+        }
+    }
+    impl StablehloGatherOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloGatherOptions<'b>> {
+            let offset_dims = self.offset_dims.as_ref().map(|x| _fbb.create_vector(x));
+            let collapsed_slice_dims = self
+                .collapsed_slice_dims
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let start_index_map = self.start_index_map.as_ref().map(|x| _fbb.create_vector(x));
+            let index_vector_dim = self.index_vector_dim;
+            let slice_sizes = self.slice_sizes.as_ref().map(|x| _fbb.create_vector(x));
+            let indices_are_sorted = self.indices_are_sorted;
+            StablehloGatherOptions::create(
+                _fbb,
+                &StablehloGatherOptionsArgs {
+                    offset_dims,
+                    collapsed_slice_dims,
+                    start_index_map,
+                    index_vector_dim,
+                    slice_sizes,
+                    indices_are_sorted,
+                },
+            )
+        }
+    }
     pub enum StablehloTransposeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -5991,6 +11726,11 @@ pub mod tflite {
                 builder.add_permutation(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloTransposeOptionsT {
+            let permutation = self.permutation().map(|x| x.into_iter().collect());
+            StablehloTransposeOptionsT { permutation }
         }
 
         #[inline]
@@ -6074,6 +11814,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloTransposeOptionsT {
+        pub permutation: Option<Vec<i64>>,
+    }
+    impl Default for StablehloTransposeOptionsT {
+        fn default() -> Self {
+            Self { permutation: None }
+        }
+    }
+    impl StablehloTransposeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloTransposeOptions<'b>> {
+            let permutation = self.permutation.as_ref().map(|x| _fbb.create_vector(x));
+            StablehloTransposeOptions::create(_fbb, &StablehloTransposeOptionsArgs { permutation })
+        }
+    }
     pub enum StablehloDotGeneralOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -6129,6 +11888,29 @@ pub mod tflite {
                 builder.add_lhs_batching_dimensions(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloDotGeneralOptionsT {
+            let lhs_batching_dimensions = self
+                .lhs_batching_dimensions()
+                .map(|x| x.into_iter().collect());
+            let rhs_batching_dimensions = self
+                .rhs_batching_dimensions()
+                .map(|x| x.into_iter().collect());
+            let lhs_contracting_dimensions = self
+                .lhs_contracting_dimensions()
+                .map(|x| x.into_iter().collect());
+            let rhs_contracting_dimensions = self
+                .rhs_contracting_dimensions()
+                .map(|x| x.into_iter().collect());
+            let precision_config = self.precision_config().map(|x| x.into_iter().collect());
+            StablehloDotGeneralOptionsT {
+                lhs_batching_dimensions,
+                rhs_batching_dimensions,
+                lhs_contracting_dimensions,
+                rhs_contracting_dimensions,
+                precision_config,
+            }
         }
 
         #[inline]
@@ -6329,6 +12111,63 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloDotGeneralOptionsT {
+        pub lhs_batching_dimensions: Option<Vec<i64>>,
+        pub rhs_batching_dimensions: Option<Vec<i64>>,
+        pub lhs_contracting_dimensions: Option<Vec<i64>>,
+        pub rhs_contracting_dimensions: Option<Vec<i64>>,
+        pub precision_config: Option<Vec<StablehloPrecisionConfig>>,
+    }
+    impl Default for StablehloDotGeneralOptionsT {
+        fn default() -> Self {
+            Self {
+                lhs_batching_dimensions: None,
+                rhs_batching_dimensions: None,
+                lhs_contracting_dimensions: None,
+                rhs_contracting_dimensions: None,
+                precision_config: None,
+            }
+        }
+    }
+    impl StablehloDotGeneralOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloDotGeneralOptions<'b>> {
+            let lhs_batching_dimensions = self
+                .lhs_batching_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let rhs_batching_dimensions = self
+                .rhs_batching_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let lhs_contracting_dimensions = self
+                .lhs_contracting_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let rhs_contracting_dimensions = self
+                .rhs_contracting_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let precision_config = self
+                .precision_config
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            StablehloDotGeneralOptions::create(
+                _fbb,
+                &StablehloDotGeneralOptionsArgs {
+                    lhs_batching_dimensions,
+                    rhs_batching_dimensions,
+                    lhs_contracting_dimensions,
+                    rhs_contracting_dimensions,
+                    precision_config,
+                },
+            )
+        }
+    }
     pub enum StablehloReduceWindowOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -6386,6 +12225,23 @@ pub mod tflite {
                 builder.add_window_dimensions(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloReduceWindowOptionsT {
+            let window_dimensions = self.window_dimensions().map(|x| x.into_iter().collect());
+            let window_strides = self.window_strides().map(|x| x.into_iter().collect());
+            let base_dilations = self.base_dilations().map(|x| x.into_iter().collect());
+            let window_dilations = self.window_dilations().map(|x| x.into_iter().collect());
+            let padding = self.padding().map(|x| x.into_iter().collect());
+            let body_subgraph_index = self.body_subgraph_index();
+            StablehloReduceWindowOptionsT {
+                window_dimensions,
+                window_strides,
+                base_dilations,
+                window_dilations,
+                padding,
+                body_subgraph_index,
+            }
         }
 
         #[inline]
@@ -6621,6 +12477,58 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloReduceWindowOptionsT {
+        pub window_dimensions: Option<Vec<i64>>,
+        pub window_strides: Option<Vec<i64>>,
+        pub base_dilations: Option<Vec<i64>>,
+        pub window_dilations: Option<Vec<i64>>,
+        pub padding: Option<Vec<i64>>,
+        pub body_subgraph_index: i32,
+    }
+    impl Default for StablehloReduceWindowOptionsT {
+        fn default() -> Self {
+            Self {
+                window_dimensions: None,
+                window_strides: None,
+                base_dilations: None,
+                window_dilations: None,
+                padding: None,
+                body_subgraph_index: 0,
+            }
+        }
+    }
+    impl StablehloReduceWindowOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloReduceWindowOptions<'b>> {
+            let window_dimensions = self
+                .window_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let window_strides = self.window_strides.as_ref().map(|x| _fbb.create_vector(x));
+            let base_dilations = self.base_dilations.as_ref().map(|x| _fbb.create_vector(x));
+            let window_dilations = self
+                .window_dilations
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let padding = self.padding.as_ref().map(|x| _fbb.create_vector(x));
+            let body_subgraph_index = self.body_subgraph_index;
+            StablehloReduceWindowOptions::create(
+                _fbb,
+                &StablehloReduceWindowOptionsArgs {
+                    window_dimensions,
+                    window_strides,
+                    base_dilations,
+                    window_dilations,
+                    padding,
+                    body_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum StablehloWhileOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -6660,6 +12568,15 @@ pub mod tflite {
             builder.add_body_subgraph_index(args.body_subgraph_index);
             builder.add_cond_subgraph_index(args.cond_subgraph_index);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloWhileOptionsT {
+            let cond_subgraph_index = self.cond_subgraph_index();
+            let body_subgraph_index = self.body_subgraph_index();
+            StablehloWhileOptionsT {
+                cond_subgraph_index,
+                body_subgraph_index,
+            }
         }
 
         #[inline]
@@ -6760,6 +12677,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloWhileOptionsT {
+        pub cond_subgraph_index: i32,
+        pub body_subgraph_index: i32,
+    }
+    impl Default for StablehloWhileOptionsT {
+        fn default() -> Self {
+            Self {
+                cond_subgraph_index: 0,
+                body_subgraph_index: 0,
+            }
+        }
+    }
+    impl StablehloWhileOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloWhileOptions<'b>> {
+            let cond_subgraph_index = self.cond_subgraph_index;
+            let body_subgraph_index = self.body_subgraph_index;
+            StablehloWhileOptions::create(
+                _fbb,
+                &StablehloWhileOptionsArgs {
+                    cond_subgraph_index,
+                    body_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum StablehloSortOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -6801,6 +12748,17 @@ pub mod tflite {
             builder.add_comparator_subgraph_index(args.comparator_subgraph_index);
             builder.add_is_stable(args.is_stable);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloSortOptionsT {
+            let dimension = self.dimension();
+            let is_stable = self.is_stable();
+            let comparator_subgraph_index = self.comparator_subgraph_index();
+            StablehloSortOptionsT {
+                dimension,
+                is_stable,
+                comparator_subgraph_index,
+            }
         }
 
         #[inline]
@@ -6925,6 +12883,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloSortOptionsT {
+        pub dimension: i64,
+        pub is_stable: bool,
+        pub comparator_subgraph_index: i32,
+    }
+    impl Default for StablehloSortOptionsT {
+        fn default() -> Self {
+            Self {
+                dimension: 0,
+                is_stable: false,
+                comparator_subgraph_index: 0,
+            }
+        }
+    }
+    impl StablehloSortOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloSortOptions<'b>> {
+            let dimension = self.dimension;
+            let is_stable = self.is_stable;
+            let comparator_subgraph_index = self.comparator_subgraph_index;
+            StablehloSortOptions::create(
+                _fbb,
+                &StablehloSortOptionsArgs {
+                    dimension,
+                    is_stable,
+                    comparator_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum StablehloConcatenateOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -6962,6 +12954,11 @@ pub mod tflite {
             let mut builder = StablehloConcatenateOptionsBuilder::new(_fbb);
             builder.add_dimension(args.dimension);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloConcatenateOptionsT {
+            let dimension = self.dimension();
+            StablehloConcatenateOptionsT { dimension }
         }
 
         #[inline]
@@ -7034,6 +13031,28 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloConcatenateOptionsT {
+        pub dimension: i64,
+    }
+    impl Default for StablehloConcatenateOptionsT {
+        fn default() -> Self {
+            Self { dimension: 0 }
+        }
+    }
+    impl StablehloConcatenateOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloConcatenateOptions<'b>> {
+            let dimension = self.dimension;
+            StablehloConcatenateOptions::create(
+                _fbb,
+                &StablehloConcatenateOptionsArgs { dimension },
+            )
+        }
+    }
     pub enum StablehloBroadcastInDimOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -7073,6 +13092,13 @@ pub mod tflite {
                 builder.add_broadcast_dimensions(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloBroadcastInDimOptionsT {
+            let broadcast_dimensions = self.broadcast_dimensions().map(|x| x.into_iter().collect());
+            StablehloBroadcastInDimOptionsT {
+                broadcast_dimensions,
+            }
         }
 
         #[inline]
@@ -7158,6 +13184,35 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloBroadcastInDimOptionsT {
+        pub broadcast_dimensions: Option<Vec<i64>>,
+    }
+    impl Default for StablehloBroadcastInDimOptionsT {
+        fn default() -> Self {
+            Self {
+                broadcast_dimensions: None,
+            }
+        }
+    }
+    impl StablehloBroadcastInDimOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloBroadcastInDimOptions<'b>> {
+            let broadcast_dimensions = self
+                .broadcast_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            StablehloBroadcastInDimOptions::create(
+                _fbb,
+                &StablehloBroadcastInDimOptionsArgs {
+                    broadcast_dimensions,
+                },
+            )
+        }
+    }
     pub enum StablehloCompareOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -7197,6 +13252,15 @@ pub mod tflite {
             builder.add_compare_type(args.compare_type);
             builder.add_comparison_direction(args.comparison_direction);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloCompareOptionsT {
+            let comparison_direction = self.comparison_direction();
+            let compare_type = self.compare_type();
+            StablehloCompareOptionsT {
+                comparison_direction,
+                compare_type,
+            }
         }
 
         #[inline]
@@ -7315,6 +13379,37 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloCompareOptionsT {
+        pub comparison_direction: StablehloComparisonDirection,
+        pub compare_type: StablehloComparisonType,
+    }
+    impl Default for StablehloCompareOptionsT {
+        fn default() -> Self {
+            Self {
+                comparison_direction:
+                    StablehloComparisonDirection::STABLEHLO_COMPARISON_DIRECTION_EQ,
+                compare_type: StablehloComparisonType::STABLEHLO_COMPARISON_TYPE_NOTYPE,
+            }
+        }
+    }
+    impl StablehloCompareOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloCompareOptions<'b>> {
+            let comparison_direction = self.comparison_direction;
+            let compare_type = self.compare_type;
+            StablehloCompareOptions::create(
+                _fbb,
+                &StablehloCompareOptionsArgs {
+                    comparison_direction,
+                    compare_type,
+                },
+            )
+        }
+    }
     pub enum StablehloDynamicSliceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -7354,6 +13449,11 @@ pub mod tflite {
                 builder.add_slice_sizes(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloDynamicSliceOptionsT {
+            let slice_sizes = self.slice_sizes().map(|x| x.into_iter().collect());
+            StablehloDynamicSliceOptionsT { slice_sizes }
         }
 
         #[inline]
@@ -7437,6 +13537,28 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloDynamicSliceOptionsT {
+        pub slice_sizes: Option<Vec<i64>>,
+    }
+    impl Default for StablehloDynamicSliceOptionsT {
+        fn default() -> Self {
+            Self { slice_sizes: None }
+        }
+    }
+    impl StablehloDynamicSliceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloDynamicSliceOptions<'b>> {
+            let slice_sizes = self.slice_sizes.as_ref().map(|x| _fbb.create_vector(x));
+            StablehloDynamicSliceOptions::create(
+                _fbb,
+                &StablehloDynamicSliceOptionsArgs { slice_sizes },
+            )
+        }
+    }
     pub enum StablehloPadOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -7484,6 +13606,17 @@ pub mod tflite {
                 builder.add_edge_padding_low(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloPadOptionsT {
+            let edge_padding_low = self.edge_padding_low().map(|x| x.into_iter().collect());
+            let edge_padding_high = self.edge_padding_high().map(|x| x.into_iter().collect());
+            let interior_padding = self.interior_padding().map(|x| x.into_iter().collect());
+            StablehloPadOptionsT {
+                edge_padding_low,
+                edge_padding_high,
+                interior_padding,
+            }
         }
 
         #[inline]
@@ -7631,6 +13764,49 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloPadOptionsT {
+        pub edge_padding_low: Option<Vec<i64>>,
+        pub edge_padding_high: Option<Vec<i64>>,
+        pub interior_padding: Option<Vec<i64>>,
+    }
+    impl Default for StablehloPadOptionsT {
+        fn default() -> Self {
+            Self {
+                edge_padding_low: None,
+                edge_padding_high: None,
+                interior_padding: None,
+            }
+        }
+    }
+    impl StablehloPadOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloPadOptions<'b>> {
+            let edge_padding_low = self
+                .edge_padding_low
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let edge_padding_high = self
+                .edge_padding_high
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let interior_padding = self
+                .interior_padding
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            StablehloPadOptions::create(
+                _fbb,
+                &StablehloPadOptionsArgs {
+                    edge_padding_low,
+                    edge_padding_high,
+                    interior_padding,
+                },
+            )
+        }
+    }
     pub enum StablehloIotaOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -7668,6 +13844,11 @@ pub mod tflite {
             let mut builder = StablehloIotaOptionsBuilder::new(_fbb);
             builder.add_iota_dimension(args.iota_dimension);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloIotaOptionsT {
+            let iota_dimension = self.iota_dimension();
+            StablehloIotaOptionsT { iota_dimension }
         }
 
         #[inline]
@@ -7740,6 +13921,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloIotaOptionsT {
+        pub iota_dimension: i64,
+    }
+    impl Default for StablehloIotaOptionsT {
+        fn default() -> Self {
+            Self { iota_dimension: 0 }
+        }
+    }
+    impl StablehloIotaOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloIotaOptions<'b>> {
+            let iota_dimension = self.iota_dimension;
+            StablehloIotaOptions::create(_fbb, &StablehloIotaOptionsArgs { iota_dimension })
+        }
+    }
     pub enum StablehloCustomCallOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -7795,6 +13995,23 @@ pub mod tflite {
             }
             builder.add_has_side_effect(args.has_side_effect);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloCustomCallOptionsT {
+            let call_target_name = self.call_target_name().map(|x| x.to_string());
+            let has_side_effect = self.has_side_effect();
+            let backend_config = self.backend_config().map(|x| x.to_string());
+            let api_version = self.api_version();
+            let called_computations = self.called_computations().map(|x| x.into_iter().collect());
+            let custom_attributes = self.custom_attributes().map(|x| x.into_iter().collect());
+            StablehloCustomCallOptionsT {
+                call_target_name,
+                has_side_effect,
+                backend_config,
+                api_version,
+                called_computations,
+                custom_attributes,
+            }
         }
 
         #[inline]
@@ -8008,6 +14225,61 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloCustomCallOptionsT {
+        pub call_target_name: Option<String>,
+        pub has_side_effect: bool,
+        pub backend_config: Option<String>,
+        pub api_version: i32,
+        pub called_computations: Option<Vec<i32>>,
+        pub custom_attributes: Option<Vec<u8>>,
+    }
+    impl Default for StablehloCustomCallOptionsT {
+        fn default() -> Self {
+            Self {
+                call_target_name: None,
+                has_side_effect: false,
+                backend_config: None,
+                api_version: 0,
+                called_computations: None,
+                custom_attributes: None,
+            }
+        }
+    }
+    impl StablehloCustomCallOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloCustomCallOptions<'b>> {
+            let call_target_name = self
+                .call_target_name
+                .as_ref()
+                .map(|x| _fbb.create_string(x));
+            let has_side_effect = self.has_side_effect;
+            let backend_config = self.backend_config.as_ref().map(|x| _fbb.create_string(x));
+            let api_version = self.api_version;
+            let called_computations = self
+                .called_computations
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let custom_attributes = self
+                .custom_attributes
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            StablehloCustomCallOptions::create(
+                _fbb,
+                &StablehloCustomCallOptionsArgs {
+                    call_target_name,
+                    has_side_effect,
+                    backend_config,
+                    api_version,
+                    called_computations,
+                    custom_attributes,
+                },
+            )
+        }
+    }
     pub enum StablehloReduceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -8049,6 +14321,15 @@ pub mod tflite {
                 builder.add_dimensions(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloReduceOptionsT {
+            let dimensions = self.dimensions().map(|x| x.into_iter().collect());
+            let body_subgraph_index = self.body_subgraph_index();
+            StablehloReduceOptionsT {
+                dimensions,
+                body_subgraph_index,
+            }
         }
 
         #[inline]
@@ -8157,6 +14438,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloReduceOptionsT {
+        pub dimensions: Option<Vec<i64>>,
+        pub body_subgraph_index: i32,
+    }
+    impl Default for StablehloReduceOptionsT {
+        fn default() -> Self {
+            Self {
+                dimensions: None,
+                body_subgraph_index: 0,
+            }
+        }
+    }
+    impl StablehloReduceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloReduceOptions<'b>> {
+            let dimensions = self.dimensions.as_ref().map(|x| _fbb.create_vector(x));
+            let body_subgraph_index = self.body_subgraph_index;
+            StablehloReduceOptions::create(
+                _fbb,
+                &StablehloReduceOptionsArgs {
+                    dimensions,
+                    body_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum StablehloSliceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -8204,6 +14515,17 @@ pub mod tflite {
                 builder.add_start_indices(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloSliceOptionsT {
+            let start_indices = self.start_indices().map(|x| x.into_iter().collect());
+            let limit_indices = self.limit_indices().map(|x| x.into_iter().collect());
+            let strides = self.strides().map(|x| x.into_iter().collect());
+            StablehloSliceOptionsT {
+                start_indices,
+                limit_indices,
+                strides,
+            }
         }
 
         #[inline]
@@ -8351,6 +14673,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloSliceOptionsT {
+        pub start_indices: Option<Vec<i64>>,
+        pub limit_indices: Option<Vec<i64>>,
+        pub strides: Option<Vec<i64>>,
+    }
+    impl Default for StablehloSliceOptionsT {
+        fn default() -> Self {
+            Self {
+                start_indices: None,
+                limit_indices: None,
+                strides: None,
+            }
+        }
+    }
+    impl StablehloSliceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloSliceOptions<'b>> {
+            let start_indices = self.start_indices.as_ref().map(|x| _fbb.create_vector(x));
+            let limit_indices = self.limit_indices.as_ref().map(|x| _fbb.create_vector(x));
+            let strides = self.strides.as_ref().map(|x| _fbb.create_vector(x));
+            StablehloSliceOptions::create(
+                _fbb,
+                &StablehloSliceOptionsArgs {
+                    start_indices,
+                    limit_indices,
+                    strides,
+                },
+            )
+        }
+    }
     pub enum StablehloConvolutionOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -8438,6 +14794,51 @@ pub mod tflite {
                 builder.add_window_strides(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloConvolutionOptionsT {
+            let window_strides = self.window_strides().map(|x| x.into_iter().collect());
+            let padding = self.padding().map(|x| x.into_iter().collect());
+            let lhs_dilation = self.lhs_dilation().map(|x| x.into_iter().collect());
+            let rhs_dilation = self.rhs_dilation().map(|x| x.into_iter().collect());
+            let window_reversal = self.window_reversal().map(|x| x.into_iter().collect());
+            let input_batch_dimension = self.input_batch_dimension();
+            let input_feature_dimension = self.input_feature_dimension();
+            let input_spatial_dimensions = self
+                .input_spatial_dimensions()
+                .map(|x| x.into_iter().collect());
+            let kernel_input_feature_dimension = self.kernel_input_feature_dimension();
+            let kernel_output_feature_dimension = self.kernel_output_feature_dimension();
+            let kernel_spatial_dimensions = self
+                .kernel_spatial_dimensions()
+                .map(|x| x.into_iter().collect());
+            let output_batch_dimension = self.output_batch_dimension();
+            let output_feature_dimension = self.output_feature_dimension();
+            let output_spatial_dimensions = self
+                .output_spatial_dimensions()
+                .map(|x| x.into_iter().collect());
+            let feature_group_count = self.feature_group_count();
+            let batch_group_count = self.batch_group_count();
+            let precision_config = self.precision_config().map(|x| x.into_iter().collect());
+            StablehloConvolutionOptionsT {
+                window_strides,
+                padding,
+                lhs_dilation,
+                rhs_dilation,
+                window_reversal,
+                input_batch_dimension,
+                input_feature_dimension,
+                input_spatial_dimensions,
+                kernel_input_feature_dimension,
+                kernel_output_feature_dimension,
+                kernel_spatial_dimensions,
+                output_batch_dimension,
+                output_feature_dimension,
+                output_spatial_dimensions,
+                feature_group_count,
+                batch_group_count,
+                precision_config,
+            }
         }
 
         #[inline]
@@ -8955,6 +15356,108 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloConvolutionOptionsT {
+        pub window_strides: Option<Vec<i64>>,
+        pub padding: Option<Vec<i64>>,
+        pub lhs_dilation: Option<Vec<i64>>,
+        pub rhs_dilation: Option<Vec<i64>>,
+        pub window_reversal: Option<Vec<bool>>,
+        pub input_batch_dimension: i64,
+        pub input_feature_dimension: i64,
+        pub input_spatial_dimensions: Option<Vec<i64>>,
+        pub kernel_input_feature_dimension: i64,
+        pub kernel_output_feature_dimension: i64,
+        pub kernel_spatial_dimensions: Option<Vec<i64>>,
+        pub output_batch_dimension: i64,
+        pub output_feature_dimension: i64,
+        pub output_spatial_dimensions: Option<Vec<i64>>,
+        pub feature_group_count: i64,
+        pub batch_group_count: i64,
+        pub precision_config: Option<Vec<StablehloPrecisionConfig>>,
+    }
+    impl Default for StablehloConvolutionOptionsT {
+        fn default() -> Self {
+            Self {
+                window_strides: None,
+                padding: None,
+                lhs_dilation: None,
+                rhs_dilation: None,
+                window_reversal: None,
+                input_batch_dimension: 0,
+                input_feature_dimension: 0,
+                input_spatial_dimensions: None,
+                kernel_input_feature_dimension: 0,
+                kernel_output_feature_dimension: 0,
+                kernel_spatial_dimensions: None,
+                output_batch_dimension: 0,
+                output_feature_dimension: 0,
+                output_spatial_dimensions: None,
+                feature_group_count: 0,
+                batch_group_count: 0,
+                precision_config: None,
+            }
+        }
+    }
+    impl StablehloConvolutionOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloConvolutionOptions<'b>> {
+            let window_strides = self.window_strides.as_ref().map(|x| _fbb.create_vector(x));
+            let padding = self.padding.as_ref().map(|x| _fbb.create_vector(x));
+            let lhs_dilation = self.lhs_dilation.as_ref().map(|x| _fbb.create_vector(x));
+            let rhs_dilation = self.rhs_dilation.as_ref().map(|x| _fbb.create_vector(x));
+            let window_reversal = self.window_reversal.as_ref().map(|x| _fbb.create_vector(x));
+            let input_batch_dimension = self.input_batch_dimension;
+            let input_feature_dimension = self.input_feature_dimension;
+            let input_spatial_dimensions = self
+                .input_spatial_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let kernel_input_feature_dimension = self.kernel_input_feature_dimension;
+            let kernel_output_feature_dimension = self.kernel_output_feature_dimension;
+            let kernel_spatial_dimensions = self
+                .kernel_spatial_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let output_batch_dimension = self.output_batch_dimension;
+            let output_feature_dimension = self.output_feature_dimension;
+            let output_spatial_dimensions = self
+                .output_spatial_dimensions
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let feature_group_count = self.feature_group_count;
+            let batch_group_count = self.batch_group_count;
+            let precision_config = self
+                .precision_config
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            StablehloConvolutionOptions::create(
+                _fbb,
+                &StablehloConvolutionOptionsArgs {
+                    window_strides,
+                    padding,
+                    lhs_dilation,
+                    rhs_dilation,
+                    window_reversal,
+                    input_batch_dimension,
+                    input_feature_dimension,
+                    input_spatial_dimensions,
+                    kernel_input_feature_dimension,
+                    kernel_output_feature_dimension,
+                    kernel_spatial_dimensions,
+                    output_batch_dimension,
+                    output_feature_dimension,
+                    output_spatial_dimensions,
+                    feature_group_count,
+                    batch_group_count,
+                    precision_config,
+                },
+            )
+        }
+    }
     pub enum StablehloScatterOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -9010,6 +15513,27 @@ pub mod tflite {
             builder.add_unique_indices(args.unique_indices);
             builder.add_indices_are_sorted(args.indices_are_sorted);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloScatterOptionsT {
+            let indices_are_sorted = self.indices_are_sorted();
+            let update_window_dims = self.update_window_dims().map(|x| x.into_iter().collect());
+            let inserted_window_dims = self.inserted_window_dims().map(|x| x.into_iter().collect());
+            let scatter_dims_to_operand_dims = self
+                .scatter_dims_to_operand_dims()
+                .map(|x| x.into_iter().collect());
+            let index_vector_dim = self.index_vector_dim();
+            let unique_indices = self.unique_indices();
+            let update_computation_subgraph_index = self.update_computation_subgraph_index();
+            StablehloScatterOptionsT {
+                indices_are_sorted,
+                update_window_dims,
+                inserted_window_dims,
+                scatter_dims_to_operand_dims,
+                index_vector_dim,
+                unique_indices,
+                update_computation_subgraph_index,
+            }
         }
 
         #[inline]
@@ -9266,6 +15790,65 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloScatterOptionsT {
+        pub indices_are_sorted: bool,
+        pub update_window_dims: Option<Vec<i64>>,
+        pub inserted_window_dims: Option<Vec<i64>>,
+        pub scatter_dims_to_operand_dims: Option<Vec<i64>>,
+        pub index_vector_dim: i64,
+        pub unique_indices: bool,
+        pub update_computation_subgraph_index: i32,
+    }
+    impl Default for StablehloScatterOptionsT {
+        fn default() -> Self {
+            Self {
+                indices_are_sorted: false,
+                update_window_dims: None,
+                inserted_window_dims: None,
+                scatter_dims_to_operand_dims: None,
+                index_vector_dim: 0,
+                unique_indices: false,
+                update_computation_subgraph_index: 0,
+            }
+        }
+    }
+    impl StablehloScatterOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloScatterOptions<'b>> {
+            let indices_are_sorted = self.indices_are_sorted;
+            let update_window_dims = self
+                .update_window_dims
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let inserted_window_dims = self
+                .inserted_window_dims
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let scatter_dims_to_operand_dims = self
+                .scatter_dims_to_operand_dims
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let index_vector_dim = self.index_vector_dim;
+            let unique_indices = self.unique_indices;
+            let update_computation_subgraph_index = self.update_computation_subgraph_index;
+            StablehloScatterOptions::create(
+                _fbb,
+                &StablehloScatterOptionsArgs {
+                    indices_are_sorted,
+                    update_window_dims,
+                    inserted_window_dims,
+                    scatter_dims_to_operand_dims,
+                    index_vector_dim,
+                    unique_indices,
+                    update_computation_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum StablehloCaseOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -9305,6 +15888,15 @@ pub mod tflite {
                 builder.add_branch_subgraph_indices(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloCaseOptionsT {
+            let branch_subgraph_indices = self
+                .branch_subgraph_indices()
+                .map(|x| x.into_iter().collect());
+            StablehloCaseOptionsT {
+                branch_subgraph_indices,
+            }
         }
 
         #[inline]
@@ -9390,6 +15982,35 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloCaseOptionsT {
+        pub branch_subgraph_indices: Option<Vec<i32>>,
+    }
+    impl Default for StablehloCaseOptionsT {
+        fn default() -> Self {
+            Self {
+                branch_subgraph_indices: None,
+            }
+        }
+    }
+    impl StablehloCaseOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloCaseOptions<'b>> {
+            let branch_subgraph_indices = self
+                .branch_subgraph_indices
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            StablehloCaseOptions::create(
+                _fbb,
+                &StablehloCaseOptionsArgs {
+                    branch_subgraph_indices,
+                },
+            )
+        }
+    }
     pub enum StablehloRngBitGeneratorOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -9427,6 +16048,11 @@ pub mod tflite {
             let mut builder = StablehloRngBitGeneratorOptionsBuilder::new(_fbb);
             builder.add_algorithm(args.algorithm);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloRngBitGeneratorOptionsT {
+            let algorithm = self.algorithm();
+            StablehloRngBitGeneratorOptionsT { algorithm }
         }
 
         #[inline]
@@ -9507,6 +16133,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloRngBitGeneratorOptionsT {
+        pub algorithm: RngAlgorithm,
+    }
+    impl Default for StablehloRngBitGeneratorOptionsT {
+        fn default() -> Self {
+            Self {
+                algorithm: RngAlgorithm::DEFAULT,
+            }
+        }
+    }
+    impl StablehloRngBitGeneratorOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloRngBitGeneratorOptions<'b>> {
+            let algorithm = self.algorithm;
+            StablehloRngBitGeneratorOptions::create(
+                _fbb,
+                &StablehloRngBitGeneratorOptionsArgs { algorithm },
+            )
+        }
+    }
     pub enum Conv2DOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -9556,6 +16206,25 @@ pub mod tflite {
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.add_padding(args.padding);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> Conv2DOptionsT {
+            let padding = self.padding();
+            let stride_w = self.stride_w();
+            let stride_h = self.stride_h();
+            let fused_activation_function = self.fused_activation_function();
+            let dilation_w_factor = self.dilation_w_factor();
+            let dilation_h_factor = self.dilation_h_factor();
+            let quantized_bias_type = self.quantized_bias_type();
+            Conv2DOptionsT {
+                padding,
+                stride_w,
+                stride_h,
+                fused_activation_function,
+                dilation_w_factor,
+                dilation_h_factor,
+                quantized_bias_type,
+            }
         }
 
         #[inline]
@@ -9776,6 +16445,56 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Conv2DOptionsT {
+        pub padding: Padding,
+        pub stride_w: i32,
+        pub stride_h: i32,
+        pub fused_activation_function: ActivationFunctionType,
+        pub dilation_w_factor: i32,
+        pub dilation_h_factor: i32,
+        pub quantized_bias_type: TensorType,
+    }
+    impl Default for Conv2DOptionsT {
+        fn default() -> Self {
+            Self {
+                padding: Padding::SAME,
+                stride_w: 0,
+                stride_h: 0,
+                fused_activation_function: ActivationFunctionType::NONE,
+                dilation_w_factor: 1,
+                dilation_h_factor: 1,
+                quantized_bias_type: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl Conv2DOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Conv2DOptions<'b>> {
+            let padding = self.padding;
+            let stride_w = self.stride_w;
+            let stride_h = self.stride_h;
+            let fused_activation_function = self.fused_activation_function;
+            let dilation_w_factor = self.dilation_w_factor;
+            let dilation_h_factor = self.dilation_h_factor;
+            let quantized_bias_type = self.quantized_bias_type;
+            Conv2DOptions::create(
+                _fbb,
+                &Conv2DOptionsArgs {
+                    padding,
+                    stride_w,
+                    stride_h,
+                    fused_activation_function,
+                    dilation_w_factor,
+                    dilation_h_factor,
+                    quantized_bias_type,
+                },
+            )
+        }
+    }
     pub enum Conv3DOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -9827,6 +16546,27 @@ pub mod tflite {
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.add_padding(args.padding);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> Conv3DOptionsT {
+            let padding = self.padding();
+            let stride_d = self.stride_d();
+            let stride_w = self.stride_w();
+            let stride_h = self.stride_h();
+            let fused_activation_function = self.fused_activation_function();
+            let dilation_d_factor = self.dilation_d_factor();
+            let dilation_w_factor = self.dilation_w_factor();
+            let dilation_h_factor = self.dilation_h_factor();
+            Conv3DOptionsT {
+                padding,
+                stride_d,
+                stride_w,
+                stride_h,
+                fused_activation_function,
+                dilation_d_factor,
+                dilation_w_factor,
+                dilation_h_factor,
+            }
         }
 
         #[inline]
@@ -10057,6 +16797,60 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Conv3DOptionsT {
+        pub padding: Padding,
+        pub stride_d: i32,
+        pub stride_w: i32,
+        pub stride_h: i32,
+        pub fused_activation_function: ActivationFunctionType,
+        pub dilation_d_factor: i32,
+        pub dilation_w_factor: i32,
+        pub dilation_h_factor: i32,
+    }
+    impl Default for Conv3DOptionsT {
+        fn default() -> Self {
+            Self {
+                padding: Padding::SAME,
+                stride_d: 0,
+                stride_w: 0,
+                stride_h: 0,
+                fused_activation_function: ActivationFunctionType::NONE,
+                dilation_d_factor: 1,
+                dilation_w_factor: 1,
+                dilation_h_factor: 1,
+            }
+        }
+    }
+    impl Conv3DOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Conv3DOptions<'b>> {
+            let padding = self.padding;
+            let stride_d = self.stride_d;
+            let stride_w = self.stride_w;
+            let stride_h = self.stride_h;
+            let fused_activation_function = self.fused_activation_function;
+            let dilation_d_factor = self.dilation_d_factor;
+            let dilation_w_factor = self.dilation_w_factor;
+            let dilation_h_factor = self.dilation_h_factor;
+            Conv3DOptions::create(
+                _fbb,
+                &Conv3DOptionsArgs {
+                    padding,
+                    stride_d,
+                    stride_w,
+                    stride_h,
+                    fused_activation_function,
+                    dilation_d_factor,
+                    dilation_w_factor,
+                    dilation_h_factor,
+                },
+            )
+        }
+    }
     pub enum Pool2DOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -10104,6 +16898,23 @@ pub mod tflite {
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.add_padding(args.padding);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> Pool2DOptionsT {
+            let padding = self.padding();
+            let stride_w = self.stride_w();
+            let stride_h = self.stride_h();
+            let filter_width = self.filter_width();
+            let filter_height = self.filter_height();
+            let fused_activation_function = self.fused_activation_function();
+            Pool2DOptionsT {
+                padding,
+                stride_w,
+                stride_h,
+                filter_width,
+                filter_height,
+                fused_activation_function,
+            }
         }
 
         #[inline]
@@ -10294,6 +17105,52 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Pool2DOptionsT {
+        pub padding: Padding,
+        pub stride_w: i32,
+        pub stride_h: i32,
+        pub filter_width: i32,
+        pub filter_height: i32,
+        pub fused_activation_function: ActivationFunctionType,
+    }
+    impl Default for Pool2DOptionsT {
+        fn default() -> Self {
+            Self {
+                padding: Padding::SAME,
+                stride_w: 0,
+                stride_h: 0,
+                filter_width: 0,
+                filter_height: 0,
+                fused_activation_function: ActivationFunctionType::NONE,
+            }
+        }
+    }
+    impl Pool2DOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Pool2DOptions<'b>> {
+            let padding = self.padding;
+            let stride_w = self.stride_w;
+            let stride_h = self.stride_h;
+            let filter_width = self.filter_width;
+            let filter_height = self.filter_height;
+            let fused_activation_function = self.fused_activation_function;
+            Pool2DOptions::create(
+                _fbb,
+                &Pool2DOptionsArgs {
+                    padding,
+                    stride_w,
+                    stride_h,
+                    filter_width,
+                    filter_height,
+                    fused_activation_function,
+                },
+            )
+        }
+    }
     pub enum DepthwiseConv2DOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -10343,6 +17200,25 @@ pub mod tflite {
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.add_padding(args.padding);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DepthwiseConv2DOptionsT {
+            let padding = self.padding();
+            let stride_w = self.stride_w();
+            let stride_h = self.stride_h();
+            let depth_multiplier = self.depth_multiplier();
+            let fused_activation_function = self.fused_activation_function();
+            let dilation_w_factor = self.dilation_w_factor();
+            let dilation_h_factor = self.dilation_h_factor();
+            DepthwiseConv2DOptionsT {
+                padding,
+                stride_w,
+                stride_h,
+                depth_multiplier,
+                fused_activation_function,
+                dilation_w_factor,
+                dilation_h_factor,
+            }
         }
 
         #[inline]
@@ -10565,6 +17441,56 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DepthwiseConv2DOptionsT {
+        pub padding: Padding,
+        pub stride_w: i32,
+        pub stride_h: i32,
+        pub depth_multiplier: i32,
+        pub fused_activation_function: ActivationFunctionType,
+        pub dilation_w_factor: i32,
+        pub dilation_h_factor: i32,
+    }
+    impl Default for DepthwiseConv2DOptionsT {
+        fn default() -> Self {
+            Self {
+                padding: Padding::SAME,
+                stride_w: 0,
+                stride_h: 0,
+                depth_multiplier: 0,
+                fused_activation_function: ActivationFunctionType::NONE,
+                dilation_w_factor: 1,
+                dilation_h_factor: 1,
+            }
+        }
+    }
+    impl DepthwiseConv2DOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DepthwiseConv2DOptions<'b>> {
+            let padding = self.padding;
+            let stride_w = self.stride_w;
+            let stride_h = self.stride_h;
+            let depth_multiplier = self.depth_multiplier;
+            let fused_activation_function = self.fused_activation_function;
+            let dilation_w_factor = self.dilation_w_factor;
+            let dilation_h_factor = self.dilation_h_factor;
+            DepthwiseConv2DOptions::create(
+                _fbb,
+                &DepthwiseConv2DOptionsArgs {
+                    padding,
+                    stride_w,
+                    stride_h,
+                    depth_multiplier,
+                    fused_activation_function,
+                    dilation_w_factor,
+                    dilation_h_factor,
+                },
+            )
+        }
+    }
     pub enum ConcatEmbeddingsOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -10610,6 +17536,21 @@ pub mod tflite {
             }
             builder.add_num_channels(args.num_channels);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ConcatEmbeddingsOptionsT {
+            let num_channels = self.num_channels();
+            let num_columns_per_channel = self
+                .num_columns_per_channel()
+                .map(|x| x.into_iter().collect());
+            let embedding_dim_per_channel = self
+                .embedding_dim_per_channel()
+                .map(|x| x.into_iter().collect());
+            ConcatEmbeddingsOptionsT {
+                num_channels,
+                num_columns_per_channel,
+                embedding_dim_per_channel,
+            }
         }
 
         #[inline]
@@ -10749,6 +17690,46 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ConcatEmbeddingsOptionsT {
+        pub num_channels: i32,
+        pub num_columns_per_channel: Option<Vec<i32>>,
+        pub embedding_dim_per_channel: Option<Vec<i32>>,
+    }
+    impl Default for ConcatEmbeddingsOptionsT {
+        fn default() -> Self {
+            Self {
+                num_channels: 0,
+                num_columns_per_channel: None,
+                embedding_dim_per_channel: None,
+            }
+        }
+    }
+    impl ConcatEmbeddingsOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ConcatEmbeddingsOptions<'b>> {
+            let num_channels = self.num_channels;
+            let num_columns_per_channel = self
+                .num_columns_per_channel
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let embedding_dim_per_channel = self
+                .embedding_dim_per_channel
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            ConcatEmbeddingsOptions::create(
+                _fbb,
+                &ConcatEmbeddingsOptionsArgs {
+                    num_channels,
+                    num_columns_per_channel,
+                    embedding_dim_per_channel,
+                },
+            )
+        }
+    }
     pub enum LSHProjectionOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -10786,6 +17767,11 @@ pub mod tflite {
             let mut builder = LSHProjectionOptionsBuilder::new(_fbb);
             builder.add_type_(args.type_);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LSHProjectionOptionsT {
+            let type_ = self.type_();
+            LSHProjectionOptionsT { type_ }
         }
 
         #[inline]
@@ -10866,6 +17852,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LSHProjectionOptionsT {
+        pub type_: LSHProjectionType,
+    }
+    impl Default for LSHProjectionOptionsT {
+        fn default() -> Self {
+            Self {
+                type_: LSHProjectionType::UNKNOWN,
+            }
+        }
+    }
+    impl LSHProjectionOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LSHProjectionOptions<'b>> {
+            let type_ = self.type_;
+            LSHProjectionOptions::create(_fbb, &LSHProjectionOptionsArgs { type_ })
+        }
+    }
     pub enum SVDFOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -10907,6 +17914,17 @@ pub mod tflite {
             builder.add_asymmetric_quantize_inputs(args.asymmetric_quantize_inputs);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SVDFOptionsT {
+            let rank = self.rank();
+            let fused_activation_function = self.fused_activation_function();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            SVDFOptionsT {
+                rank,
+                fused_activation_function,
+                asymmetric_quantize_inputs,
+            }
         }
 
         #[inline]
@@ -11042,6 +18060,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SVDFOptionsT {
+        pub rank: i32,
+        pub fused_activation_function: ActivationFunctionType,
+        pub asymmetric_quantize_inputs: bool,
+    }
+    impl Default for SVDFOptionsT {
+        fn default() -> Self {
+            Self {
+                rank: 0,
+                fused_activation_function: ActivationFunctionType::NONE,
+                asymmetric_quantize_inputs: false,
+            }
+        }
+    }
+    impl SVDFOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SVDFOptions<'b>> {
+            let rank = self.rank;
+            let fused_activation_function = self.fused_activation_function;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            SVDFOptions::create(
+                _fbb,
+                &SVDFOptionsArgs {
+                    rank,
+                    fused_activation_function,
+                    asymmetric_quantize_inputs,
+                },
+            )
+        }
+    }
     pub enum RNNOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -11081,6 +18133,15 @@ pub mod tflite {
             builder.add_asymmetric_quantize_inputs(args.asymmetric_quantize_inputs);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> RNNOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            RNNOptionsT {
+                fused_activation_function,
+                asymmetric_quantize_inputs,
+            }
         }
 
         #[inline]
@@ -11201,6 +18262,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RNNOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+        pub asymmetric_quantize_inputs: bool,
+    }
+    impl Default for RNNOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+                asymmetric_quantize_inputs: false,
+            }
+        }
+    }
+    impl RNNOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<RNNOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            RNNOptions::create(
+                _fbb,
+                &RNNOptionsArgs {
+                    fused_activation_function,
+                    asymmetric_quantize_inputs,
+                },
+            )
+        }
+    }
     pub enum SequenceRNNOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -11242,6 +18333,17 @@ pub mod tflite {
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.add_time_major(args.time_major);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SequenceRNNOptionsT {
+            let time_major = self.time_major();
+            let fused_activation_function = self.fused_activation_function();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            SequenceRNNOptionsT {
+                time_major,
+                fused_activation_function,
+                asymmetric_quantize_inputs,
+            }
         }
 
         #[inline]
@@ -11385,6 +18487,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SequenceRNNOptionsT {
+        pub time_major: bool,
+        pub fused_activation_function: ActivationFunctionType,
+        pub asymmetric_quantize_inputs: bool,
+    }
+    impl Default for SequenceRNNOptionsT {
+        fn default() -> Self {
+            Self {
+                time_major: false,
+                fused_activation_function: ActivationFunctionType::NONE,
+                asymmetric_quantize_inputs: false,
+            }
+        }
+    }
+    impl SequenceRNNOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SequenceRNNOptions<'b>> {
+            let time_major = self.time_major;
+            let fused_activation_function = self.fused_activation_function;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            SequenceRNNOptions::create(
+                _fbb,
+                &SequenceRNNOptionsArgs {
+                    time_major,
+                    fused_activation_function,
+                    asymmetric_quantize_inputs,
+                },
+            )
+        }
+    }
     pub enum BidirectionalSequenceRNNOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -11428,6 +18564,19 @@ pub mod tflite {
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.add_time_major(args.time_major);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BidirectionalSequenceRNNOptionsT {
+            let time_major = self.time_major();
+            let fused_activation_function = self.fused_activation_function();
+            let merge_outputs = self.merge_outputs();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            BidirectionalSequenceRNNOptionsT {
+                time_major,
+                fused_activation_function,
+                merge_outputs,
+                asymmetric_quantize_inputs,
+            }
         }
 
         #[inline]
@@ -11600,6 +18749,44 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BidirectionalSequenceRNNOptionsT {
+        pub time_major: bool,
+        pub fused_activation_function: ActivationFunctionType,
+        pub merge_outputs: bool,
+        pub asymmetric_quantize_inputs: bool,
+    }
+    impl Default for BidirectionalSequenceRNNOptionsT {
+        fn default() -> Self {
+            Self {
+                time_major: false,
+                fused_activation_function: ActivationFunctionType::NONE,
+                merge_outputs: false,
+                asymmetric_quantize_inputs: false,
+            }
+        }
+    }
+    impl BidirectionalSequenceRNNOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BidirectionalSequenceRNNOptions<'b>> {
+            let time_major = self.time_major;
+            let fused_activation_function = self.fused_activation_function;
+            let merge_outputs = self.merge_outputs;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            BidirectionalSequenceRNNOptions::create(
+                _fbb,
+                &BidirectionalSequenceRNNOptionsArgs {
+                    time_major,
+                    fused_activation_function,
+                    merge_outputs,
+                    asymmetric_quantize_inputs,
+                },
+            )
+        }
+    }
     pub enum FullyConnectedOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -11645,6 +18832,21 @@ pub mod tflite {
             builder.add_weights_format(args.weights_format);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> FullyConnectedOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            let weights_format = self.weights_format();
+            let keep_num_dims = self.keep_num_dims();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            let quantized_bias_type = self.quantized_bias_type();
+            FullyConnectedOptionsT {
+                fused_activation_function,
+                weights_format,
+                keep_num_dims,
+                asymmetric_quantize_inputs,
+                quantized_bias_type,
+            }
         }
 
         #[inline]
@@ -11851,6 +19053,48 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FullyConnectedOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+        pub weights_format: FullyConnectedOptionsWeightsFormat,
+        pub keep_num_dims: bool,
+        pub asymmetric_quantize_inputs: bool,
+        pub quantized_bias_type: TensorType,
+    }
+    impl Default for FullyConnectedOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+                weights_format: FullyConnectedOptionsWeightsFormat::DEFAULT,
+                keep_num_dims: false,
+                asymmetric_quantize_inputs: false,
+                quantized_bias_type: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl FullyConnectedOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<FullyConnectedOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            let weights_format = self.weights_format;
+            let keep_num_dims = self.keep_num_dims;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            let quantized_bias_type = self.quantized_bias_type;
+            FullyConnectedOptions::create(
+                _fbb,
+                &FullyConnectedOptionsArgs {
+                    fused_activation_function,
+                    weights_format,
+                    keep_num_dims,
+                    asymmetric_quantize_inputs,
+                    quantized_bias_type,
+                },
+            )
+        }
+    }
     pub enum SoftmaxOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -11888,6 +19132,11 @@ pub mod tflite {
             let mut builder = SoftmaxOptionsBuilder::new(_fbb);
             builder.add_beta(args.beta);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SoftmaxOptionsT {
+            let beta = self.beta();
+            SoftmaxOptionsT { beta }
         }
 
         #[inline]
@@ -11960,6 +19209,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SoftmaxOptionsT {
+        pub beta: f32,
+    }
+    impl Default for SoftmaxOptionsT {
+        fn default() -> Self {
+            Self { beta: 0.0 }
+        }
+    }
+    impl SoftmaxOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SoftmaxOptions<'b>> {
+            let beta = self.beta;
+            SoftmaxOptions::create(_fbb, &SoftmaxOptionsArgs { beta })
+        }
+    }
     pub enum ConcatenationOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -11999,6 +19267,15 @@ pub mod tflite {
             builder.add_axis(args.axis);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ConcatenationOptionsT {
+            let axis = self.axis();
+            let fused_activation_function = self.fused_activation_function();
+            ConcatenationOptionsT {
+                axis,
+                fused_activation_function,
+            }
         }
 
         #[inline]
@@ -12109,6 +19386,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ConcatenationOptionsT {
+        pub axis: i32,
+        pub fused_activation_function: ActivationFunctionType,
+    }
+    impl Default for ConcatenationOptionsT {
+        fn default() -> Self {
+            Self {
+                axis: 0,
+                fused_activation_function: ActivationFunctionType::NONE,
+            }
+        }
+    }
+    impl ConcatenationOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ConcatenationOptions<'b>> {
+            let axis = self.axis;
+            let fused_activation_function = self.fused_activation_function;
+            ConcatenationOptions::create(
+                _fbb,
+                &ConcatenationOptionsArgs {
+                    axis,
+                    fused_activation_function,
+                },
+            )
+        }
+    }
     pub enum AddOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -12148,6 +19455,15 @@ pub mod tflite {
             builder.add_pot_scale_int16(args.pot_scale_int16);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> AddOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            let pot_scale_int16 = self.pot_scale_int16();
+            AddOptionsT {
+                fused_activation_function,
+                pot_scale_int16,
+            }
         }
 
         #[inline]
@@ -12258,6 +19574,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct AddOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+        pub pot_scale_int16: bool,
+    }
+    impl Default for AddOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+                pot_scale_int16: true,
+            }
+        }
+    }
+    impl AddOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<AddOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            let pot_scale_int16 = self.pot_scale_int16;
+            AddOptions::create(
+                _fbb,
+                &AddOptionsArgs {
+                    fused_activation_function,
+                    pot_scale_int16,
+                },
+            )
+        }
+    }
     pub enum MulOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -12295,6 +19641,13 @@ pub mod tflite {
             let mut builder = MulOptionsBuilder::new(_fbb);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> MulOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            MulOptionsT {
+                fused_activation_function,
+            }
         }
 
         #[inline]
@@ -12385,6 +19738,32 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MulOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+    }
+    impl Default for MulOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+            }
+        }
+    }
+    impl MulOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<MulOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            MulOptions::create(
+                _fbb,
+                &MulOptionsArgs {
+                    fused_activation_function,
+                },
+            )
+        }
+    }
     pub enum L2NormOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -12422,6 +19801,13 @@ pub mod tflite {
             let mut builder = L2NormOptionsBuilder::new(_fbb);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> L2NormOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            L2NormOptionsT {
+                fused_activation_function,
+            }
         }
 
         #[inline]
@@ -12512,6 +19898,32 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct L2NormOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+    }
+    impl Default for L2NormOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+            }
+        }
+    }
+    impl L2NormOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<L2NormOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            L2NormOptions::create(
+                _fbb,
+                &L2NormOptionsArgs {
+                    fused_activation_function,
+                },
+            )
+        }
+    }
     pub enum LocalResponseNormalizationOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -12555,6 +19967,19 @@ pub mod tflite {
             builder.add_bias(args.bias);
             builder.add_radius(args.radius);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LocalResponseNormalizationOptionsT {
+            let radius = self.radius();
+            let bias = self.bias();
+            let alpha = self.alpha();
+            let beta = self.beta();
+            LocalResponseNormalizationOptionsT {
+                radius,
+                bias,
+                alpha,
+                beta,
+            }
         }
 
         #[inline]
@@ -12691,6 +20116,44 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LocalResponseNormalizationOptionsT {
+        pub radius: i32,
+        pub bias: f32,
+        pub alpha: f32,
+        pub beta: f32,
+    }
+    impl Default for LocalResponseNormalizationOptionsT {
+        fn default() -> Self {
+            Self {
+                radius: 0,
+                bias: 0.0,
+                alpha: 0.0,
+                beta: 0.0,
+            }
+        }
+    }
+    impl LocalResponseNormalizationOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LocalResponseNormalizationOptions<'b>> {
+            let radius = self.radius;
+            let bias = self.bias;
+            let alpha = self.alpha;
+            let beta = self.beta;
+            LocalResponseNormalizationOptions::create(
+                _fbb,
+                &LocalResponseNormalizationOptionsArgs {
+                    radius,
+                    bias,
+                    alpha,
+                    beta,
+                },
+            )
+        }
+    }
     pub enum LSTMOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -12736,6 +20199,21 @@ pub mod tflite {
             builder.add_kernel_type(args.kernel_type);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LSTMOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            let cell_clip = self.cell_clip();
+            let proj_clip = self.proj_clip();
+            let kernel_type = self.kernel_type();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            LSTMOptionsT {
+                fused_activation_function,
+                cell_clip,
+                proj_clip,
+                kernel_type,
+                asymmetric_quantize_inputs,
+            }
         }
 
         #[inline]
@@ -12919,6 +20397,48 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LSTMOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+        pub cell_clip: f32,
+        pub proj_clip: f32,
+        pub kernel_type: LSTMKernelType,
+        pub asymmetric_quantize_inputs: bool,
+    }
+    impl Default for LSTMOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+                cell_clip: 0.0,
+                proj_clip: 0.0,
+                kernel_type: LSTMKernelType::FULL,
+                asymmetric_quantize_inputs: false,
+            }
+        }
+    }
+    impl LSTMOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LSTMOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            let cell_clip = self.cell_clip;
+            let proj_clip = self.proj_clip;
+            let kernel_type = self.kernel_type;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            LSTMOptions::create(
+                _fbb,
+                &LSTMOptionsArgs {
+                    fused_activation_function,
+                    cell_clip,
+                    proj_clip,
+                    kernel_type,
+                    asymmetric_quantize_inputs,
+                },
+            )
+        }
+    }
     pub enum UnidirectionalSequenceLSTMOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -12966,6 +20486,23 @@ pub mod tflite {
             builder.add_time_major(args.time_major);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> UnidirectionalSequenceLSTMOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            let cell_clip = self.cell_clip();
+            let proj_clip = self.proj_clip();
+            let time_major = self.time_major();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            let diagonal_recurrent_tensors = self.diagonal_recurrent_tensors();
+            UnidirectionalSequenceLSTMOptionsT {
+                fused_activation_function,
+                cell_clip,
+                proj_clip,
+                time_major,
+                asymmetric_quantize_inputs,
+                diagonal_recurrent_tensors,
+            }
         }
 
         #[inline]
@@ -13196,6 +20733,52 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UnidirectionalSequenceLSTMOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+        pub cell_clip: f32,
+        pub proj_clip: f32,
+        pub time_major: bool,
+        pub asymmetric_quantize_inputs: bool,
+        pub diagonal_recurrent_tensors: bool,
+    }
+    impl Default for UnidirectionalSequenceLSTMOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+                cell_clip: 0.0,
+                proj_clip: 0.0,
+                time_major: false,
+                asymmetric_quantize_inputs: false,
+                diagonal_recurrent_tensors: false,
+            }
+        }
+    }
+    impl UnidirectionalSequenceLSTMOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<UnidirectionalSequenceLSTMOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            let cell_clip = self.cell_clip;
+            let proj_clip = self.proj_clip;
+            let time_major = self.time_major;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            let diagonal_recurrent_tensors = self.diagonal_recurrent_tensors;
+            UnidirectionalSequenceLSTMOptions::create(
+                _fbb,
+                &UnidirectionalSequenceLSTMOptionsArgs {
+                    fused_activation_function,
+                    cell_clip,
+                    proj_clip,
+                    time_major,
+                    asymmetric_quantize_inputs,
+                    diagonal_recurrent_tensors,
+                },
+            )
+        }
+    }
     pub enum BidirectionalSequenceLSTMOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -13243,6 +20826,23 @@ pub mod tflite {
             builder.add_merge_outputs(args.merge_outputs);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BidirectionalSequenceLSTMOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            let cell_clip = self.cell_clip();
+            let proj_clip = self.proj_clip();
+            let merge_outputs = self.merge_outputs();
+            let time_major = self.time_major();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            BidirectionalSequenceLSTMOptionsT {
+                fused_activation_function,
+                cell_clip,
+                proj_clip,
+                merge_outputs,
+                time_major,
+                asymmetric_quantize_inputs,
+            }
         }
 
         #[inline]
@@ -13463,6 +21063,52 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BidirectionalSequenceLSTMOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+        pub cell_clip: f32,
+        pub proj_clip: f32,
+        pub merge_outputs: bool,
+        pub time_major: bool,
+        pub asymmetric_quantize_inputs: bool,
+    }
+    impl Default for BidirectionalSequenceLSTMOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+                cell_clip: 0.0,
+                proj_clip: 0.0,
+                merge_outputs: false,
+                time_major: true,
+                asymmetric_quantize_inputs: false,
+            }
+        }
+    }
+    impl BidirectionalSequenceLSTMOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BidirectionalSequenceLSTMOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            let cell_clip = self.cell_clip;
+            let proj_clip = self.proj_clip;
+            let merge_outputs = self.merge_outputs;
+            let time_major = self.time_major;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            BidirectionalSequenceLSTMOptions::create(
+                _fbb,
+                &BidirectionalSequenceLSTMOptionsArgs {
+                    fused_activation_function,
+                    cell_clip,
+                    proj_clip,
+                    merge_outputs,
+                    time_major,
+                    asymmetric_quantize_inputs,
+                },
+            )
+        }
+    }
     pub enum ResizeBilinearOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -13502,6 +21148,15 @@ pub mod tflite {
             builder.add_half_pixel_centers(args.half_pixel_centers);
             builder.add_align_corners(args.align_corners);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ResizeBilinearOptionsT {
+            let align_corners = self.align_corners();
+            let half_pixel_centers = self.half_pixel_centers();
+            ResizeBilinearOptionsT {
+                align_corners,
+                half_pixel_centers,
+            }
         }
 
         #[inline]
@@ -13602,6 +21257,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ResizeBilinearOptionsT {
+        pub align_corners: bool,
+        pub half_pixel_centers: bool,
+    }
+    impl Default for ResizeBilinearOptionsT {
+        fn default() -> Self {
+            Self {
+                align_corners: false,
+                half_pixel_centers: false,
+            }
+        }
+    }
+    impl ResizeBilinearOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ResizeBilinearOptions<'b>> {
+            let align_corners = self.align_corners;
+            let half_pixel_centers = self.half_pixel_centers;
+            ResizeBilinearOptions::create(
+                _fbb,
+                &ResizeBilinearOptionsArgs {
+                    align_corners,
+                    half_pixel_centers,
+                },
+            )
+        }
+    }
     pub enum ResizeNearestNeighborOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -13641,6 +21326,15 @@ pub mod tflite {
             builder.add_half_pixel_centers(args.half_pixel_centers);
             builder.add_align_corners(args.align_corners);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ResizeNearestNeighborOptionsT {
+            let align_corners = self.align_corners();
+            let half_pixel_centers = self.half_pixel_centers();
+            ResizeNearestNeighborOptionsT {
+                align_corners,
+                half_pixel_centers,
+            }
         }
 
         #[inline]
@@ -13744,6 +21438,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ResizeNearestNeighborOptionsT {
+        pub align_corners: bool,
+        pub half_pixel_centers: bool,
+    }
+    impl Default for ResizeNearestNeighborOptionsT {
+        fn default() -> Self {
+            Self {
+                align_corners: false,
+                half_pixel_centers: false,
+            }
+        }
+    }
+    impl ResizeNearestNeighborOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ResizeNearestNeighborOptions<'b>> {
+            let align_corners = self.align_corners;
+            let half_pixel_centers = self.half_pixel_centers;
+            ResizeNearestNeighborOptions::create(
+                _fbb,
+                &ResizeNearestNeighborOptionsArgs {
+                    align_corners,
+                    half_pixel_centers,
+                },
+            )
+        }
+    }
     pub enum CallOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -13781,6 +21505,11 @@ pub mod tflite {
             let mut builder = CallOptionsBuilder::new(_fbb);
             builder.add_subgraph(args.subgraph);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> CallOptionsT {
+            let subgraph = self.subgraph();
+            CallOptionsT { subgraph }
         }
 
         #[inline]
@@ -13853,6 +21582,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CallOptionsT {
+        pub subgraph: u32,
+    }
+    impl Default for CallOptionsT {
+        fn default() -> Self {
+            Self { subgraph: 0 }
+        }
+    }
+    impl CallOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<CallOptions<'b>> {
+            let subgraph = self.subgraph;
+            CallOptions::create(_fbb, &CallOptionsArgs { subgraph })
+        }
+    }
     pub enum PadOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -13887,6 +21635,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<PadOptions<'bldr>> {
             let mut builder = PadOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> PadOptionsT {
+            PadOptionsT {}
         }
     }
 
@@ -13937,6 +21689,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct PadOptionsT {}
+    impl Default for PadOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl PadOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<PadOptions<'b>> {
+            PadOptions::create(_fbb, &PadOptionsArgs {})
+        }
+    }
     pub enum PadV2OptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -13971,6 +21739,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<PadV2Options<'bldr>> {
             let mut builder = PadV2OptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> PadV2OptionsT {
+            PadV2OptionsT {}
         }
     }
 
@@ -14021,6 +21793,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct PadV2OptionsT {}
+    impl Default for PadV2OptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl PadV2OptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<PadV2Options<'b>> {
+            PadV2Options::create(_fbb, &PadV2OptionsArgs {})
+        }
+    }
     pub enum ReshapeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14060,6 +21848,11 @@ pub mod tflite {
                 builder.add_new_shape(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ReshapeOptionsT {
+            let new_shape = self.new_shape().map(|x| x.into_iter().collect());
+            ReshapeOptionsT { new_shape }
         }
 
         #[inline]
@@ -14143,6 +21936,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ReshapeOptionsT {
+        pub new_shape: Option<Vec<i32>>,
+    }
+    impl Default for ReshapeOptionsT {
+        fn default() -> Self {
+            Self { new_shape: None }
+        }
+    }
+    impl ReshapeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ReshapeOptions<'b>> {
+            let new_shape = self.new_shape.as_ref().map(|x| _fbb.create_vector(x));
+            ReshapeOptions::create(_fbb, &ReshapeOptionsArgs { new_shape })
+        }
+    }
     pub enum SpaceToBatchNDOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14177,6 +21989,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SpaceToBatchNDOptions<'bldr>> {
             let mut builder = SpaceToBatchNDOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SpaceToBatchNDOptionsT {
+            SpaceToBatchNDOptionsT {}
         }
     }
 
@@ -14227,6 +22043,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SpaceToBatchNDOptionsT {}
+    impl Default for SpaceToBatchNDOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SpaceToBatchNDOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SpaceToBatchNDOptions<'b>> {
+            SpaceToBatchNDOptions::create(_fbb, &SpaceToBatchNDOptionsArgs {})
+        }
+    }
     pub enum BatchToSpaceNDOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14261,6 +22093,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<BatchToSpaceNDOptions<'bldr>> {
             let mut builder = BatchToSpaceNDOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BatchToSpaceNDOptionsT {
+            BatchToSpaceNDOptionsT {}
         }
     }
 
@@ -14311,6 +22147,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BatchToSpaceNDOptionsT {}
+    impl Default for BatchToSpaceNDOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl BatchToSpaceNDOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BatchToSpaceNDOptions<'b>> {
+            BatchToSpaceNDOptions::create(_fbb, &BatchToSpaceNDOptionsArgs {})
+        }
+    }
     pub enum SkipGramOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14352,6 +22204,17 @@ pub mod tflite {
             builder.add_ngram_size(args.ngram_size);
             builder.add_include_all_ngrams(args.include_all_ngrams);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SkipGramOptionsT {
+            let ngram_size = self.ngram_size();
+            let max_skip_size = self.max_skip_size();
+            let include_all_ngrams = self.include_all_ngrams();
+            SkipGramOptionsT {
+                ngram_size,
+                max_skip_size,
+                include_all_ngrams,
+            }
         }
 
         #[inline]
@@ -14469,6 +22332,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SkipGramOptionsT {
+        pub ngram_size: i32,
+        pub max_skip_size: i32,
+        pub include_all_ngrams: bool,
+    }
+    impl Default for SkipGramOptionsT {
+        fn default() -> Self {
+            Self {
+                ngram_size: 0,
+                max_skip_size: 0,
+                include_all_ngrams: false,
+            }
+        }
+    }
+    impl SkipGramOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SkipGramOptions<'b>> {
+            let ngram_size = self.ngram_size;
+            let max_skip_size = self.max_skip_size;
+            let include_all_ngrams = self.include_all_ngrams;
+            SkipGramOptions::create(
+                _fbb,
+                &SkipGramOptionsArgs {
+                    ngram_size,
+                    max_skip_size,
+                    include_all_ngrams,
+                },
+            )
+        }
+    }
     pub enum SpaceToDepthOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14506,6 +22403,11 @@ pub mod tflite {
             let mut builder = SpaceToDepthOptionsBuilder::new(_fbb);
             builder.add_block_size(args.block_size);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SpaceToDepthOptionsT {
+            let block_size = self.block_size();
+            SpaceToDepthOptionsT { block_size }
         }
 
         #[inline]
@@ -14578,6 +22480,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SpaceToDepthOptionsT {
+        pub block_size: i32,
+    }
+    impl Default for SpaceToDepthOptionsT {
+        fn default() -> Self {
+            Self { block_size: 0 }
+        }
+    }
+    impl SpaceToDepthOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SpaceToDepthOptions<'b>> {
+            let block_size = self.block_size;
+            SpaceToDepthOptions::create(_fbb, &SpaceToDepthOptionsArgs { block_size })
+        }
+    }
     pub enum DepthToSpaceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14615,6 +22536,11 @@ pub mod tflite {
             let mut builder = DepthToSpaceOptionsBuilder::new(_fbb);
             builder.add_block_size(args.block_size);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DepthToSpaceOptionsT {
+            let block_size = self.block_size();
+            DepthToSpaceOptionsT { block_size }
         }
 
         #[inline]
@@ -14687,6 +22613,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DepthToSpaceOptionsT {
+        pub block_size: i32,
+    }
+    impl Default for DepthToSpaceOptionsT {
+        fn default() -> Self {
+            Self { block_size: 0 }
+        }
+    }
+    impl DepthToSpaceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DepthToSpaceOptions<'b>> {
+            let block_size = self.block_size;
+            DepthToSpaceOptions::create(_fbb, &DepthToSpaceOptionsArgs { block_size })
+        }
+    }
     pub enum SubOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14726,6 +22671,15 @@ pub mod tflite {
             builder.add_pot_scale_int16(args.pot_scale_int16);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SubOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            let pot_scale_int16 = self.pot_scale_int16();
+            SubOptionsT {
+                fused_activation_function,
+                pot_scale_int16,
+            }
         }
 
         #[inline]
@@ -14836,6 +22790,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SubOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+        pub pot_scale_int16: bool,
+    }
+    impl Default for SubOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+                pot_scale_int16: true,
+            }
+        }
+    }
+    impl SubOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SubOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            let pot_scale_int16 = self.pot_scale_int16;
+            SubOptions::create(
+                _fbb,
+                &SubOptionsArgs {
+                    fused_activation_function,
+                    pot_scale_int16,
+                },
+            )
+        }
+    }
     pub enum DivOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14873,6 +22857,13 @@ pub mod tflite {
             let mut builder = DivOptionsBuilder::new(_fbb);
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DivOptionsT {
+            let fused_activation_function = self.fused_activation_function();
+            DivOptionsT {
+                fused_activation_function,
+            }
         }
 
         #[inline]
@@ -14963,6 +22954,32 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DivOptionsT {
+        pub fused_activation_function: ActivationFunctionType,
+    }
+    impl Default for DivOptionsT {
+        fn default() -> Self {
+            Self {
+                fused_activation_function: ActivationFunctionType::NONE,
+            }
+        }
+    }
+    impl DivOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DivOptions<'b>> {
+            let fused_activation_function = self.fused_activation_function;
+            DivOptions::create(
+                _fbb,
+                &DivOptionsArgs {
+                    fused_activation_function,
+                },
+            )
+        }
+    }
     pub enum TopKV2OptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -14997,6 +23014,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<TopKV2Options<'bldr>> {
             let mut builder = TopKV2OptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> TopKV2OptionsT {
+            TopKV2OptionsT {}
         }
     }
 
@@ -15047,6 +23068,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TopKV2OptionsT {}
+    impl Default for TopKV2OptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl TopKV2OptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<TopKV2Options<'b>> {
+            TopKV2Options::create(_fbb, &TopKV2OptionsArgs {})
+        }
+    }
     pub enum EmbeddingLookupSparseOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15084,6 +23121,11 @@ pub mod tflite {
             let mut builder = EmbeddingLookupSparseOptionsBuilder::new(_fbb);
             builder.add_combiner(args.combiner);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> EmbeddingLookupSparseOptionsT {
+            let combiner = self.combiner();
+            EmbeddingLookupSparseOptionsT { combiner }
         }
 
         #[inline]
@@ -15164,6 +23206,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct EmbeddingLookupSparseOptionsT {
+        pub combiner: CombinerType,
+    }
+    impl Default for EmbeddingLookupSparseOptionsT {
+        fn default() -> Self {
+            Self {
+                combiner: CombinerType::SUM,
+            }
+        }
+    }
+    impl EmbeddingLookupSparseOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<EmbeddingLookupSparseOptions<'b>> {
+            let combiner = self.combiner;
+            EmbeddingLookupSparseOptions::create(
+                _fbb,
+                &EmbeddingLookupSparseOptionsArgs { combiner },
+            )
+        }
+    }
     pub enum GatherOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15203,6 +23269,12 @@ pub mod tflite {
             builder.add_batch_dims(args.batch_dims);
             builder.add_axis(args.axis);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> GatherOptionsT {
+            let axis = self.axis();
+            let batch_dims = self.batch_dims();
+            GatherOptionsT { axis, batch_dims }
         }
 
         #[inline]
@@ -15296,6 +23368,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct GatherOptionsT {
+        pub axis: i32,
+        pub batch_dims: i32,
+    }
+    impl Default for GatherOptionsT {
+        fn default() -> Self {
+            Self {
+                axis: 0,
+                batch_dims: 0,
+            }
+        }
+    }
+    impl GatherOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<GatherOptions<'b>> {
+            let axis = self.axis;
+            let batch_dims = self.batch_dims;
+            GatherOptions::create(_fbb, &GatherOptionsArgs { axis, batch_dims })
+        }
+    }
     pub enum TransposeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15330,6 +23426,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<TransposeOptions<'bldr>> {
             let mut builder = TransposeOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> TransposeOptionsT {
+            TransposeOptionsT {}
         }
     }
 
@@ -15380,6 +23480,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TransposeOptionsT {}
+    impl Default for TransposeOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl TransposeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<TransposeOptions<'b>> {
+            TransposeOptions::create(_fbb, &TransposeOptionsArgs {})
+        }
+    }
     pub enum ExpOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15414,6 +23530,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<ExpOptions<'bldr>> {
             let mut builder = ExpOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ExpOptionsT {
+            ExpOptionsT {}
         }
     }
 
@@ -15464,6 +23584,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ExpOptionsT {}
+    impl Default for ExpOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl ExpOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ExpOptions<'b>> {
+            ExpOptions::create(_fbb, &ExpOptionsArgs {})
+        }
+    }
     pub enum CosOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15498,6 +23634,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<CosOptions<'bldr>> {
             let mut builder = CosOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> CosOptionsT {
+            CosOptionsT {}
         }
     }
 
@@ -15548,6 +23688,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CosOptionsT {}
+    impl Default for CosOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl CosOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<CosOptions<'b>> {
+            CosOptions::create(_fbb, &CosOptionsArgs {})
+        }
+    }
     pub enum ReducerOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15585,6 +23741,11 @@ pub mod tflite {
             let mut builder = ReducerOptionsBuilder::new(_fbb);
             builder.add_keep_dims(args.keep_dims);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ReducerOptionsT {
+            let keep_dims = self.keep_dims();
+            ReducerOptionsT { keep_dims }
         }
 
         #[inline]
@@ -15657,6 +23818,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ReducerOptionsT {
+        pub keep_dims: bool,
+    }
+    impl Default for ReducerOptionsT {
+        fn default() -> Self {
+            Self { keep_dims: false }
+        }
+    }
+    impl ReducerOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ReducerOptions<'b>> {
+            let keep_dims = self.keep_dims;
+            ReducerOptions::create(_fbb, &ReducerOptionsArgs { keep_dims })
+        }
+    }
     pub enum SqueezeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15696,6 +23876,11 @@ pub mod tflite {
                 builder.add_squeeze_dims(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SqueezeOptionsT {
+            let squeeze_dims = self.squeeze_dims().map(|x| x.into_iter().collect());
+            SqueezeOptionsT { squeeze_dims }
         }
 
         #[inline]
@@ -15779,6 +23964,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SqueezeOptionsT {
+        pub squeeze_dims: Option<Vec<i32>>,
+    }
+    impl Default for SqueezeOptionsT {
+        fn default() -> Self {
+            Self { squeeze_dims: None }
+        }
+    }
+    impl SqueezeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SqueezeOptions<'b>> {
+            let squeeze_dims = self.squeeze_dims.as_ref().map(|x| _fbb.create_vector(x));
+            SqueezeOptions::create(_fbb, &SqueezeOptionsArgs { squeeze_dims })
+        }
+    }
     pub enum SplitOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15816,6 +24020,11 @@ pub mod tflite {
             let mut builder = SplitOptionsBuilder::new(_fbb);
             builder.add_num_splits(args.num_splits);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SplitOptionsT {
+            let num_splits = self.num_splits();
+            SplitOptionsT { num_splits }
         }
 
         #[inline]
@@ -15888,6 +24097,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SplitOptionsT {
+        pub num_splits: i32,
+    }
+    impl Default for SplitOptionsT {
+        fn default() -> Self {
+            Self { num_splits: 0 }
+        }
+    }
+    impl SplitOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SplitOptions<'b>> {
+            let num_splits = self.num_splits;
+            SplitOptions::create(_fbb, &SplitOptionsArgs { num_splits })
+        }
+    }
     pub enum SplitVOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -15925,6 +24153,11 @@ pub mod tflite {
             let mut builder = SplitVOptionsBuilder::new(_fbb);
             builder.add_num_splits(args.num_splits);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SplitVOptionsT {
+            let num_splits = self.num_splits();
+            SplitVOptionsT { num_splits }
         }
 
         #[inline]
@@ -15997,6 +24230,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SplitVOptionsT {
+        pub num_splits: i32,
+    }
+    impl Default for SplitVOptionsT {
+        fn default() -> Self {
+            Self { num_splits: 0 }
+        }
+    }
+    impl SplitVOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SplitVOptions<'b>> {
+            let num_splits = self.num_splits;
+            SplitVOptions::create(_fbb, &SplitVOptionsArgs { num_splits })
+        }
+    }
     pub enum StridedSliceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16044,6 +24296,23 @@ pub mod tflite {
             builder.add_begin_mask(args.begin_mask);
             builder.add_offset(args.offset);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StridedSliceOptionsT {
+            let begin_mask = self.begin_mask();
+            let end_mask = self.end_mask();
+            let ellipsis_mask = self.ellipsis_mask();
+            let new_axis_mask = self.new_axis_mask();
+            let shrink_axis_mask = self.shrink_axis_mask();
+            let offset = self.offset();
+            StridedSliceOptionsT {
+                begin_mask,
+                end_mask,
+                ellipsis_mask,
+                new_axis_mask,
+                shrink_axis_mask,
+                offset,
+            }
         }
 
         #[inline]
@@ -16221,6 +24490,52 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StridedSliceOptionsT {
+        pub begin_mask: i32,
+        pub end_mask: i32,
+        pub ellipsis_mask: i32,
+        pub new_axis_mask: i32,
+        pub shrink_axis_mask: i32,
+        pub offset: bool,
+    }
+    impl Default for StridedSliceOptionsT {
+        fn default() -> Self {
+            Self {
+                begin_mask: 0,
+                end_mask: 0,
+                ellipsis_mask: 0,
+                new_axis_mask: 0,
+                shrink_axis_mask: 0,
+                offset: false,
+            }
+        }
+    }
+    impl StridedSliceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StridedSliceOptions<'b>> {
+            let begin_mask = self.begin_mask;
+            let end_mask = self.end_mask;
+            let ellipsis_mask = self.ellipsis_mask;
+            let new_axis_mask = self.new_axis_mask;
+            let shrink_axis_mask = self.shrink_axis_mask;
+            let offset = self.offset;
+            StridedSliceOptions::create(
+                _fbb,
+                &StridedSliceOptionsArgs {
+                    begin_mask,
+                    end_mask,
+                    ellipsis_mask,
+                    new_axis_mask,
+                    shrink_axis_mask,
+                    offset,
+                },
+            )
+        }
+    }
     pub enum LogSoftmaxOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16255,6 +24570,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<LogSoftmaxOptions<'bldr>> {
             let mut builder = LogSoftmaxOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LogSoftmaxOptionsT {
+            LogSoftmaxOptionsT {}
         }
     }
 
@@ -16305,6 +24624,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LogSoftmaxOptionsT {}
+    impl Default for LogSoftmaxOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl LogSoftmaxOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LogSoftmaxOptions<'b>> {
+            LogSoftmaxOptions::create(_fbb, &LogSoftmaxOptionsArgs {})
+        }
+    }
     pub enum CastOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16344,6 +24679,15 @@ pub mod tflite {
             builder.add_out_data_type(args.out_data_type);
             builder.add_in_data_type(args.in_data_type);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> CastOptionsT {
+            let in_data_type = self.in_data_type();
+            let out_data_type = self.out_data_type();
+            CastOptionsT {
+                in_data_type,
+                out_data_type,
+            }
         }
 
         #[inline]
@@ -16444,6 +24788,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CastOptionsT {
+        pub in_data_type: TensorType,
+        pub out_data_type: TensorType,
+    }
+    impl Default for CastOptionsT {
+        fn default() -> Self {
+            Self {
+                in_data_type: TensorType::FLOAT32,
+                out_data_type: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl CastOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<CastOptions<'b>> {
+            let in_data_type = self.in_data_type;
+            let out_data_type = self.out_data_type;
+            CastOptions::create(
+                _fbb,
+                &CastOptionsArgs {
+                    in_data_type,
+                    out_data_type,
+                },
+            )
+        }
+    }
     pub enum DequantizeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16478,6 +24852,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<DequantizeOptions<'bldr>> {
             let mut builder = DequantizeOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DequantizeOptionsT {
+            DequantizeOptionsT {}
         }
     }
 
@@ -16528,6 +24906,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DequantizeOptionsT {}
+    impl Default for DequantizeOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl DequantizeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DequantizeOptions<'b>> {
+            DequantizeOptions::create(_fbb, &DequantizeOptionsArgs {})
+        }
+    }
     pub enum MaximumMinimumOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16562,6 +24956,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<MaximumMinimumOptions<'bldr>> {
             let mut builder = MaximumMinimumOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> MaximumMinimumOptionsT {
+            MaximumMinimumOptionsT {}
         }
     }
 
@@ -16612,6 +25010,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MaximumMinimumOptionsT {}
+    impl Default for MaximumMinimumOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl MaximumMinimumOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<MaximumMinimumOptions<'b>> {
+            MaximumMinimumOptions::create(_fbb, &MaximumMinimumOptionsArgs {})
+        }
+    }
     pub enum TileOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16646,6 +25060,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<TileOptions<'bldr>> {
             let mut builder = TileOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> TileOptionsT {
+            TileOptionsT {}
         }
     }
 
@@ -16696,6 +25114,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TileOptionsT {}
+    impl Default for TileOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl TileOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<TileOptions<'b>> {
+            TileOptions::create(_fbb, &TileOptionsArgs {})
+        }
+    }
     pub enum ArgMaxOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16733,6 +25167,11 @@ pub mod tflite {
             let mut builder = ArgMaxOptionsBuilder::new(_fbb);
             builder.add_output_type(args.output_type);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ArgMaxOptionsT {
+            let output_type = self.output_type();
+            ArgMaxOptionsT { output_type }
         }
 
         #[inline]
@@ -16810,6 +25249,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ArgMaxOptionsT {
+        pub output_type: TensorType,
+    }
+    impl Default for ArgMaxOptionsT {
+        fn default() -> Self {
+            Self {
+                output_type: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl ArgMaxOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ArgMaxOptions<'b>> {
+            let output_type = self.output_type;
+            ArgMaxOptions::create(_fbb, &ArgMaxOptionsArgs { output_type })
+        }
+    }
     pub enum ArgMinOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16847,6 +25307,11 @@ pub mod tflite {
             let mut builder = ArgMinOptionsBuilder::new(_fbb);
             builder.add_output_type(args.output_type);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ArgMinOptionsT {
+            let output_type = self.output_type();
+            ArgMinOptionsT { output_type }
         }
 
         #[inline]
@@ -16924,6 +25389,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ArgMinOptionsT {
+        pub output_type: TensorType,
+    }
+    impl Default for ArgMinOptionsT {
+        fn default() -> Self {
+            Self {
+                output_type: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl ArgMinOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ArgMinOptions<'b>> {
+            let output_type = self.output_type;
+            ArgMinOptions::create(_fbb, &ArgMinOptionsArgs { output_type })
+        }
+    }
     pub enum GreaterOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -16958,6 +25444,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<GreaterOptions<'bldr>> {
             let mut builder = GreaterOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> GreaterOptionsT {
+            GreaterOptionsT {}
         }
     }
 
@@ -17008,6 +25498,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct GreaterOptionsT {}
+    impl Default for GreaterOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl GreaterOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<GreaterOptions<'b>> {
+            GreaterOptions::create(_fbb, &GreaterOptionsArgs {})
+        }
+    }
     pub enum GreaterEqualOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17042,6 +25548,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<GreaterEqualOptions<'bldr>> {
             let mut builder = GreaterEqualOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> GreaterEqualOptionsT {
+            GreaterEqualOptionsT {}
         }
     }
 
@@ -17092,6 +25602,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct GreaterEqualOptionsT {}
+    impl Default for GreaterEqualOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl GreaterEqualOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<GreaterEqualOptions<'b>> {
+            GreaterEqualOptions::create(_fbb, &GreaterEqualOptionsArgs {})
+        }
+    }
     pub enum LessOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17126,6 +25652,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<LessOptions<'bldr>> {
             let mut builder = LessOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LessOptionsT {
+            LessOptionsT {}
         }
     }
 
@@ -17176,6 +25706,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LessOptionsT {}
+    impl Default for LessOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl LessOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LessOptions<'b>> {
+            LessOptions::create(_fbb, &LessOptionsArgs {})
+        }
+    }
     pub enum LessEqualOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17210,6 +25756,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<LessEqualOptions<'bldr>> {
             let mut builder = LessEqualOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LessEqualOptionsT {
+            LessEqualOptionsT {}
         }
     }
 
@@ -17260,6 +25810,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LessEqualOptionsT {}
+    impl Default for LessEqualOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl LessEqualOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LessEqualOptions<'b>> {
+            LessEqualOptions::create(_fbb, &LessEqualOptionsArgs {})
+        }
+    }
     pub enum NegOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17294,6 +25860,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<NegOptions<'bldr>> {
             let mut builder = NegOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> NegOptionsT {
+            NegOptionsT {}
         }
     }
 
@@ -17344,6 +25914,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct NegOptionsT {}
+    impl Default for NegOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl NegOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<NegOptions<'b>> {
+            NegOptions::create(_fbb, &NegOptionsArgs {})
+        }
+    }
     pub enum SelectOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17378,6 +25964,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SelectOptions<'bldr>> {
             let mut builder = SelectOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SelectOptionsT {
+            SelectOptionsT {}
         }
     }
 
@@ -17428,6 +26018,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SelectOptionsT {}
+    impl Default for SelectOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SelectOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SelectOptions<'b>> {
+            SelectOptions::create(_fbb, &SelectOptionsArgs {})
+        }
+    }
     pub enum SliceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17462,6 +26068,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SliceOptions<'bldr>> {
             let mut builder = SliceOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SliceOptionsT {
+            SliceOptionsT {}
         }
     }
 
@@ -17512,6 +26122,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SliceOptionsT {}
+    impl Default for SliceOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SliceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SliceOptions<'b>> {
+            SliceOptions::create(_fbb, &SliceOptionsArgs {})
+        }
+    }
     pub enum TransposeConvOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17557,6 +26183,21 @@ pub mod tflite {
             builder.add_fused_activation_function(args.fused_activation_function);
             builder.add_padding(args.padding);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> TransposeConvOptionsT {
+            let padding = self.padding();
+            let stride_w = self.stride_w();
+            let stride_h = self.stride_h();
+            let fused_activation_function = self.fused_activation_function();
+            let quantized_bias_type = self.quantized_bias_type();
+            TransposeConvOptionsT {
+                padding,
+                stride_w,
+                stride_h,
+                fused_activation_function,
+                quantized_bias_type,
+            }
         }
 
         #[inline]
@@ -17740,6 +26381,48 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TransposeConvOptionsT {
+        pub padding: Padding,
+        pub stride_w: i32,
+        pub stride_h: i32,
+        pub fused_activation_function: ActivationFunctionType,
+        pub quantized_bias_type: TensorType,
+    }
+    impl Default for TransposeConvOptionsT {
+        fn default() -> Self {
+            Self {
+                padding: Padding::SAME,
+                stride_w: 0,
+                stride_h: 0,
+                fused_activation_function: ActivationFunctionType::NONE,
+                quantized_bias_type: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl TransposeConvOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<TransposeConvOptions<'b>> {
+            let padding = self.padding;
+            let stride_w = self.stride_w;
+            let stride_h = self.stride_h;
+            let fused_activation_function = self.fused_activation_function;
+            let quantized_bias_type = self.quantized_bias_type;
+            TransposeConvOptions::create(
+                _fbb,
+                &TransposeConvOptionsArgs {
+                    padding,
+                    stride_w,
+                    stride_h,
+                    fused_activation_function,
+                    quantized_bias_type,
+                },
+            )
+        }
+    }
     pub enum ExpandDimsOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17774,6 +26457,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<ExpandDimsOptions<'bldr>> {
             let mut builder = ExpandDimsOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ExpandDimsOptionsT {
+            ExpandDimsOptionsT {}
         }
     }
 
@@ -17824,6 +26511,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ExpandDimsOptionsT {}
+    impl Default for ExpandDimsOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl ExpandDimsOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ExpandDimsOptions<'b>> {
+            ExpandDimsOptions::create(_fbb, &ExpandDimsOptionsArgs {})
+        }
+    }
     pub enum SparseToDenseOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17861,6 +26564,11 @@ pub mod tflite {
             let mut builder = SparseToDenseOptionsBuilder::new(_fbb);
             builder.add_validate_indices(args.validate_indices);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SparseToDenseOptionsT {
+            let validate_indices = self.validate_indices();
+            SparseToDenseOptionsT { validate_indices }
         }
 
         #[inline]
@@ -17938,6 +26646,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SparseToDenseOptionsT {
+        pub validate_indices: bool,
+    }
+    impl Default for SparseToDenseOptionsT {
+        fn default() -> Self {
+            Self {
+                validate_indices: false,
+            }
+        }
+    }
+    impl SparseToDenseOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SparseToDenseOptions<'b>> {
+            let validate_indices = self.validate_indices;
+            SparseToDenseOptions::create(_fbb, &SparseToDenseOptionsArgs { validate_indices })
+        }
+    }
     pub enum EqualOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -17972,6 +26701,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<EqualOptions<'bldr>> {
             let mut builder = EqualOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> EqualOptionsT {
+            EqualOptionsT {}
         }
     }
 
@@ -18022,6 +26755,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct EqualOptionsT {}
+    impl Default for EqualOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl EqualOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<EqualOptions<'b>> {
+            EqualOptions::create(_fbb, &EqualOptionsArgs {})
+        }
+    }
     pub enum NotEqualOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18056,6 +26805,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<NotEqualOptions<'bldr>> {
             let mut builder = NotEqualOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> NotEqualOptionsT {
+            NotEqualOptionsT {}
         }
     }
 
@@ -18106,6 +26859,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct NotEqualOptionsT {}
+    impl Default for NotEqualOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl NotEqualOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<NotEqualOptions<'b>> {
+            NotEqualOptions::create(_fbb, &NotEqualOptionsArgs {})
+        }
+    }
     pub enum ShapeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18143,6 +26912,11 @@ pub mod tflite {
             let mut builder = ShapeOptionsBuilder::new(_fbb);
             builder.add_out_type(args.out_type);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ShapeOptionsT {
+            let out_type = self.out_type();
+            ShapeOptionsT { out_type }
         }
 
         #[inline]
@@ -18220,6 +26994,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ShapeOptionsT {
+        pub out_type: TensorType,
+    }
+    impl Default for ShapeOptionsT {
+        fn default() -> Self {
+            Self {
+                out_type: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl ShapeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ShapeOptions<'b>> {
+            let out_type = self.out_type;
+            ShapeOptions::create(_fbb, &ShapeOptionsArgs { out_type })
+        }
+    }
     pub enum RankOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18254,6 +27049,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<RankOptions<'bldr>> {
             let mut builder = RankOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> RankOptionsT {
+            RankOptionsT {}
         }
     }
 
@@ -18304,6 +27103,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RankOptionsT {}
+    impl Default for RankOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl RankOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<RankOptions<'b>> {
+            RankOptions::create(_fbb, &RankOptionsArgs {})
+        }
+    }
     pub enum PowOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18338,6 +27153,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<PowOptions<'bldr>> {
             let mut builder = PowOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> PowOptionsT {
+            PowOptionsT {}
         }
     }
 
@@ -18388,6 +27207,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct PowOptionsT {}
+    impl Default for PowOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl PowOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<PowOptions<'b>> {
+            PowOptions::create(_fbb, &PowOptionsArgs {})
+        }
+    }
     pub enum FakeQuantOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18431,6 +27266,19 @@ pub mod tflite {
             builder.add_min(args.min);
             builder.add_narrow_range(args.narrow_range);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> FakeQuantOptionsT {
+            let min = self.min();
+            let max = self.max();
+            let num_bits = self.num_bits();
+            let narrow_range = self.narrow_range();
+            FakeQuantOptionsT {
+                min,
+                max,
+                num_bits,
+                narrow_range,
+            }
         }
 
         #[inline]
@@ -18565,6 +27413,44 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FakeQuantOptionsT {
+        pub min: f32,
+        pub max: f32,
+        pub num_bits: i32,
+        pub narrow_range: bool,
+    }
+    impl Default for FakeQuantOptionsT {
+        fn default() -> Self {
+            Self {
+                min: 0.0,
+                max: 0.0,
+                num_bits: 0,
+                narrow_range: false,
+            }
+        }
+    }
+    impl FakeQuantOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<FakeQuantOptions<'b>> {
+            let min = self.min;
+            let max = self.max;
+            let num_bits = self.num_bits;
+            let narrow_range = self.narrow_range;
+            FakeQuantOptions::create(
+                _fbb,
+                &FakeQuantOptionsArgs {
+                    min,
+                    max,
+                    num_bits,
+                    narrow_range,
+                },
+            )
+        }
+    }
     pub enum PackOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18604,6 +27490,12 @@ pub mod tflite {
             builder.add_axis(args.axis);
             builder.add_values_count(args.values_count);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> PackOptionsT {
+            let values_count = self.values_count();
+            let axis = self.axis();
+            PackOptionsT { values_count, axis }
         }
 
         #[inline]
@@ -18693,6 +27585,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct PackOptionsT {
+        pub values_count: i32,
+        pub axis: i32,
+    }
+    impl Default for PackOptionsT {
+        fn default() -> Self {
+            Self {
+                values_count: 0,
+                axis: 0,
+            }
+        }
+    }
+    impl PackOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<PackOptions<'b>> {
+            let values_count = self.values_count;
+            let axis = self.axis;
+            PackOptions::create(_fbb, &PackOptionsArgs { values_count, axis })
+        }
+    }
     pub enum LogicalOrOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18727,6 +27643,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<LogicalOrOptions<'bldr>> {
             let mut builder = LogicalOrOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LogicalOrOptionsT {
+            LogicalOrOptionsT {}
         }
     }
 
@@ -18777,6 +27697,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LogicalOrOptionsT {}
+    impl Default for LogicalOrOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl LogicalOrOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LogicalOrOptions<'b>> {
+            LogicalOrOptions::create(_fbb, &LogicalOrOptionsArgs {})
+        }
+    }
     pub enum OneHotOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18814,6 +27750,11 @@ pub mod tflite {
             let mut builder = OneHotOptionsBuilder::new(_fbb);
             builder.add_axis(args.axis);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> OneHotOptionsT {
+            let axis = self.axis();
+            OneHotOptionsT { axis }
         }
 
         #[inline]
@@ -18885,6 +27826,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct OneHotOptionsT {
+        pub axis: i32,
+    }
+    impl Default for OneHotOptionsT {
+        fn default() -> Self {
+            Self { axis: 0 }
+        }
+    }
+    impl OneHotOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<OneHotOptions<'b>> {
+            let axis = self.axis;
+            OneHotOptions::create(_fbb, &OneHotOptionsArgs { axis })
+        }
+    }
     pub enum AbsOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -18919,6 +27879,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<AbsOptions<'bldr>> {
             let mut builder = AbsOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> AbsOptionsT {
+            AbsOptionsT {}
         }
     }
 
@@ -18969,6 +27933,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct AbsOptionsT {}
+    impl Default for AbsOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl AbsOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<AbsOptions<'b>> {
+            AbsOptions::create(_fbb, &AbsOptionsArgs {})
+        }
+    }
     pub enum HardSwishOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19003,6 +27983,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<HardSwishOptions<'bldr>> {
             let mut builder = HardSwishOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> HardSwishOptionsT {
+            HardSwishOptionsT {}
         }
     }
 
@@ -19053,6 +28037,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct HardSwishOptionsT {}
+    impl Default for HardSwishOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl HardSwishOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<HardSwishOptions<'b>> {
+            HardSwishOptions::create(_fbb, &HardSwishOptionsArgs {})
+        }
+    }
     pub enum LogicalAndOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19087,6 +28087,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<LogicalAndOptions<'bldr>> {
             let mut builder = LogicalAndOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LogicalAndOptionsT {
+            LogicalAndOptionsT {}
         }
     }
 
@@ -19137,6 +28141,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LogicalAndOptionsT {}
+    impl Default for LogicalAndOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl LogicalAndOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LogicalAndOptions<'b>> {
+            LogicalAndOptions::create(_fbb, &LogicalAndOptionsArgs {})
+        }
+    }
     pub enum LogicalNotOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19171,6 +28191,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<LogicalNotOptions<'bldr>> {
             let mut builder = LogicalNotOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LogicalNotOptionsT {
+            LogicalNotOptionsT {}
         }
     }
 
@@ -19221,6 +28245,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LogicalNotOptionsT {}
+    impl Default for LogicalNotOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl LogicalNotOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LogicalNotOptions<'b>> {
+            LogicalNotOptions::create(_fbb, &LogicalNotOptionsArgs {})
+        }
+    }
     pub enum UnpackOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19260,6 +28300,12 @@ pub mod tflite {
             builder.add_axis(args.axis);
             builder.add_num(args.num);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> UnpackOptionsT {
+            let num = self.num();
+            let axis = self.axis();
+            UnpackOptionsT { num, axis }
         }
 
         #[inline]
@@ -19349,6 +28395,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UnpackOptionsT {
+        pub num: i32,
+        pub axis: i32,
+    }
+    impl Default for UnpackOptionsT {
+        fn default() -> Self {
+            Self { num: 0, axis: 0 }
+        }
+    }
+    impl UnpackOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<UnpackOptions<'b>> {
+            let num = self.num;
+            let axis = self.axis;
+            UnpackOptions::create(_fbb, &UnpackOptionsArgs { num, axis })
+        }
+    }
     pub enum FloorDivOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19383,6 +28450,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<FloorDivOptions<'bldr>> {
             let mut builder = FloorDivOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> FloorDivOptionsT {
+            FloorDivOptionsT {}
         }
     }
 
@@ -19433,6 +28504,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FloorDivOptionsT {}
+    impl Default for FloorDivOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl FloorDivOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<FloorDivOptions<'b>> {
+            FloorDivOptions::create(_fbb, &FloorDivOptionsArgs {})
+        }
+    }
     pub enum SquareOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19467,6 +28554,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SquareOptions<'bldr>> {
             let mut builder = SquareOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SquareOptionsT {
+            SquareOptionsT {}
         }
     }
 
@@ -19517,6 +28608,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SquareOptionsT {}
+    impl Default for SquareOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SquareOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SquareOptions<'b>> {
+            SquareOptions::create(_fbb, &SquareOptionsArgs {})
+        }
+    }
     pub enum ZerosLikeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19551,6 +28658,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<ZerosLikeOptions<'bldr>> {
             let mut builder = ZerosLikeOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ZerosLikeOptionsT {
+            ZerosLikeOptionsT {}
         }
     }
 
@@ -19601,6 +28712,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ZerosLikeOptionsT {}
+    impl Default for ZerosLikeOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl ZerosLikeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ZerosLikeOptions<'b>> {
+            ZerosLikeOptions::create(_fbb, &ZerosLikeOptionsArgs {})
+        }
+    }
     pub enum FillOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19635,6 +28762,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<FillOptions<'bldr>> {
             let mut builder = FillOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> FillOptionsT {
+            FillOptionsT {}
         }
     }
 
@@ -19685,6 +28816,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FillOptionsT {}
+    impl Default for FillOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl FillOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<FillOptions<'b>> {
+            FillOptions::create(_fbb, &FillOptionsArgs {})
+        }
+    }
     pub enum FloorModOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19719,6 +28866,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<FloorModOptions<'bldr>> {
             let mut builder = FloorModOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> FloorModOptionsT {
+            FloorModOptionsT {}
         }
     }
 
@@ -19769,6 +28920,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct FloorModOptionsT {}
+    impl Default for FloorModOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl FloorModOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<FloorModOptions<'b>> {
+            FloorModOptions::create(_fbb, &FloorModOptionsArgs {})
+        }
+    }
     pub enum RangeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19803,6 +28970,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<RangeOptions<'bldr>> {
             let mut builder = RangeOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> RangeOptionsT {
+            RangeOptionsT {}
         }
     }
 
@@ -19853,6 +29024,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RangeOptionsT {}
+    impl Default for RangeOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl RangeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<RangeOptions<'b>> {
+            RangeOptions::create(_fbb, &RangeOptionsArgs {})
+        }
+    }
     pub enum LeakyReluOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19890,6 +29077,11 @@ pub mod tflite {
             let mut builder = LeakyReluOptionsBuilder::new(_fbb);
             builder.add_alpha(args.alpha);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> LeakyReluOptionsT {
+            let alpha = self.alpha();
+            LeakyReluOptionsT { alpha }
         }
 
         #[inline]
@@ -19962,6 +29154,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct LeakyReluOptionsT {
+        pub alpha: f32,
+    }
+    impl Default for LeakyReluOptionsT {
+        fn default() -> Self {
+            Self { alpha: 0.0 }
+        }
+    }
+    impl LeakyReluOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<LeakyReluOptions<'b>> {
+            let alpha = self.alpha;
+            LeakyReluOptions::create(_fbb, &LeakyReluOptionsArgs { alpha })
+        }
+    }
     pub enum SquaredDifferenceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -19996,6 +29207,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SquaredDifferenceOptions<'bldr>> {
             let mut builder = SquaredDifferenceOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SquaredDifferenceOptionsT {
+            SquaredDifferenceOptionsT {}
         }
     }
 
@@ -20046,6 +29261,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SquaredDifferenceOptionsT {}
+    impl Default for SquaredDifferenceOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SquaredDifferenceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SquaredDifferenceOptions<'b>> {
+            SquaredDifferenceOptions::create(_fbb, &SquaredDifferenceOptionsArgs {})
+        }
+    }
     pub enum MirrorPadOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20083,6 +29314,11 @@ pub mod tflite {
             let mut builder = MirrorPadOptionsBuilder::new(_fbb);
             builder.add_mode(args.mode);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> MirrorPadOptionsT {
+            let mode = self.mode();
+            MirrorPadOptionsT { mode }
         }
 
         #[inline]
@@ -20160,6 +29396,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MirrorPadOptionsT {
+        pub mode: MirrorPadMode,
+    }
+    impl Default for MirrorPadOptionsT {
+        fn default() -> Self {
+            Self {
+                mode: MirrorPadMode::REFLECT,
+            }
+        }
+    }
+    impl MirrorPadOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<MirrorPadOptions<'b>> {
+            let mode = self.mode;
+            MirrorPadOptions::create(_fbb, &MirrorPadOptionsArgs { mode })
+        }
+    }
     pub enum UniqueOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20197,6 +29454,11 @@ pub mod tflite {
             let mut builder = UniqueOptionsBuilder::new(_fbb);
             builder.add_idx_out_type(args.idx_out_type);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> UniqueOptionsT {
+            let idx_out_type = self.idx_out_type();
+            UniqueOptionsT { idx_out_type }
         }
 
         #[inline]
@@ -20274,6 +29536,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UniqueOptionsT {
+        pub idx_out_type: TensorType,
+    }
+    impl Default for UniqueOptionsT {
+        fn default() -> Self {
+            Self {
+                idx_out_type: TensorType::INT32,
+            }
+        }
+    }
+    impl UniqueOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<UniqueOptions<'b>> {
+            let idx_out_type = self.idx_out_type;
+            UniqueOptions::create(_fbb, &UniqueOptionsArgs { idx_out_type })
+        }
+    }
     pub enum ReverseV2OptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20308,6 +29591,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<ReverseV2Options<'bldr>> {
             let mut builder = ReverseV2OptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ReverseV2OptionsT {
+            ReverseV2OptionsT {}
         }
     }
 
@@ -20358,6 +29645,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ReverseV2OptionsT {}
+    impl Default for ReverseV2OptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl ReverseV2OptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ReverseV2Options<'b>> {
+            ReverseV2Options::create(_fbb, &ReverseV2OptionsArgs {})
+        }
+    }
     pub enum AddNOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20392,6 +29695,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<AddNOptions<'bldr>> {
             let mut builder = AddNOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> AddNOptionsT {
+            AddNOptionsT {}
         }
     }
 
@@ -20442,6 +29749,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct AddNOptionsT {}
+    impl Default for AddNOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl AddNOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<AddNOptions<'b>> {
+            AddNOptions::create(_fbb, &AddNOptionsArgs {})
+        }
+    }
     pub enum GatherNdOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20476,6 +29799,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<GatherNdOptions<'bldr>> {
             let mut builder = GatherNdOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> GatherNdOptionsT {
+            GatherNdOptionsT {}
         }
     }
 
@@ -20526,6 +29853,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct GatherNdOptionsT {}
+    impl Default for GatherNdOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl GatherNdOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<GatherNdOptions<'b>> {
+            GatherNdOptions::create(_fbb, &GatherNdOptionsArgs {})
+        }
+    }
     pub enum WhereOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20560,6 +29903,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<WhereOptions<'bldr>> {
             let mut builder = WhereOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> WhereOptionsT {
+            WhereOptionsT {}
         }
     }
 
@@ -20610,6 +29957,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct WhereOptionsT {}
+    impl Default for WhereOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl WhereOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<WhereOptions<'b>> {
+            WhereOptions::create(_fbb, &WhereOptionsArgs {})
+        }
+    }
     pub enum ReverseSequenceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20649,6 +30012,12 @@ pub mod tflite {
             builder.add_batch_dim(args.batch_dim);
             builder.add_seq_dim(args.seq_dim);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ReverseSequenceOptionsT {
+            let seq_dim = self.seq_dim();
+            let batch_dim = self.batch_dim();
+            ReverseSequenceOptionsT { seq_dim, batch_dim }
         }
 
         #[inline]
@@ -20743,6 +30112,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ReverseSequenceOptionsT {
+        pub seq_dim: i32,
+        pub batch_dim: i32,
+    }
+    impl Default for ReverseSequenceOptionsT {
+        fn default() -> Self {
+            Self {
+                seq_dim: 0,
+                batch_dim: 0,
+            }
+        }
+    }
+    impl ReverseSequenceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ReverseSequenceOptions<'b>> {
+            let seq_dim = self.seq_dim;
+            let batch_dim = self.batch_dim;
+            ReverseSequenceOptions::create(_fbb, &ReverseSequenceOptionsArgs { seq_dim, batch_dim })
+        }
+    }
     pub enum MatrixDiagOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20777,6 +30170,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<MatrixDiagOptions<'bldr>> {
             let mut builder = MatrixDiagOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> MatrixDiagOptionsT {
+            MatrixDiagOptionsT {}
         }
     }
 
@@ -20827,6 +30224,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MatrixDiagOptionsT {}
+    impl Default for MatrixDiagOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl MatrixDiagOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<MatrixDiagOptions<'b>> {
+            MatrixDiagOptions::create(_fbb, &MatrixDiagOptionsArgs {})
+        }
+    }
     pub enum QuantizeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20861,6 +30274,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<QuantizeOptions<'bldr>> {
             let mut builder = QuantizeOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> QuantizeOptionsT {
+            QuantizeOptionsT {}
         }
     }
 
@@ -20911,6 +30328,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct QuantizeOptionsT {}
+    impl Default for QuantizeOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl QuantizeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<QuantizeOptions<'b>> {
+            QuantizeOptions::create(_fbb, &QuantizeOptionsArgs {})
+        }
+    }
     pub enum MatrixSetDiagOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -20945,6 +30378,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<MatrixSetDiagOptions<'bldr>> {
             let mut builder = MatrixSetDiagOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> MatrixSetDiagOptionsT {
+            MatrixSetDiagOptionsT {}
         }
     }
 
@@ -20995,6 +30432,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MatrixSetDiagOptionsT {}
+    impl Default for MatrixSetDiagOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl MatrixSetDiagOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<MatrixSetDiagOptions<'b>> {
+            MatrixSetDiagOptions::create(_fbb, &MatrixSetDiagOptionsArgs {})
+        }
+    }
     pub enum IfOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21034,6 +30487,15 @@ pub mod tflite {
             builder.add_else_subgraph_index(args.else_subgraph_index);
             builder.add_then_subgraph_index(args.then_subgraph_index);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> IfOptionsT {
+            let then_subgraph_index = self.then_subgraph_index();
+            let else_subgraph_index = self.else_subgraph_index();
+            IfOptionsT {
+                then_subgraph_index,
+                else_subgraph_index,
+            }
         }
 
         #[inline]
@@ -21128,6 +30590,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct IfOptionsT {
+        pub then_subgraph_index: i32,
+        pub else_subgraph_index: i32,
+    }
+    impl Default for IfOptionsT {
+        fn default() -> Self {
+            Self {
+                then_subgraph_index: 0,
+                else_subgraph_index: 0,
+            }
+        }
+    }
+    impl IfOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<IfOptions<'b>> {
+            let then_subgraph_index = self.then_subgraph_index;
+            let else_subgraph_index = self.else_subgraph_index;
+            IfOptions::create(
+                _fbb,
+                &IfOptionsArgs {
+                    then_subgraph_index,
+                    else_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum CallOnceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21165,6 +30657,13 @@ pub mod tflite {
             let mut builder = CallOnceOptionsBuilder::new(_fbb);
             builder.add_init_subgraph_index(args.init_subgraph_index);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> CallOnceOptionsT {
+            let init_subgraph_index = self.init_subgraph_index();
+            CallOnceOptionsT {
+                init_subgraph_index,
+            }
         }
 
         #[inline]
@@ -21242,6 +30741,32 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CallOnceOptionsT {
+        pub init_subgraph_index: i32,
+    }
+    impl Default for CallOnceOptionsT {
+        fn default() -> Self {
+            Self {
+                init_subgraph_index: 0,
+            }
+        }
+    }
+    impl CallOnceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<CallOnceOptions<'b>> {
+            let init_subgraph_index = self.init_subgraph_index;
+            CallOnceOptions::create(
+                _fbb,
+                &CallOnceOptionsArgs {
+                    init_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum WhileOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21281,6 +30806,15 @@ pub mod tflite {
             builder.add_body_subgraph_index(args.body_subgraph_index);
             builder.add_cond_subgraph_index(args.cond_subgraph_index);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> WhileOptionsT {
+            let cond_subgraph_index = self.cond_subgraph_index();
+            let body_subgraph_index = self.body_subgraph_index();
+            WhileOptionsT {
+                cond_subgraph_index,
+                body_subgraph_index,
+            }
         }
 
         #[inline]
@@ -21381,6 +30915,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct WhileOptionsT {
+        pub cond_subgraph_index: i32,
+        pub body_subgraph_index: i32,
+    }
+    impl Default for WhileOptionsT {
+        fn default() -> Self {
+            Self {
+                cond_subgraph_index: 0,
+                body_subgraph_index: 0,
+            }
+        }
+    }
+    impl WhileOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<WhileOptions<'b>> {
+            let cond_subgraph_index = self.cond_subgraph_index;
+            let body_subgraph_index = self.body_subgraph_index;
+            WhileOptions::create(
+                _fbb,
+                &WhileOptionsArgs {
+                    cond_subgraph_index,
+                    body_subgraph_index,
+                },
+            )
+        }
+    }
     pub enum NonMaxSuppressionV4OptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21415,6 +30979,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<NonMaxSuppressionV4Options<'bldr>> {
             let mut builder = NonMaxSuppressionV4OptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> NonMaxSuppressionV4OptionsT {
+            NonMaxSuppressionV4OptionsT {}
         }
     }
 
@@ -21465,6 +31033,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct NonMaxSuppressionV4OptionsT {}
+    impl Default for NonMaxSuppressionV4OptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl NonMaxSuppressionV4OptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<NonMaxSuppressionV4Options<'b>> {
+            NonMaxSuppressionV4Options::create(_fbb, &NonMaxSuppressionV4OptionsArgs {})
+        }
+    }
     pub enum NonMaxSuppressionV5OptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21499,6 +31083,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<NonMaxSuppressionV5Options<'bldr>> {
             let mut builder = NonMaxSuppressionV5OptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> NonMaxSuppressionV5OptionsT {
+            NonMaxSuppressionV5OptionsT {}
         }
     }
 
@@ -21549,6 +31137,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct NonMaxSuppressionV5OptionsT {}
+    impl Default for NonMaxSuppressionV5OptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl NonMaxSuppressionV5OptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<NonMaxSuppressionV5Options<'b>> {
+            NonMaxSuppressionV5Options::create(_fbb, &NonMaxSuppressionV5OptionsArgs {})
+        }
+    }
     pub enum ScatterNdOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21583,6 +31187,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<ScatterNdOptions<'bldr>> {
             let mut builder = ScatterNdOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ScatterNdOptionsT {
+            ScatterNdOptionsT {}
         }
     }
 
@@ -21633,6 +31241,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ScatterNdOptionsT {}
+    impl Default for ScatterNdOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl ScatterNdOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ScatterNdOptions<'b>> {
+            ScatterNdOptions::create(_fbb, &ScatterNdOptionsArgs {})
+        }
+    }
     pub enum SelectV2OptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21667,6 +31291,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SelectV2Options<'bldr>> {
             let mut builder = SelectV2OptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SelectV2OptionsT {
+            SelectV2OptionsT {}
         }
     }
 
@@ -21717,6 +31345,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SelectV2OptionsT {}
+    impl Default for SelectV2OptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SelectV2OptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SelectV2Options<'b>> {
+            SelectV2Options::create(_fbb, &SelectV2OptionsArgs {})
+        }
+    }
     pub enum DensifyOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21751,6 +31395,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<DensifyOptions<'bldr>> {
             let mut builder = DensifyOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DensifyOptionsT {
+            DensifyOptionsT {}
         }
     }
 
@@ -21801,6 +31449,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DensifyOptionsT {}
+    impl Default for DensifyOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl DensifyOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DensifyOptions<'b>> {
+            DensifyOptions::create(_fbb, &DensifyOptionsArgs {})
+        }
+    }
     pub enum SegmentSumOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21835,6 +31499,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SegmentSumOptions<'bldr>> {
             let mut builder = SegmentSumOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SegmentSumOptionsT {
+            SegmentSumOptionsT {}
         }
     }
 
@@ -21885,6 +31553,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SegmentSumOptionsT {}
+    impl Default for SegmentSumOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SegmentSumOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SegmentSumOptions<'b>> {
+            SegmentSumOptions::create(_fbb, &SegmentSumOptionsArgs {})
+        }
+    }
     pub enum BatchMatMulOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -21926,6 +31610,17 @@ pub mod tflite {
             builder.add_adj_y(args.adj_y);
             builder.add_adj_x(args.adj_x);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BatchMatMulOptionsT {
+            let adj_x = self.adj_x();
+            let adj_y = self.adj_y();
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs();
+            BatchMatMulOptionsT {
+                adj_x,
+                adj_y,
+                asymmetric_quantize_inputs,
+            }
         }
 
         #[inline]
@@ -22053,6 +31748,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BatchMatMulOptionsT {
+        pub adj_x: bool,
+        pub adj_y: bool,
+        pub asymmetric_quantize_inputs: bool,
+    }
+    impl Default for BatchMatMulOptionsT {
+        fn default() -> Self {
+            Self {
+                adj_x: false,
+                adj_y: false,
+                asymmetric_quantize_inputs: false,
+            }
+        }
+    }
+    impl BatchMatMulOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BatchMatMulOptions<'b>> {
+            let adj_x = self.adj_x;
+            let adj_y = self.adj_y;
+            let asymmetric_quantize_inputs = self.asymmetric_quantize_inputs;
+            BatchMatMulOptions::create(
+                _fbb,
+                &BatchMatMulOptionsArgs {
+                    adj_x,
+                    adj_y,
+                    asymmetric_quantize_inputs,
+                },
+            )
+        }
+    }
     pub enum CumsumOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22092,6 +31821,12 @@ pub mod tflite {
             builder.add_reverse(args.reverse);
             builder.add_exclusive(args.exclusive);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> CumsumOptionsT {
+            let exclusive = self.exclusive();
+            let reverse = self.reverse();
+            CumsumOptionsT { exclusive, reverse }
         }
 
         #[inline]
@@ -22186,6 +31921,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct CumsumOptionsT {
+        pub exclusive: bool,
+        pub reverse: bool,
+    }
+    impl Default for CumsumOptionsT {
+        fn default() -> Self {
+            Self {
+                exclusive: false,
+                reverse: false,
+            }
+        }
+    }
+    impl CumsumOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<CumsumOptions<'b>> {
+            let exclusive = self.exclusive;
+            let reverse = self.reverse;
+            CumsumOptions::create(_fbb, &CumsumOptionsArgs { exclusive, reverse })
+        }
+    }
     pub enum BroadcastToOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22220,6 +31979,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<BroadcastToOptions<'bldr>> {
             let mut builder = BroadcastToOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BroadcastToOptionsT {
+            BroadcastToOptionsT {}
         }
     }
 
@@ -22270,6 +32033,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BroadcastToOptionsT {}
+    impl Default for BroadcastToOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl BroadcastToOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BroadcastToOptions<'b>> {
+            BroadcastToOptions::create(_fbb, &BroadcastToOptionsArgs {})
+        }
+    }
     pub enum Rfft2dOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22304,6 +32083,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<Rfft2dOptions<'bldr>> {
             let mut builder = Rfft2dOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> Rfft2dOptionsT {
+            Rfft2dOptionsT {}
         }
     }
 
@@ -22354,6 +32137,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct Rfft2dOptionsT {}
+    impl Default for Rfft2dOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl Rfft2dOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Rfft2dOptions<'b>> {
+            Rfft2dOptions::create(_fbb, &Rfft2dOptionsArgs {})
+        }
+    }
     pub enum HashtableOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22395,6 +32194,17 @@ pub mod tflite {
             builder.add_value_dtype(args.value_dtype);
             builder.add_key_dtype(args.key_dtype);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> HashtableOptionsT {
+            let table_id = self.table_id();
+            let key_dtype = self.key_dtype();
+            let value_dtype = self.value_dtype();
+            HashtableOptionsT {
+                table_id,
+                key_dtype,
+                value_dtype,
+            }
         }
 
         #[inline]
@@ -22515,6 +32325,40 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct HashtableOptionsT {
+        pub table_id: i32,
+        pub key_dtype: TensorType,
+        pub value_dtype: TensorType,
+    }
+    impl Default for HashtableOptionsT {
+        fn default() -> Self {
+            Self {
+                table_id: 0,
+                key_dtype: TensorType::FLOAT32,
+                value_dtype: TensorType::FLOAT32,
+            }
+        }
+    }
+    impl HashtableOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<HashtableOptions<'b>> {
+            let table_id = self.table_id;
+            let key_dtype = self.key_dtype;
+            let value_dtype = self.value_dtype;
+            HashtableOptions::create(
+                _fbb,
+                &HashtableOptionsArgs {
+                    table_id,
+                    key_dtype,
+                    value_dtype,
+                },
+            )
+        }
+    }
     pub enum HashtableFindOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22549,6 +32393,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<HashtableFindOptions<'bldr>> {
             let mut builder = HashtableFindOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> HashtableFindOptionsT {
+            HashtableFindOptionsT {}
         }
     }
 
@@ -22599,6 +32447,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct HashtableFindOptionsT {}
+    impl Default for HashtableFindOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl HashtableFindOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<HashtableFindOptions<'b>> {
+            HashtableFindOptions::create(_fbb, &HashtableFindOptionsArgs {})
+        }
+    }
     pub enum HashtableImportOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22633,6 +32497,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<HashtableImportOptions<'bldr>> {
             let mut builder = HashtableImportOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> HashtableImportOptionsT {
+            HashtableImportOptionsT {}
         }
     }
 
@@ -22683,6 +32551,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct HashtableImportOptionsT {}
+    impl Default for HashtableImportOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl HashtableImportOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<HashtableImportOptions<'b>> {
+            HashtableImportOptions::create(_fbb, &HashtableImportOptionsArgs {})
+        }
+    }
     pub enum HashtableSizeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22717,6 +32601,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<HashtableSizeOptions<'bldr>> {
             let mut builder = HashtableSizeOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> HashtableSizeOptionsT {
+            HashtableSizeOptionsT {}
         }
     }
 
@@ -22767,6 +32655,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct HashtableSizeOptionsT {}
+    impl Default for HashtableSizeOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl HashtableSizeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<HashtableSizeOptions<'b>> {
+            HashtableSizeOptions::create(_fbb, &HashtableSizeOptionsArgs {})
+        }
+    }
     pub enum VarHandleOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22810,6 +32714,15 @@ pub mod tflite {
                 builder.add_container(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> VarHandleOptionsT {
+            let container = self.container().map(|x| x.to_string());
+            let shared_name = self.shared_name().map(|x| x.to_string());
+            VarHandleOptionsT {
+                container,
+                shared_name,
+            }
         }
 
         #[inline]
@@ -22916,6 +32829,36 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct VarHandleOptionsT {
+        pub container: Option<String>,
+        pub shared_name: Option<String>,
+    }
+    impl Default for VarHandleOptionsT {
+        fn default() -> Self {
+            Self {
+                container: None,
+                shared_name: None,
+            }
+        }
+    }
+    impl VarHandleOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<VarHandleOptions<'b>> {
+            let container = self.container.as_ref().map(|x| _fbb.create_string(x));
+            let shared_name = self.shared_name.as_ref().map(|x| _fbb.create_string(x));
+            VarHandleOptions::create(
+                _fbb,
+                &VarHandleOptionsArgs {
+                    container,
+                    shared_name,
+                },
+            )
+        }
+    }
     pub enum ReadVariableOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -22950,6 +32893,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<ReadVariableOptions<'bldr>> {
             let mut builder = ReadVariableOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ReadVariableOptionsT {
+            ReadVariableOptionsT {}
         }
     }
 
@@ -23000,6 +32947,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ReadVariableOptionsT {}
+    impl Default for ReadVariableOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl ReadVariableOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ReadVariableOptions<'b>> {
+            ReadVariableOptions::create(_fbb, &ReadVariableOptionsArgs {})
+        }
+    }
     pub enum AssignVariableOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23034,6 +32997,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<AssignVariableOptions<'bldr>> {
             let mut builder = AssignVariableOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> AssignVariableOptionsT {
+            AssignVariableOptionsT {}
         }
     }
 
@@ -23084,6 +33051,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct AssignVariableOptionsT {}
+    impl Default for AssignVariableOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl AssignVariableOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<AssignVariableOptions<'b>> {
+            AssignVariableOptions::create(_fbb, &AssignVariableOptionsArgs {})
+        }
+    }
     pub enum RandomOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23123,6 +33106,12 @@ pub mod tflite {
             builder.add_seed2(args.seed2);
             builder.add_seed(args.seed);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> RandomOptionsT {
+            let seed = self.seed();
+            let seed2 = self.seed2();
+            RandomOptionsT { seed, seed2 }
         }
 
         #[inline]
@@ -23213,6 +33202,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RandomOptionsT {
+        pub seed: i64,
+        pub seed2: i64,
+    }
+    impl Default for RandomOptionsT {
+        fn default() -> Self {
+            Self { seed: 0, seed2: 0 }
+        }
+    }
+    impl RandomOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<RandomOptions<'b>> {
+            let seed = self.seed;
+            let seed2 = self.seed2;
+            RandomOptions::create(_fbb, &RandomOptionsArgs { seed, seed2 })
+        }
+    }
     pub enum BucketizeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23252,6 +33262,11 @@ pub mod tflite {
                 builder.add_boundaries(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BucketizeOptionsT {
+            let boundaries = self.boundaries().map(|x| x.into_iter().collect());
+            BucketizeOptionsT { boundaries }
         }
 
         #[inline]
@@ -23335,6 +33350,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BucketizeOptionsT {
+        pub boundaries: Option<Vec<f32>>,
+    }
+    impl Default for BucketizeOptionsT {
+        fn default() -> Self {
+            Self { boundaries: None }
+        }
+    }
+    impl BucketizeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BucketizeOptions<'b>> {
+            let boundaries = self.boundaries.as_ref().map(|x| _fbb.create_vector(x));
+            BucketizeOptions::create(_fbb, &BucketizeOptionsArgs { boundaries })
+        }
+    }
     pub enum GeluOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23372,6 +33406,11 @@ pub mod tflite {
             let mut builder = GeluOptionsBuilder::new(_fbb);
             builder.add_approximate(args.approximate);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> GeluOptionsT {
+            let approximate = self.approximate();
+            GeluOptionsT { approximate }
         }
 
         #[inline]
@@ -23444,6 +33483,25 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct GeluOptionsT {
+        pub approximate: bool,
+    }
+    impl Default for GeluOptionsT {
+        fn default() -> Self {
+            Self { approximate: false }
+        }
+    }
+    impl GeluOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<GeluOptions<'b>> {
+            let approximate = self.approximate;
+            GeluOptions::create(_fbb, &GeluOptionsArgs { approximate })
+        }
+    }
     pub enum DynamicUpdateSliceOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23478,6 +33536,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<DynamicUpdateSliceOptions<'bldr>> {
             let mut builder = DynamicUpdateSliceOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DynamicUpdateSliceOptionsT {
+            DynamicUpdateSliceOptionsT {}
         }
     }
 
@@ -23528,6 +33590,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DynamicUpdateSliceOptionsT {}
+    impl Default for DynamicUpdateSliceOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl DynamicUpdateSliceOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DynamicUpdateSliceOptions<'b>> {
+            DynamicUpdateSliceOptions::create(_fbb, &DynamicUpdateSliceOptionsArgs {})
+        }
+    }
     pub enum UnsortedSegmentProdOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23562,6 +33640,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<UnsortedSegmentProdOptions<'bldr>> {
             let mut builder = UnsortedSegmentProdOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> UnsortedSegmentProdOptionsT {
+            UnsortedSegmentProdOptionsT {}
         }
     }
 
@@ -23612,6 +33694,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UnsortedSegmentProdOptionsT {}
+    impl Default for UnsortedSegmentProdOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl UnsortedSegmentProdOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<UnsortedSegmentProdOptions<'b>> {
+            UnsortedSegmentProdOptions::create(_fbb, &UnsortedSegmentProdOptionsArgs {})
+        }
+    }
     pub enum UnsortedSegmentMaxOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23646,6 +33744,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<UnsortedSegmentMaxOptions<'bldr>> {
             let mut builder = UnsortedSegmentMaxOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> UnsortedSegmentMaxOptionsT {
+            UnsortedSegmentMaxOptionsT {}
         }
     }
 
@@ -23696,6 +33798,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UnsortedSegmentMaxOptionsT {}
+    impl Default for UnsortedSegmentMaxOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl UnsortedSegmentMaxOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<UnsortedSegmentMaxOptions<'b>> {
+            UnsortedSegmentMaxOptions::create(_fbb, &UnsortedSegmentMaxOptionsArgs {})
+        }
+    }
     pub enum UnsortedSegmentSumOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23730,6 +33848,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<UnsortedSegmentSumOptions<'bldr>> {
             let mut builder = UnsortedSegmentSumOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> UnsortedSegmentSumOptionsT {
+            UnsortedSegmentSumOptionsT {}
         }
     }
 
@@ -23780,6 +33902,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UnsortedSegmentSumOptionsT {}
+    impl Default for UnsortedSegmentSumOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl UnsortedSegmentSumOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<UnsortedSegmentSumOptions<'b>> {
+            UnsortedSegmentSumOptions::create(_fbb, &UnsortedSegmentSumOptionsArgs {})
+        }
+    }
     pub enum ATan2OptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23814,6 +33952,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<ATan2Options<'bldr>> {
             let mut builder = ATan2OptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ATan2OptionsT {
+            ATan2OptionsT {}
         }
     }
 
@@ -23864,6 +34006,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ATan2OptionsT {}
+    impl Default for ATan2OptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl ATan2OptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ATan2Options<'b>> {
+            ATan2Options::create(_fbb, &ATan2OptionsArgs {})
+        }
+    }
     pub enum UnsortedSegmentMinOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23898,6 +34056,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<UnsortedSegmentMinOptions<'bldr>> {
             let mut builder = UnsortedSegmentMinOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> UnsortedSegmentMinOptionsT {
+            UnsortedSegmentMinOptionsT {}
         }
     }
 
@@ -23948,6 +34110,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct UnsortedSegmentMinOptionsT {}
+    impl Default for UnsortedSegmentMinOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl UnsortedSegmentMinOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<UnsortedSegmentMinOptions<'b>> {
+            UnsortedSegmentMinOptions::create(_fbb, &UnsortedSegmentMinOptionsArgs {})
+        }
+    }
     pub enum SignOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -23982,6 +34160,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<SignOptions<'bldr>> {
             let mut builder = SignOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SignOptionsT {
+            SignOptionsT {}
         }
     }
 
@@ -24032,6 +34214,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SignOptionsT {}
+    impl Default for SignOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl SignOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SignOptions<'b>> {
+            SignOptions::create(_fbb, &SignOptionsArgs {})
+        }
+    }
     pub enum BitcastOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24066,6 +34264,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<BitcastOptions<'bldr>> {
             let mut builder = BitcastOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BitcastOptionsT {
+            BitcastOptionsT {}
         }
     }
 
@@ -24116,6 +34318,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BitcastOptionsT {}
+    impl Default for BitcastOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl BitcastOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BitcastOptions<'b>> {
+            BitcastOptions::create(_fbb, &BitcastOptionsArgs {})
+        }
+    }
     pub enum BitwiseXorOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24150,6 +34368,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<BitwiseXorOptions<'bldr>> {
             let mut builder = BitwiseXorOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BitwiseXorOptionsT {
+            BitwiseXorOptionsT {}
         }
     }
 
@@ -24200,6 +34422,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BitwiseXorOptionsT {}
+    impl Default for BitwiseXorOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl BitwiseXorOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<BitwiseXorOptions<'b>> {
+            BitwiseXorOptions::create(_fbb, &BitwiseXorOptionsArgs {})
+        }
+    }
     pub enum RightShiftOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24234,6 +34472,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<RightShiftOptions<'bldr>> {
             let mut builder = RightShiftOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> RightShiftOptionsT {
+            RightShiftOptionsT {}
         }
     }
 
@@ -24284,6 +34526,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct RightShiftOptionsT {}
+    impl Default for RightShiftOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl RightShiftOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<RightShiftOptions<'b>> {
+            RightShiftOptions::create(_fbb, &RightShiftOptionsArgs {})
+        }
+    }
     pub enum DilateOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24318,6 +34576,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<DilateOptions<'bldr>> {
             let mut builder = DilateOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> DilateOptionsT {
+            DilateOptionsT {}
         }
     }
 
@@ -24368,6 +34630,22 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct DilateOptionsT {}
+    impl Default for DilateOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl DilateOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<DilateOptions<'b>> {
+            DilateOptions::create(_fbb, &DilateOptionsArgs {})
+        }
+    }
     pub enum ReduceWindowOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24405,6 +34683,11 @@ pub mod tflite {
             let mut builder = ReduceWindowOptionsBuilder::new(_fbb);
             builder.add_reduce_function(args.reduce_function);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ReduceWindowOptionsT {
+            let reduce_function = self.reduce_function();
+            ReduceWindowOptionsT { reduce_function }
         }
 
         #[inline]
@@ -24489,6 +34772,27 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ReduceWindowOptionsT {
+        pub reduce_function: ReduceWindowFunction,
+    }
+    impl Default for ReduceWindowOptionsT {
+        fn default() -> Self {
+            Self {
+                reduce_function: ReduceWindowFunction::UNSUPPORTED,
+            }
+        }
+    }
+    impl ReduceWindowOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<ReduceWindowOptions<'b>> {
+            let reduce_function = self.reduce_function;
+            ReduceWindowOptions::create(_fbb, &ReduceWindowOptionsArgs { reduce_function })
+        }
+    }
     pub enum OperatorCodeOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24534,6 +34838,19 @@ pub mod tflite {
             }
             builder.add_deprecated_builtin_code(args.deprecated_builtin_code);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> OperatorCodeT {
+            let deprecated_builtin_code = self.deprecated_builtin_code();
+            let custom_code = self.custom_code().map(|x| x.to_string());
+            let version = self.version();
+            let builtin_code = self.builtin_code();
+            OperatorCodeT {
+                deprecated_builtin_code,
+                custom_code,
+                version,
+                builtin_code,
+            }
         }
 
         #[inline]
@@ -24686,6 +35003,44 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct OperatorCodeT {
+        pub deprecated_builtin_code: i8,
+        pub custom_code: Option<String>,
+        pub version: i32,
+        pub builtin_code: BuiltinOperator,
+    }
+    impl Default for OperatorCodeT {
+        fn default() -> Self {
+            Self {
+                deprecated_builtin_code: 0,
+                custom_code: None,
+                version: 1,
+                builtin_code: BuiltinOperator::ADD,
+            }
+        }
+    }
+    impl OperatorCodeT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<OperatorCode<'b>> {
+            let deprecated_builtin_code = self.deprecated_builtin_code;
+            let custom_code = self.custom_code.as_ref().map(|x| _fbb.create_string(x));
+            let version = self.version;
+            let builtin_code = self.builtin_code;
+            OperatorCode::create(
+                _fbb,
+                &OperatorCodeArgs {
+                    deprecated_builtin_code,
+                    custom_code,
+                    version,
+                    builtin_code,
+                },
+            )
+        }
+    }
     pub enum StableHLOCompositeOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24735,6 +35090,21 @@ pub mod tflite {
             }
             builder.add_composite_attributes_format(args.composite_attributes_format);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StableHLOCompositeOptionsT {
+            let name = self.name().map(|x| x.to_string());
+            let decomposition_subgraph_index = self.decomposition_subgraph_index();
+            let composite_attributes = self.composite_attributes().map(|x| x.into_iter().collect());
+            let composite_attributes_format = self.composite_attributes_format();
+            let version = self.version();
+            StableHLOCompositeOptionsT {
+                name,
+                decomposition_subgraph_index,
+                composite_attributes,
+                composite_attributes_format,
+                version,
+            }
         }
 
         #[inline]
@@ -24932,6 +35302,51 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StableHLOCompositeOptionsT {
+        pub name: Option<String>,
+        pub decomposition_subgraph_index: i32,
+        pub composite_attributes: Option<Vec<u8>>,
+        pub composite_attributes_format: CustomOptionsFormat,
+        pub version: i32,
+    }
+    impl Default for StableHLOCompositeOptionsT {
+        fn default() -> Self {
+            Self {
+                name: None,
+                decomposition_subgraph_index: 0,
+                composite_attributes: None,
+                composite_attributes_format: CustomOptionsFormat::FLEXBUFFERS,
+                version: 0,
+            }
+        }
+    }
+    impl StableHLOCompositeOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StableHLOCompositeOptions<'b>> {
+            let name = self.name.as_ref().map(|x| _fbb.create_string(x));
+            let decomposition_subgraph_index = self.decomposition_subgraph_index;
+            let composite_attributes = self
+                .composite_attributes
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let composite_attributes_format = self.composite_attributes_format;
+            let version = self.version;
+            StableHLOCompositeOptions::create(
+                _fbb,
+                &StableHLOCompositeOptionsArgs {
+                    name,
+                    decomposition_subgraph_index,
+                    composite_attributes,
+                    composite_attributes_format,
+                    version,
+                },
+            )
+        }
+    }
     pub enum StablehloShiftLeftOptionsOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -24966,6 +35381,10 @@ pub mod tflite {
         ) -> flatbuffers::WIPOffset<StablehloShiftLeftOptions<'bldr>> {
             let mut builder = StablehloShiftLeftOptionsBuilder::new(_fbb);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> StablehloShiftLeftOptionsT {
+            StablehloShiftLeftOptionsT {}
         }
     }
 
@@ -25014,6 +35433,22 @@ pub mod tflite {
         fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
             let mut ds = f.debug_struct("StablehloShiftLeftOptions");
             ds.finish()
+        }
+    }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct StablehloShiftLeftOptionsT {}
+    impl Default for StablehloShiftLeftOptionsT {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+    impl StablehloShiftLeftOptionsT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<StablehloShiftLeftOptions<'b>> {
+            StablehloShiftLeftOptions::create(_fbb, &StablehloShiftLeftOptionsArgs {})
         }
     }
     pub enum OperatorOffset {}
@@ -25093,6 +35528,788 @@ pub mod tflite {
             builder.add_custom_options_format(args.custom_options_format);
             builder.add_builtin_options_type(args.builtin_options_type);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> OperatorT {
+            let opcode_index = self.opcode_index();
+            let inputs = self.inputs().map(|x| x.into_iter().collect());
+            let outputs = self.outputs().map(|x| x.into_iter().collect());
+            let builtin_options = match self.builtin_options_type() {
+      BuiltinOptions::NONE => BuiltinOptionsT::NONE,
+      BuiltinOptions::Conv2DOptions => BuiltinOptionsT::Conv2DOptions(Box::new(
+        self.builtin_options_as_conv_2_doptions()
+            .expect("Invalid union table, expected `BuiltinOptions::Conv2DOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::DepthwiseConv2DOptions => BuiltinOptionsT::DepthwiseConv2DOptions(Box::new(
+        self.builtin_options_as_depthwise_conv_2_doptions()
+            .expect("Invalid union table, expected `BuiltinOptions::DepthwiseConv2DOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ConcatEmbeddingsOptions => BuiltinOptionsT::ConcatEmbeddingsOptions(Box::new(
+        self.builtin_options_as_concat_embeddings_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ConcatEmbeddingsOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LSHProjectionOptions => BuiltinOptionsT::LSHProjectionOptions(Box::new(
+        self.builtin_options_as_lshprojection_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LSHProjectionOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::Pool2DOptions => BuiltinOptionsT::Pool2DOptions(Box::new(
+        self.builtin_options_as_pool_2_doptions()
+            .expect("Invalid union table, expected `BuiltinOptions::Pool2DOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SVDFOptions => BuiltinOptionsT::SVDFOptions(Box::new(
+        self.builtin_options_as_svdfoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::SVDFOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::RNNOptions => BuiltinOptionsT::RNNOptions(Box::new(
+        self.builtin_options_as_rnnoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::RNNOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::FullyConnectedOptions => BuiltinOptionsT::FullyConnectedOptions(Box::new(
+        self.builtin_options_as_fully_connected_options()
+            .expect("Invalid union table, expected `BuiltinOptions::FullyConnectedOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SoftmaxOptions => BuiltinOptionsT::SoftmaxOptions(Box::new(
+        self.builtin_options_as_softmax_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SoftmaxOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ConcatenationOptions => BuiltinOptionsT::ConcatenationOptions(Box::new(
+        self.builtin_options_as_concatenation_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ConcatenationOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::AddOptions => BuiltinOptionsT::AddOptions(Box::new(
+        self.builtin_options_as_add_options()
+            .expect("Invalid union table, expected `BuiltinOptions::AddOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::L2NormOptions => BuiltinOptionsT::L2NormOptions(Box::new(
+        self.builtin_options_as_l2_norm_options()
+            .expect("Invalid union table, expected `BuiltinOptions::L2NormOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LocalResponseNormalizationOptions => BuiltinOptionsT::LocalResponseNormalizationOptions(Box::new(
+        self.builtin_options_as_local_response_normalization_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LocalResponseNormalizationOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LSTMOptions => BuiltinOptionsT::LSTMOptions(Box::new(
+        self.builtin_options_as_lstmoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::LSTMOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ResizeBilinearOptions => BuiltinOptionsT::ResizeBilinearOptions(Box::new(
+        self.builtin_options_as_resize_bilinear_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ResizeBilinearOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::CallOptions => BuiltinOptionsT::CallOptions(Box::new(
+        self.builtin_options_as_call_options()
+            .expect("Invalid union table, expected `BuiltinOptions::CallOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ReshapeOptions => BuiltinOptionsT::ReshapeOptions(Box::new(
+        self.builtin_options_as_reshape_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ReshapeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SkipGramOptions => BuiltinOptionsT::SkipGramOptions(Box::new(
+        self.builtin_options_as_skip_gram_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SkipGramOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SpaceToDepthOptions => BuiltinOptionsT::SpaceToDepthOptions(Box::new(
+        self.builtin_options_as_space_to_depth_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SpaceToDepthOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::EmbeddingLookupSparseOptions => BuiltinOptionsT::EmbeddingLookupSparseOptions(Box::new(
+        self.builtin_options_as_embedding_lookup_sparse_options()
+            .expect("Invalid union table, expected `BuiltinOptions::EmbeddingLookupSparseOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::MulOptions => BuiltinOptionsT::MulOptions(Box::new(
+        self.builtin_options_as_mul_options()
+            .expect("Invalid union table, expected `BuiltinOptions::MulOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::PadOptions => BuiltinOptionsT::PadOptions(Box::new(
+        self.builtin_options_as_pad_options()
+            .expect("Invalid union table, expected `BuiltinOptions::PadOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::GatherOptions => BuiltinOptionsT::GatherOptions(Box::new(
+        self.builtin_options_as_gather_options()
+            .expect("Invalid union table, expected `BuiltinOptions::GatherOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BatchToSpaceNDOptions => BuiltinOptionsT::BatchToSpaceNDOptions(Box::new(
+        self.builtin_options_as_batch_to_space_ndoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::BatchToSpaceNDOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SpaceToBatchNDOptions => BuiltinOptionsT::SpaceToBatchNDOptions(Box::new(
+        self.builtin_options_as_space_to_batch_ndoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::SpaceToBatchNDOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::TransposeOptions => BuiltinOptionsT::TransposeOptions(Box::new(
+        self.builtin_options_as_transpose_options()
+            .expect("Invalid union table, expected `BuiltinOptions::TransposeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ReducerOptions => BuiltinOptionsT::ReducerOptions(Box::new(
+        self.builtin_options_as_reducer_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ReducerOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SubOptions => BuiltinOptionsT::SubOptions(Box::new(
+        self.builtin_options_as_sub_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SubOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::DivOptions => BuiltinOptionsT::DivOptions(Box::new(
+        self.builtin_options_as_div_options()
+            .expect("Invalid union table, expected `BuiltinOptions::DivOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SqueezeOptions => BuiltinOptionsT::SqueezeOptions(Box::new(
+        self.builtin_options_as_squeeze_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SqueezeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SequenceRNNOptions => BuiltinOptionsT::SequenceRNNOptions(Box::new(
+        self.builtin_options_as_sequence_rnnoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::SequenceRNNOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::StridedSliceOptions => BuiltinOptionsT::StridedSliceOptions(Box::new(
+        self.builtin_options_as_strided_slice_options()
+            .expect("Invalid union table, expected `BuiltinOptions::StridedSliceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ExpOptions => BuiltinOptionsT::ExpOptions(Box::new(
+        self.builtin_options_as_exp_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ExpOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::TopKV2Options => BuiltinOptionsT::TopKV2Options(Box::new(
+        self.builtin_options_as_top_kv2_options()
+            .expect("Invalid union table, expected `BuiltinOptions::TopKV2Options`.")
+            .unpack()
+      )),
+      BuiltinOptions::SplitOptions => BuiltinOptionsT::SplitOptions(Box::new(
+        self.builtin_options_as_split_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SplitOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LogSoftmaxOptions => BuiltinOptionsT::LogSoftmaxOptions(Box::new(
+        self.builtin_options_as_log_softmax_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LogSoftmaxOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::CastOptions => BuiltinOptionsT::CastOptions(Box::new(
+        self.builtin_options_as_cast_options()
+            .expect("Invalid union table, expected `BuiltinOptions::CastOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::DequantizeOptions => BuiltinOptionsT::DequantizeOptions(Box::new(
+        self.builtin_options_as_dequantize_options()
+            .expect("Invalid union table, expected `BuiltinOptions::DequantizeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::MaximumMinimumOptions => BuiltinOptionsT::MaximumMinimumOptions(Box::new(
+        self.builtin_options_as_maximum_minimum_options()
+            .expect("Invalid union table, expected `BuiltinOptions::MaximumMinimumOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ArgMaxOptions => BuiltinOptionsT::ArgMaxOptions(Box::new(
+        self.builtin_options_as_arg_max_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ArgMaxOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LessOptions => BuiltinOptionsT::LessOptions(Box::new(
+        self.builtin_options_as_less_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LessOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::NegOptions => BuiltinOptionsT::NegOptions(Box::new(
+        self.builtin_options_as_neg_options()
+            .expect("Invalid union table, expected `BuiltinOptions::NegOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::PadV2Options => BuiltinOptionsT::PadV2Options(Box::new(
+        self.builtin_options_as_pad_v2_options()
+            .expect("Invalid union table, expected `BuiltinOptions::PadV2Options`.")
+            .unpack()
+      )),
+      BuiltinOptions::GreaterOptions => BuiltinOptionsT::GreaterOptions(Box::new(
+        self.builtin_options_as_greater_options()
+            .expect("Invalid union table, expected `BuiltinOptions::GreaterOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::GreaterEqualOptions => BuiltinOptionsT::GreaterEqualOptions(Box::new(
+        self.builtin_options_as_greater_equal_options()
+            .expect("Invalid union table, expected `BuiltinOptions::GreaterEqualOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LessEqualOptions => BuiltinOptionsT::LessEqualOptions(Box::new(
+        self.builtin_options_as_less_equal_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LessEqualOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SelectOptions => BuiltinOptionsT::SelectOptions(Box::new(
+        self.builtin_options_as_select_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SelectOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SliceOptions => BuiltinOptionsT::SliceOptions(Box::new(
+        self.builtin_options_as_slice_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SliceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::TransposeConvOptions => BuiltinOptionsT::TransposeConvOptions(Box::new(
+        self.builtin_options_as_transpose_conv_options()
+            .expect("Invalid union table, expected `BuiltinOptions::TransposeConvOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SparseToDenseOptions => BuiltinOptionsT::SparseToDenseOptions(Box::new(
+        self.builtin_options_as_sparse_to_dense_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SparseToDenseOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::TileOptions => BuiltinOptionsT::TileOptions(Box::new(
+        self.builtin_options_as_tile_options()
+            .expect("Invalid union table, expected `BuiltinOptions::TileOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ExpandDimsOptions => BuiltinOptionsT::ExpandDimsOptions(Box::new(
+        self.builtin_options_as_expand_dims_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ExpandDimsOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::EqualOptions => BuiltinOptionsT::EqualOptions(Box::new(
+        self.builtin_options_as_equal_options()
+            .expect("Invalid union table, expected `BuiltinOptions::EqualOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::NotEqualOptions => BuiltinOptionsT::NotEqualOptions(Box::new(
+        self.builtin_options_as_not_equal_options()
+            .expect("Invalid union table, expected `BuiltinOptions::NotEqualOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ShapeOptions => BuiltinOptionsT::ShapeOptions(Box::new(
+        self.builtin_options_as_shape_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ShapeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::PowOptions => BuiltinOptionsT::PowOptions(Box::new(
+        self.builtin_options_as_pow_options()
+            .expect("Invalid union table, expected `BuiltinOptions::PowOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ArgMinOptions => BuiltinOptionsT::ArgMinOptions(Box::new(
+        self.builtin_options_as_arg_min_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ArgMinOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::FakeQuantOptions => BuiltinOptionsT::FakeQuantOptions(Box::new(
+        self.builtin_options_as_fake_quant_options()
+            .expect("Invalid union table, expected `BuiltinOptions::FakeQuantOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::PackOptions => BuiltinOptionsT::PackOptions(Box::new(
+        self.builtin_options_as_pack_options()
+            .expect("Invalid union table, expected `BuiltinOptions::PackOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LogicalOrOptions => BuiltinOptionsT::LogicalOrOptions(Box::new(
+        self.builtin_options_as_logical_or_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LogicalOrOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::OneHotOptions => BuiltinOptionsT::OneHotOptions(Box::new(
+        self.builtin_options_as_one_hot_options()
+            .expect("Invalid union table, expected `BuiltinOptions::OneHotOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LogicalAndOptions => BuiltinOptionsT::LogicalAndOptions(Box::new(
+        self.builtin_options_as_logical_and_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LogicalAndOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LogicalNotOptions => BuiltinOptionsT::LogicalNotOptions(Box::new(
+        self.builtin_options_as_logical_not_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LogicalNotOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::UnpackOptions => BuiltinOptionsT::UnpackOptions(Box::new(
+        self.builtin_options_as_unpack_options()
+            .expect("Invalid union table, expected `BuiltinOptions::UnpackOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::FloorDivOptions => BuiltinOptionsT::FloorDivOptions(Box::new(
+        self.builtin_options_as_floor_div_options()
+            .expect("Invalid union table, expected `BuiltinOptions::FloorDivOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SquareOptions => BuiltinOptionsT::SquareOptions(Box::new(
+        self.builtin_options_as_square_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SquareOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ZerosLikeOptions => BuiltinOptionsT::ZerosLikeOptions(Box::new(
+        self.builtin_options_as_zeros_like_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ZerosLikeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::FillOptions => BuiltinOptionsT::FillOptions(Box::new(
+        self.builtin_options_as_fill_options()
+            .expect("Invalid union table, expected `BuiltinOptions::FillOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BidirectionalSequenceLSTMOptions => BuiltinOptionsT::BidirectionalSequenceLSTMOptions(Box::new(
+        self.builtin_options_as_bidirectional_sequence_lstmoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::BidirectionalSequenceLSTMOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BidirectionalSequenceRNNOptions => BuiltinOptionsT::BidirectionalSequenceRNNOptions(Box::new(
+        self.builtin_options_as_bidirectional_sequence_rnnoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::BidirectionalSequenceRNNOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::UnidirectionalSequenceLSTMOptions => BuiltinOptionsT::UnidirectionalSequenceLSTMOptions(Box::new(
+        self.builtin_options_as_unidirectional_sequence_lstmoptions()
+            .expect("Invalid union table, expected `BuiltinOptions::UnidirectionalSequenceLSTMOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::FloorModOptions => BuiltinOptionsT::FloorModOptions(Box::new(
+        self.builtin_options_as_floor_mod_options()
+            .expect("Invalid union table, expected `BuiltinOptions::FloorModOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::RangeOptions => BuiltinOptionsT::RangeOptions(Box::new(
+        self.builtin_options_as_range_options()
+            .expect("Invalid union table, expected `BuiltinOptions::RangeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ResizeNearestNeighborOptions => BuiltinOptionsT::ResizeNearestNeighborOptions(Box::new(
+        self.builtin_options_as_resize_nearest_neighbor_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ResizeNearestNeighborOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::LeakyReluOptions => BuiltinOptionsT::LeakyReluOptions(Box::new(
+        self.builtin_options_as_leaky_relu_options()
+            .expect("Invalid union table, expected `BuiltinOptions::LeakyReluOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SquaredDifferenceOptions => BuiltinOptionsT::SquaredDifferenceOptions(Box::new(
+        self.builtin_options_as_squared_difference_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SquaredDifferenceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::MirrorPadOptions => BuiltinOptionsT::MirrorPadOptions(Box::new(
+        self.builtin_options_as_mirror_pad_options()
+            .expect("Invalid union table, expected `BuiltinOptions::MirrorPadOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::AbsOptions => BuiltinOptionsT::AbsOptions(Box::new(
+        self.builtin_options_as_abs_options()
+            .expect("Invalid union table, expected `BuiltinOptions::AbsOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SplitVOptions => BuiltinOptionsT::SplitVOptions(Box::new(
+        self.builtin_options_as_split_voptions()
+            .expect("Invalid union table, expected `BuiltinOptions::SplitVOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::UniqueOptions => BuiltinOptionsT::UniqueOptions(Box::new(
+        self.builtin_options_as_unique_options()
+            .expect("Invalid union table, expected `BuiltinOptions::UniqueOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ReverseV2Options => BuiltinOptionsT::ReverseV2Options(Box::new(
+        self.builtin_options_as_reverse_v2_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ReverseV2Options`.")
+            .unpack()
+      )),
+      BuiltinOptions::AddNOptions => BuiltinOptionsT::AddNOptions(Box::new(
+        self.builtin_options_as_add_noptions()
+            .expect("Invalid union table, expected `BuiltinOptions::AddNOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::GatherNdOptions => BuiltinOptionsT::GatherNdOptions(Box::new(
+        self.builtin_options_as_gather_nd_options()
+            .expect("Invalid union table, expected `BuiltinOptions::GatherNdOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::CosOptions => BuiltinOptionsT::CosOptions(Box::new(
+        self.builtin_options_as_cos_options()
+            .expect("Invalid union table, expected `BuiltinOptions::CosOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::WhereOptions => BuiltinOptionsT::WhereOptions(Box::new(
+        self.builtin_options_as_where_options()
+            .expect("Invalid union table, expected `BuiltinOptions::WhereOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::RankOptions => BuiltinOptionsT::RankOptions(Box::new(
+        self.builtin_options_as_rank_options()
+            .expect("Invalid union table, expected `BuiltinOptions::RankOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ReverseSequenceOptions => BuiltinOptionsT::ReverseSequenceOptions(Box::new(
+        self.builtin_options_as_reverse_sequence_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ReverseSequenceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::MatrixDiagOptions => BuiltinOptionsT::MatrixDiagOptions(Box::new(
+        self.builtin_options_as_matrix_diag_options()
+            .expect("Invalid union table, expected `BuiltinOptions::MatrixDiagOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::QuantizeOptions => BuiltinOptionsT::QuantizeOptions(Box::new(
+        self.builtin_options_as_quantize_options()
+            .expect("Invalid union table, expected `BuiltinOptions::QuantizeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::MatrixSetDiagOptions => BuiltinOptionsT::MatrixSetDiagOptions(Box::new(
+        self.builtin_options_as_matrix_set_diag_options()
+            .expect("Invalid union table, expected `BuiltinOptions::MatrixSetDiagOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::HardSwishOptions => BuiltinOptionsT::HardSwishOptions(Box::new(
+        self.builtin_options_as_hard_swish_options()
+            .expect("Invalid union table, expected `BuiltinOptions::HardSwishOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::IfOptions => BuiltinOptionsT::IfOptions(Box::new(
+        self.builtin_options_as_if_options()
+            .expect("Invalid union table, expected `BuiltinOptions::IfOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::WhileOptions => BuiltinOptionsT::WhileOptions(Box::new(
+        self.builtin_options_as_while_options()
+            .expect("Invalid union table, expected `BuiltinOptions::WhileOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::DepthToSpaceOptions => BuiltinOptionsT::DepthToSpaceOptions(Box::new(
+        self.builtin_options_as_depth_to_space_options()
+            .expect("Invalid union table, expected `BuiltinOptions::DepthToSpaceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::NonMaxSuppressionV4Options => BuiltinOptionsT::NonMaxSuppressionV4Options(Box::new(
+        self.builtin_options_as_non_max_suppression_v4_options()
+            .expect("Invalid union table, expected `BuiltinOptions::NonMaxSuppressionV4Options`.")
+            .unpack()
+      )),
+      BuiltinOptions::NonMaxSuppressionV5Options => BuiltinOptionsT::NonMaxSuppressionV5Options(Box::new(
+        self.builtin_options_as_non_max_suppression_v5_options()
+            .expect("Invalid union table, expected `BuiltinOptions::NonMaxSuppressionV5Options`.")
+            .unpack()
+      )),
+      BuiltinOptions::ScatterNdOptions => BuiltinOptionsT::ScatterNdOptions(Box::new(
+        self.builtin_options_as_scatter_nd_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ScatterNdOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SelectV2Options => BuiltinOptionsT::SelectV2Options(Box::new(
+        self.builtin_options_as_select_v2_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SelectV2Options`.")
+            .unpack()
+      )),
+      BuiltinOptions::DensifyOptions => BuiltinOptionsT::DensifyOptions(Box::new(
+        self.builtin_options_as_densify_options()
+            .expect("Invalid union table, expected `BuiltinOptions::DensifyOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::SegmentSumOptions => BuiltinOptionsT::SegmentSumOptions(Box::new(
+        self.builtin_options_as_segment_sum_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SegmentSumOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BatchMatMulOptions => BuiltinOptionsT::BatchMatMulOptions(Box::new(
+        self.builtin_options_as_batch_mat_mul_options()
+            .expect("Invalid union table, expected `BuiltinOptions::BatchMatMulOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::CumsumOptions => BuiltinOptionsT::CumsumOptions(Box::new(
+        self.builtin_options_as_cumsum_options()
+            .expect("Invalid union table, expected `BuiltinOptions::CumsumOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::CallOnceOptions => BuiltinOptionsT::CallOnceOptions(Box::new(
+        self.builtin_options_as_call_once_options()
+            .expect("Invalid union table, expected `BuiltinOptions::CallOnceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BroadcastToOptions => BuiltinOptionsT::BroadcastToOptions(Box::new(
+        self.builtin_options_as_broadcast_to_options()
+            .expect("Invalid union table, expected `BuiltinOptions::BroadcastToOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::Rfft2dOptions => BuiltinOptionsT::Rfft2dOptions(Box::new(
+        self.builtin_options_as_rfft_2d_options()
+            .expect("Invalid union table, expected `BuiltinOptions::Rfft2dOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::Conv3DOptions => BuiltinOptionsT::Conv3DOptions(Box::new(
+        self.builtin_options_as_conv_3_doptions()
+            .expect("Invalid union table, expected `BuiltinOptions::Conv3DOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::HashtableOptions => BuiltinOptionsT::HashtableOptions(Box::new(
+        self.builtin_options_as_hashtable_options()
+            .expect("Invalid union table, expected `BuiltinOptions::HashtableOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::HashtableFindOptions => BuiltinOptionsT::HashtableFindOptions(Box::new(
+        self.builtin_options_as_hashtable_find_options()
+            .expect("Invalid union table, expected `BuiltinOptions::HashtableFindOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::HashtableImportOptions => BuiltinOptionsT::HashtableImportOptions(Box::new(
+        self.builtin_options_as_hashtable_import_options()
+            .expect("Invalid union table, expected `BuiltinOptions::HashtableImportOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::HashtableSizeOptions => BuiltinOptionsT::HashtableSizeOptions(Box::new(
+        self.builtin_options_as_hashtable_size_options()
+            .expect("Invalid union table, expected `BuiltinOptions::HashtableSizeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::VarHandleOptions => BuiltinOptionsT::VarHandleOptions(Box::new(
+        self.builtin_options_as_var_handle_options()
+            .expect("Invalid union table, expected `BuiltinOptions::VarHandleOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ReadVariableOptions => BuiltinOptionsT::ReadVariableOptions(Box::new(
+        self.builtin_options_as_read_variable_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ReadVariableOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::AssignVariableOptions => BuiltinOptionsT::AssignVariableOptions(Box::new(
+        self.builtin_options_as_assign_variable_options()
+            .expect("Invalid union table, expected `BuiltinOptions::AssignVariableOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::RandomOptions => BuiltinOptionsT::RandomOptions(Box::new(
+        self.builtin_options_as_random_options()
+            .expect("Invalid union table, expected `BuiltinOptions::RandomOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BucketizeOptions => BuiltinOptionsT::BucketizeOptions(Box::new(
+        self.builtin_options_as_bucketize_options()
+            .expect("Invalid union table, expected `BuiltinOptions::BucketizeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::GeluOptions => BuiltinOptionsT::GeluOptions(Box::new(
+        self.builtin_options_as_gelu_options()
+            .expect("Invalid union table, expected `BuiltinOptions::GeluOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::DynamicUpdateSliceOptions => BuiltinOptionsT::DynamicUpdateSliceOptions(Box::new(
+        self.builtin_options_as_dynamic_update_slice_options()
+            .expect("Invalid union table, expected `BuiltinOptions::DynamicUpdateSliceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::UnsortedSegmentProdOptions => BuiltinOptionsT::UnsortedSegmentProdOptions(Box::new(
+        self.builtin_options_as_unsorted_segment_prod_options()
+            .expect("Invalid union table, expected `BuiltinOptions::UnsortedSegmentProdOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::UnsortedSegmentMaxOptions => BuiltinOptionsT::UnsortedSegmentMaxOptions(Box::new(
+        self.builtin_options_as_unsorted_segment_max_options()
+            .expect("Invalid union table, expected `BuiltinOptions::UnsortedSegmentMaxOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::UnsortedSegmentMinOptions => BuiltinOptionsT::UnsortedSegmentMinOptions(Box::new(
+        self.builtin_options_as_unsorted_segment_min_options()
+            .expect("Invalid union table, expected `BuiltinOptions::UnsortedSegmentMinOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::UnsortedSegmentSumOptions => BuiltinOptionsT::UnsortedSegmentSumOptions(Box::new(
+        self.builtin_options_as_unsorted_segment_sum_options()
+            .expect("Invalid union table, expected `BuiltinOptions::UnsortedSegmentSumOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::ATan2Options => BuiltinOptionsT::ATan2Options(Box::new(
+        self.builtin_options_as_atan_2_options()
+            .expect("Invalid union table, expected `BuiltinOptions::ATan2Options`.")
+            .unpack()
+      )),
+      BuiltinOptions::SignOptions => BuiltinOptionsT::SignOptions(Box::new(
+        self.builtin_options_as_sign_options()
+            .expect("Invalid union table, expected `BuiltinOptions::SignOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BitcastOptions => BuiltinOptionsT::BitcastOptions(Box::new(
+        self.builtin_options_as_bitcast_options()
+            .expect("Invalid union table, expected `BuiltinOptions::BitcastOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::BitwiseXorOptions => BuiltinOptionsT::BitwiseXorOptions(Box::new(
+        self.builtin_options_as_bitwise_xor_options()
+            .expect("Invalid union table, expected `BuiltinOptions::BitwiseXorOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions::RightShiftOptions => BuiltinOptionsT::RightShiftOptions(Box::new(
+        self.builtin_options_as_right_shift_options()
+            .expect("Invalid union table, expected `BuiltinOptions::RightShiftOptions`.")
+            .unpack()
+      )),
+      _ => BuiltinOptionsT::NONE,
+    };
+            let custom_options = self.custom_options().map(|x| x.into_iter().collect());
+            let custom_options_format = self.custom_options_format();
+            let mutating_variable_inputs = self
+                .mutating_variable_inputs()
+                .map(|x| x.into_iter().collect());
+            let intermediates = self.intermediates().map(|x| x.into_iter().collect());
+            let large_custom_options_offset = self.large_custom_options_offset();
+            let large_custom_options_size = self.large_custom_options_size();
+            let builtin_options_2 = match self.builtin_options_2_type() {
+      BuiltinOptions2::NONE => BuiltinOptions2T::NONE,
+      BuiltinOptions2::StablehloConcatenateOptions => BuiltinOptions2T::StablehloConcatenateOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_concatenate_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloConcatenateOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloBroadcastInDimOptions => BuiltinOptions2T::StablehloBroadcastInDimOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_broadcast_in_dim_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloBroadcastInDimOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloSliceOptions => BuiltinOptions2T::StablehloSliceOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_slice_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloSliceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloConvolutionOptions => BuiltinOptions2T::StablehloConvolutionOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_convolution_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloConvolutionOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloCustomCallOptions => BuiltinOptions2T::StablehloCustomCallOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_custom_call_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloCustomCallOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloReduceOptions => BuiltinOptions2T::StablehloReduceOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_reduce_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloReduceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloScatterOptions => BuiltinOptions2T::StablehloScatterOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_scatter_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloScatterOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloCompareOptions => BuiltinOptions2T::StablehloCompareOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_compare_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloCompareOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloDynamicSliceOptions => BuiltinOptions2T::StablehloDynamicSliceOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_dynamic_slice_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloDynamicSliceOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloPadOptions => BuiltinOptions2T::StablehloPadOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_pad_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloPadOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloIotaOptions => BuiltinOptions2T::StablehloIotaOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_iota_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloIotaOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloDotGeneralOptions => BuiltinOptions2T::StablehloDotGeneralOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_dot_general_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloDotGeneralOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloReduceWindowOptions => BuiltinOptions2T::StablehloReduceWindowOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_reduce_window_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloReduceWindowOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloSortOptions => BuiltinOptions2T::StablehloSortOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_sort_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloSortOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloWhileOptions => BuiltinOptions2T::StablehloWhileOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_while_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloWhileOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloGatherOptions => BuiltinOptions2T::StablehloGatherOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_gather_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloGatherOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloTransposeOptions => BuiltinOptions2T::StablehloTransposeOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_transpose_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloTransposeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::DilateOptions => BuiltinOptions2T::DilateOptions(Box::new(
+        self.builtin_options_2_as_dilate_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::DilateOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloRngBitGeneratorOptions => BuiltinOptions2T::StablehloRngBitGeneratorOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_rng_bit_generator_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloRngBitGeneratorOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::ReduceWindowOptions => BuiltinOptions2T::ReduceWindowOptions(Box::new(
+        self.builtin_options_2_as_reduce_window_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::ReduceWindowOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StableHLOCompositeOptions => BuiltinOptions2T::StableHLOCompositeOptions(Box::new(
+        self.builtin_options_2_as_stable_hlocomposite_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StableHLOCompositeOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloShiftLeftOptions => BuiltinOptions2T::StablehloShiftLeftOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_shift_left_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloShiftLeftOptions`.")
+            .unpack()
+      )),
+      BuiltinOptions2::StablehloCaseOptions => BuiltinOptions2T::StablehloCaseOptions(Box::new(
+        self.builtin_options_2_as_stablehlo_case_options()
+            .expect("Invalid union table, expected `BuiltinOptions2::StablehloCaseOptions`.")
+            .unpack()
+      )),
+      _ => BuiltinOptions2T::NONE,
+    };
+            let debug_metadata_index = self.debug_metadata_index();
+            OperatorT {
+                opcode_index,
+                inputs,
+                outputs,
+                builtin_options,
+                custom_options,
+                custom_options_format,
+                mutating_variable_inputs,
+                intermediates,
+                large_custom_options_offset,
+                large_custom_options_size,
+                builtin_options_2,
+                debug_metadata_index,
+            }
         }
 
         #[inline]
@@ -29493,6 +40710,83 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct OperatorT {
+        pub opcode_index: u32,
+        pub inputs: Option<Vec<i32>>,
+        pub outputs: Option<Vec<i32>>,
+        pub builtin_options: BuiltinOptionsT,
+        pub custom_options: Option<Vec<u8>>,
+        pub custom_options_format: CustomOptionsFormat,
+        pub mutating_variable_inputs: Option<Vec<bool>>,
+        pub intermediates: Option<Vec<i32>>,
+        pub large_custom_options_offset: u64,
+        pub large_custom_options_size: u64,
+        pub builtin_options_2: BuiltinOptions2T,
+        pub debug_metadata_index: i32,
+    }
+    impl Default for OperatorT {
+        fn default() -> Self {
+            Self {
+                opcode_index: 0,
+                inputs: None,
+                outputs: None,
+                builtin_options: BuiltinOptionsT::NONE,
+                custom_options: None,
+                custom_options_format: CustomOptionsFormat::FLEXBUFFERS,
+                mutating_variable_inputs: None,
+                intermediates: None,
+                large_custom_options_offset: 0,
+                large_custom_options_size: 0,
+                builtin_options_2: BuiltinOptions2T::NONE,
+                debug_metadata_index: -1,
+            }
+        }
+    }
+    impl OperatorT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Operator<'b>> {
+            let opcode_index = self.opcode_index;
+            let inputs = self.inputs.as_ref().map(|x| _fbb.create_vector(x));
+            let outputs = self.outputs.as_ref().map(|x| _fbb.create_vector(x));
+            let builtin_options_type = self.builtin_options.builtin_options_type();
+            let builtin_options = self.builtin_options.pack(_fbb);
+            let custom_options = self.custom_options.as_ref().map(|x| _fbb.create_vector(x));
+            let custom_options_format = self.custom_options_format;
+            let mutating_variable_inputs = self
+                .mutating_variable_inputs
+                .as_ref()
+                .map(|x| _fbb.create_vector(x));
+            let intermediates = self.intermediates.as_ref().map(|x| _fbb.create_vector(x));
+            let large_custom_options_offset = self.large_custom_options_offset;
+            let large_custom_options_size = self.large_custom_options_size;
+            let builtin_options_2_type = self.builtin_options_2.builtin_options_2_type();
+            let builtin_options_2 = self.builtin_options_2.pack(_fbb);
+            let debug_metadata_index = self.debug_metadata_index;
+            Operator::create(
+                _fbb,
+                &OperatorArgs {
+                    opcode_index,
+                    inputs,
+                    outputs,
+                    builtin_options_type,
+                    builtin_options,
+                    custom_options,
+                    custom_options_format,
+                    mutating_variable_inputs,
+                    intermediates,
+                    large_custom_options_offset,
+                    large_custom_options_size,
+                    builtin_options_2_type,
+                    builtin_options_2,
+                    debug_metadata_index,
+                },
+            )
+        }
+    }
     pub enum SubGraphOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -29550,6 +40844,27 @@ pub mod tflite {
                 builder.add_tensors(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SubGraphT {
+            let tensors = self
+                .tensors()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let inputs = self.inputs().map(|x| x.into_iter().collect());
+            let outputs = self.outputs().map(|x| x.into_iter().collect());
+            let operators = self
+                .operators()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let name = self.name().map(|x| x.to_string());
+            let debug_metadata_index = self.debug_metadata_index();
+            SubGraphT {
+                tensors,
+                inputs,
+                outputs,
+                operators,
+                name,
+                debug_metadata_index,
+            }
         }
 
         #[inline]
@@ -29764,6 +41079,58 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SubGraphT {
+        pub tensors: Option<Vec<TensorT>>,
+        pub inputs: Option<Vec<i32>>,
+        pub outputs: Option<Vec<i32>>,
+        pub operators: Option<Vec<OperatorT>>,
+        pub name: Option<String>,
+        pub debug_metadata_index: i32,
+    }
+    impl Default for SubGraphT {
+        fn default() -> Self {
+            Self {
+                tensors: None,
+                inputs: None,
+                outputs: None,
+                operators: None,
+                name: None,
+                debug_metadata_index: -1,
+            }
+        }
+    }
+    impl SubGraphT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SubGraph<'b>> {
+            let tensors = self.tensors.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let inputs = self.inputs.as_ref().map(|x| _fbb.create_vector(x));
+            let outputs = self.outputs.as_ref().map(|x| _fbb.create_vector(x));
+            let operators = self.operators.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let name = self.name.as_ref().map(|x| _fbb.create_string(x));
+            let debug_metadata_index = self.debug_metadata_index;
+            SubGraph::create(
+                _fbb,
+                &SubGraphArgs {
+                    tensors,
+                    inputs,
+                    outputs,
+                    operators,
+                    name,
+                    debug_metadata_index,
+                },
+            )
+        }
+    }
     pub enum BufferOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -29807,6 +41174,13 @@ pub mod tflite {
                 builder.add_data(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> BufferT {
+            let data = self.data().map(|x| x.into_iter().collect());
+            let offset = self.offset();
+            let size = self.size();
+            BufferT { data, offset, size }
         }
 
         #[inline]
@@ -29917,6 +41291,33 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct BufferT {
+        pub data: Option<Vec<u8>>,
+        pub offset: u64,
+        pub size: u64,
+    }
+    impl Default for BufferT {
+        fn default() -> Self {
+            Self {
+                data: None,
+                offset: 0,
+                size: 0,
+            }
+        }
+    }
+    impl BufferT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Buffer<'b>> {
+            let data = self.data.as_ref().map(|x| _fbb.create_vector(x));
+            let offset = self.offset;
+            let size = self.size;
+            Buffer::create(_fbb, &BufferArgs { data, offset, size })
+        }
+    }
     pub enum MetadataOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -29958,6 +41359,12 @@ pub mod tflite {
                 builder.add_name(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> MetadataT {
+            let name = self.name().map(|x| x.to_string());
+            let buffer = self.buffer();
+            MetadataT { name, buffer }
         }
 
         #[inline]
@@ -30046,6 +41453,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct MetadataT {
+        pub name: Option<String>,
+        pub buffer: u32,
+    }
+    impl Default for MetadataT {
+        fn default() -> Self {
+            Self {
+                name: None,
+                buffer: 0,
+            }
+        }
+    }
+    impl MetadataT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Metadata<'b>> {
+            let name = self.name.as_ref().map(|x| _fbb.create_string(x));
+            let buffer = self.buffer;
+            Metadata::create(_fbb, &MetadataArgs { name, buffer })
+        }
+    }
     pub enum TensorMapOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -30087,6 +41518,12 @@ pub mod tflite {
                 builder.add_name(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> TensorMapT {
+            let name = self.name().map(|x| x.to_string());
+            let tensor_index = self.tensor_index();
+            TensorMapT { name, tensor_index }
         }
 
         #[inline]
@@ -30180,6 +41617,30 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct TensorMapT {
+        pub name: Option<String>,
+        pub tensor_index: u32,
+    }
+    impl Default for TensorMapT {
+        fn default() -> Self {
+            Self {
+                name: None,
+                tensor_index: 0,
+            }
+        }
+    }
+    impl TensorMapT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<TensorMap<'b>> {
+            let name = self.name.as_ref().map(|x| _fbb.create_string(x));
+            let tensor_index = self.tensor_index;
+            TensorMap::create(_fbb, &TensorMapArgs { name, tensor_index })
+        }
+    }
     pub enum SignatureDefOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -30229,6 +41690,23 @@ pub mod tflite {
                 builder.add_inputs(x);
             }
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> SignatureDefT {
+            let inputs = self
+                .inputs()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let outputs = self
+                .outputs()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let signature_key = self.signature_key().map(|x| x.to_string());
+            let subgraph_index = self.subgraph_index();
+            SignatureDefT {
+                inputs,
+                outputs,
+                signature_key,
+                subgraph_index,
+            }
         }
 
         #[inline]
@@ -30394,6 +41872,50 @@ pub mod tflite {
             ds.finish()
         }
     }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct SignatureDefT {
+        pub inputs: Option<Vec<TensorMapT>>,
+        pub outputs: Option<Vec<TensorMapT>>,
+        pub signature_key: Option<String>,
+        pub subgraph_index: u32,
+    }
+    impl Default for SignatureDefT {
+        fn default() -> Self {
+            Self {
+                inputs: None,
+                outputs: None,
+                signature_key: None,
+                subgraph_index: 0,
+            }
+        }
+    }
+    impl SignatureDefT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<SignatureDef<'b>> {
+            let inputs = self.inputs.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let outputs = self.outputs.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let signature_key = self.signature_key.as_ref().map(|x| _fbb.create_string(x));
+            let subgraph_index = self.subgraph_index;
+            SignatureDef::create(
+                _fbb,
+                &SignatureDefArgs {
+                    inputs,
+                    outputs,
+                    signature_key,
+                    subgraph_index,
+                },
+            )
+        }
+    }
     pub enum ModelOffset {}
     #[derive(Copy, Clone, PartialEq)]
 
@@ -30459,6 +41981,37 @@ pub mod tflite {
             }
             builder.add_version(args.version);
             builder.finish()
+        }
+
+        pub fn unpack(&self) -> ModelT {
+            let version = self.version();
+            let operator_codes = self
+                .operator_codes()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let subgraphs = self
+                .subgraphs()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let description = self.description().map(|x| x.to_string());
+            let buffers = self
+                .buffers()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let metadata_buffer = self.metadata_buffer().map(|x| x.into_iter().collect());
+            let metadata = self
+                .metadata()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            let signature_defs = self
+                .signature_defs()
+                .map(|x| x.iter().map(|t| t.unpack()).collect());
+            ModelT {
+                version,
+                operator_codes,
+                subgraphs,
+                description,
+                buffers,
+                metadata_buffer,
+                metadata,
+                signature_defs,
+            }
         }
 
         #[inline]
@@ -30749,6 +42302,75 @@ pub mod tflite {
             ds.field("metadata", &self.metadata());
             ds.field("signature_defs", &self.signature_defs());
             ds.finish()
+        }
+    }
+    #[non_exhaustive]
+    #[derive(Debug, Clone, PartialEq)]
+    pub struct ModelT {
+        pub version: u32,
+        pub operator_codes: Option<Vec<OperatorCodeT>>,
+        pub subgraphs: Option<Vec<SubGraphT>>,
+        pub description: Option<String>,
+        pub buffers: Option<Vec<BufferT>>,
+        pub metadata_buffer: Option<Vec<i32>>,
+        pub metadata: Option<Vec<MetadataT>>,
+        pub signature_defs: Option<Vec<SignatureDefT>>,
+    }
+    impl Default for ModelT {
+        fn default() -> Self {
+            Self {
+                version: 0,
+                operator_codes: None,
+                subgraphs: None,
+                description: None,
+                buffers: None,
+                metadata_buffer: None,
+                metadata: None,
+                signature_defs: None,
+            }
+        }
+    }
+    impl ModelT {
+        pub fn pack<'b, A: flatbuffers::Allocator + 'b>(
+            &self,
+            _fbb: &mut flatbuffers::FlatBufferBuilder<'b, A>,
+        ) -> flatbuffers::WIPOffset<Model<'b>> {
+            let version = self.version;
+            let operator_codes = self.operator_codes.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let subgraphs = self.subgraphs.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let description = self.description.as_ref().map(|x| _fbb.create_string(x));
+            let buffers = self.buffers.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let metadata_buffer = self.metadata_buffer.as_ref().map(|x| _fbb.create_vector(x));
+            let metadata = self.metadata.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            let signature_defs = self.signature_defs.as_ref().map(|x| {
+                let w: Vec<_> = x.iter().map(|t| t.pack(_fbb)).collect();
+                _fbb.create_vector(&w)
+            });
+            Model::create(
+                _fbb,
+                &ModelArgs {
+                    version,
+                    operator_codes,
+                    subgraphs,
+                    description,
+                    buffers,
+                    metadata_buffer,
+                    metadata,
+                    signature_defs,
+                },
+            )
         }
     }
     #[inline]
