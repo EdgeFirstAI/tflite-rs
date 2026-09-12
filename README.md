@@ -269,6 +269,43 @@ interpreter.invoke()?;
 | [`yolov8`](examples/yolov8/) | Detection/segmentation with HAL DMA / IOSurface | `dmabuf` |
 | [`neutron_multi_context`](examples/neutron_multi_context/) | Multiple Neutron delegate contexts (worker pool) with per-instance DMA-BUF verification | `dmabuf` |
 
+### Models
+
+The `yolov8` example runs the official pre-trained models published in the
+EdgeFirst model zoo on Hugging Face:
+
+| Task | Repository |
+| --- | --- |
+| Detection | <https://huggingface.co/EdgeFirst/yolov8-det> |
+| Segmentation | <https://huggingface.co/EdgeFirst/yolov8-seg> |
+
+Each repository ships a `tflite/` directory for i.MX8MP and other
+VxDelegate/CPU targets and an `imx95/` directory of `.imx95.tflite` exports
+compiled for the i.MX95 Neutron NPU, in `n`/`s`/`m` sizes:
+
+```sh
+curl -LO https://huggingface.co/EdgeFirst/yolov8-det/resolve/main/tflite/yolov8n-det-int8-smart.tflite
+curl -LO https://huggingface.co/EdgeFirst/yolov8-seg/resolve/main/imx95/yolov8n-seg-int8-smart.imx95.tflite
+
+cargo run -p yolov8 -- yolov8n-det-int8-smart.tflite zidane.jpg \
+    --delegate /usr/lib/libvx_delegate.so --save
+```
+
+Every zoo export embeds an `edgefirst.json` schema in a ZIP trailer appended
+to the `.tflite` flatbuffer, which is what configures the decoder — both the
+Rust and Python examples read it, so all three YOLO output layouts (fused,
+logical-split, and per-scale FPN-split) work without manual output
+classification.
+
+Stock Ultralytics exports run too, with no EdgeFirst tooling and no
+`edgefirst.json` — the examples infer the schema from the model's own signals
+and its Ultralytics `metadata.json` envelope:
+
+```sh
+yolo export model=yolov8n.pt format=tflite int8=True imgsz=640
+cargo run -p yolov8 -- yolov8n_int8.tflite zidane.jpg
+```
+
 ## Building
 
 ```sh

@@ -240,7 +240,7 @@ impl<'lib> Interpreter<'lib> {
     /// This is what turns a GPU-resident buffer into the tensor the runtime
     /// reads, removing the host copy that otherwise stages every frame into
     /// the arena. The canonical use is a HAL image tensor allocated with
-    /// `TensorMemory::Dma` — a DMA-BUF on Linux, an `IOSurface` on Apple
+    /// `TensorMemory::DmaBuf` — a DMA-BUF on Linux, an `IOSurface` on Apple
     /// platforms — that the GPU renders into directly.
     ///
     /// Call [`Interpreter::allocate_tensors`] afterwards; the binding does not
