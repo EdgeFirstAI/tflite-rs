@@ -4,8 +4,10 @@
 //! # `YOLOv8` Object Detection & Segmentation with `edgefirst-tflite`
 //!
 //! End-to-end `YOLOv8` inference using `edgefirst-tflite` for model execution
-//! and `edgefirst-hal` for image preprocessing, YOLO decoding (via high-level
-//! `Decoder` API), and overlay rendering.
+//! and the modular `EdgeFirst` HAL crates for the rest of the pipeline:
+//! `edgefirst-codec` (JPEG/PNG decode), `edgefirst-tensor` (zero-copy tensor
+//! allocation), `edgefirst-image` (preprocessing and overlay rendering), and
+//! `edgefirst-decoder` (YOLO decoding via the high-level `Decoder` API).
 //!
 //! Supports both detection-only (`yolov8n`) and instance segmentation
 //! (`yolov8n-seg`) models. The decoder is configured from the model's
@@ -27,7 +29,7 @@
 //! gates on `target_os = "linux"` — it takes a DMA-BUF file descriptor, and
 //! only the embedded-Linux delegates hand one out.
 //!
-//! *Allocating* a zero-copy GPU buffer is portable. `TensorMemory::Dma` is the
+//! *Allocating* a zero-copy GPU buffer is portable. `TensorMemory::DmaBuf` is the
 //! HAL's platform-native GPU buffer: DMA-BUF on Linux, `IOSurface` on macOS
 //! and iOS, `AHardwareBuffer` on Android.
 //!
@@ -37,6 +39,44 @@
 //! surface the GPU just rendered — no arena copy, the same end state the
 //! delegate-import path reaches on Linux. The `Input:` line at startup says
 //! which of the three routes is live.
+//!
+//! ## Models
+//!
+//! Official pre-trained models are published in the `EdgeFirst` model zoo on
+//! Hugging Face:
+//!
+//! - Detection: <https://huggingface.co/EdgeFirst/yolov8-det>
+//! - Segmentation: <https://huggingface.co/EdgeFirst/yolov8-seg>
+//!
+//! Each repository ships a `tflite/` directory for i.MX8MP and other
+//! `VxDelegate`/CPU targets and an `imx95/` directory of `.imx95.tflite`
+//! exports compiled for the i.MX95 Neutron NPU, in `n`/`s`/`m` sizes. All of
+//! them are per-scale FPN-split ("smart") int8 exports carrying the embedded
+//! `edgefirst.json` schema this example decodes from.
+//!
+//! ```sh
+//! # Detection, i.MX8MP
+//! curl -LO https://huggingface.co/EdgeFirst/yolov8-det/resolve/main/tflite/yolov8n-det-int8-smart.tflite
+//!
+//! # Segmentation, i.MX95 Neutron
+//! curl -LO https://huggingface.co/EdgeFirst/yolov8-seg/resolve/main/imx95/yolov8n-seg-int8-smart.imx95.tflite
+//! ```
+//!
+//! The i.MX95 exports are compiled against a specific Neutron microcode
+//! revision; a firmware/driver mismatch returns wrong detections rather than
+//! an error, with only a `Microcode version mismatch!` line to say so.
+//!
+//! A stock Ultralytics export runs here unmodified as well — no `EdgeFirst`
+//! tooling and no `edgefirst.json`:
+//!
+//! ```sh
+//! yolo export model=yolov8n.pt format=tflite int8=True imgsz=640
+//! ```
+//!
+//! Its schema is inferred from the model's own signals (see `load_schema`).
+//! Ultralytics' `LiteRT` exports keep `PyTorch`'s NCHW layout and a float32
+//! boundary, so they take the CPU staging path rather than zero-copy and are
+//! correspondingly slower.
 //!
 //! ## Usage
 //!
@@ -49,36 +89,42 @@
 //!
 //! ```sh
 //! # CPU-only inference
-//! cargo run -p yolov8 -- model.tflite image.jpg
+//! cargo run -p yolov8 -- yolov8n-det-int8-smart.tflite zidane.jpg
 //!
-//! # Benchmark with 5 warmup + 100 iterations
-//! yolov8 model.tflite image.jpg --delegate /usr/lib/libvx_delegate.so --warmup 5 --iters 100 --save
+//! # Detection on i.MX8MP, 5 warmup + 100 benchmark iterations
+//! yolov8 yolov8n-det-int8-smart.tflite zidane.jpg \
+//!     --delegate /usr/lib/libvx_delegate.so --warmup 5 --iters 100 --save
+//!
+//! # Segmentation on i.MX95 Neutron
+//! yolov8 yolov8n-seg-int8-smart.imx95.tflite zidane.jpg \
+//!     --delegate /usr/lib/libneutron_delegate.so --warmup 5 --iters 100 --save
 //! ```
 
 mod error;
 
+use std::collections::BTreeMap;
 use std::os::fd::BorrowedFd;
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
 use crate::error::{Error, Result};
-use edgefirst_hal::{
-    codec::{peek_info, ImageDecoder, ImageLoad as _},
-    decoder::{
-        schema::{LogicalType, SchemaV2},
-        DecoderBuilder, DetectBox, ProtoData, Segmentation,
-    },
-    image::{
-        save_jpeg, ColorMode, Crop, Fit, Flip, ImageProcessor, ImageProcessorTrait as _,
-        MaskOverlay, MaskResolution, Rotation,
-    },
-    tensor::{
-        CpuAccess, DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn,
-        TensorMapTrait as _, TensorMemory, TensorTrait as _,
-    },
+use edgefirst_codec::{peek_info, ImageDecoder, ImageLoad as _};
+use edgefirst_decoder::{
+    infer_ultralytics_schema,
+    schema::{DType as SchemaDType, LogicalType, Quantization as SchemaQuantization, SchemaV2},
+    DecoderBuilder, DetectBox, ModelSignals, ModelSource, ProtoData, Segmentation, TensorInfo,
+};
+use edgefirst_image::{
+    save_jpeg, ColorMode, Crop, Fit, Flip, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
+    MaskResolution, Rotation,
+};
+use edgefirst_tensor::{
+    CpuAccess, DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMapTrait as _,
+    TensorMemory, TensorTrait as _,
 };
 use edgefirst_tflite::{
-    archive::ModelArchive, Delegate, DelegateOptions, Interpreter, Library, Model, TensorType,
+    archive::ModelArchive, metadata::Metadata, Delegate, DelegateOptions, Interpreter, Library,
+    Model, Tensor, TensorType,
 };
 
 // ── Arguments ────────────────────────────────────────────────────────────────
@@ -266,6 +312,134 @@ fn tflite_dtype(tt: TensorType) -> Result<DType> {
 }
 
 /// Pre-allocated HAL tensors for `TFLite` outputs (updated in-place each frame).
+/// Maps a `TFLite` element type onto the schema's `DType`.
+///
+/// This is `edgefirst_decoder::schema::DType`, the set of dtypes a *model
+/// boundary* can present — not `edgefirst_tensor::DType`, which also covers
+/// 64-bit and host-only element types. Anything outside the boundary set is
+/// refused by name rather than silently coerced, since a wrong dtype here
+/// would misread every byte of the tensor.
+fn dtype_of(ty: TensorType) -> Result<SchemaDType> {
+    Ok(match ty {
+        TensorType::Float32 => SchemaDType::Float32,
+        TensorType::Float16 => SchemaDType::Float16,
+        TensorType::Int8 => SchemaDType::Int8,
+        TensorType::UInt8 => SchemaDType::Uint8,
+        TensorType::Int16 => SchemaDType::Int16,
+        TensorType::Int32 => SchemaDType::Int32,
+        other => {
+            return Err(Error::unsupported(format!(
+                "tensor dtype {other:?} is not a supported model boundary type"
+            )))
+        }
+    })
+}
+
+/// Describes one model boundary tensor for schema inference.
+fn tensor_info(tensor: &Tensor<'_>) -> Result<TensorInfo> {
+    let qp = tensor.quantization_params();
+    let dtype = dtype_of(tensor.tensor_type())?;
+    Ok(TensorInfo {
+        name: tensor.name().to_string(),
+        shape: tensor.shape()?,
+        dtype,
+        // A scale of zero is TFLite's "not quantized" encoding, not a scale.
+        quantization: (qp.scale != 0.0).then(|| SchemaQuantization {
+            scale: vec![qp.scale],
+            zero_point: Some(vec![qp.zero_point]),
+            axis: None,
+            dtype: Some(dtype),
+        }),
+    })
+}
+
+/// Resolves the decoder schema and class labels for a model.
+///
+/// Two sources, in order of authority:
+///
+/// 1. **`edgefirst.json`**, embedded by the `EdgeFirst` converter in a ZIP
+///    trailer appended to the flatbuffer. It describes the output layout
+///    exactly, including the per-scale FPN children a smart export needs.
+/// 2. **Inference from the model's own signals**, for a stock Ultralytics
+///    export that carries no `edgefirst.json`. `infer_ultralytics_schema`
+///    reads the shapes, dtypes and quantization of the boundary tensors
+///    together with Ultralytics' `metadata.json` envelope (`names`, `task`)
+///    and reconstructs the equivalent schema.
+///
+/// The second path is why a stock `yolo export format=tflite` model runs here
+/// unmodified. It is inference, not a declaration: a model whose metadata
+/// carries no Ultralytics signature is refused rather than guessed at.
+fn load_schema(model_data: &[u8], interpreter: &Interpreter) -> Result<(SchemaV2, Vec<String>)> {
+    // A model may carry a ZIP trailer holding `metadata.json` but no
+    // `edgefirst.json` -- that is exactly the stock Ultralytics case -- so a
+    // failure to find the EdgeFirst schema falls through rather than aborting.
+    let mut archive = ModelArchive::new(model_data).ok();
+
+    if let Some(archive) = archive.as_mut() {
+        if let Ok(edgefirst_json) = archive.edgefirst_json() {
+            let labels = archive.labels().unwrap_or_default();
+            println!(
+                "  Schema:  edgefirst.json embedded ({} bytes), labels.txt: {} entries",
+                edgefirst_json.len(),
+                labels.len(),
+            );
+            return Ok((SchemaV2::parse_json(&edgefirst_json)?, labels));
+        }
+    }
+
+    // Collect every metadata string the model offers and let the inference
+    // scan them: Ultralytics writes its envelope as `metadata.json` in the
+    // trailer, while other exporters put it in the TFLITE_METADATA
+    // description. Offering both costs nothing and avoids encoding a guess
+    // about which exporter wrote the file.
+    let mut metadata = BTreeMap::new();
+    if let Some(archive) = archive.as_mut() {
+        for name in archive
+            .entry_names()
+            .map(str::to_string)
+            .collect::<Vec<_>>()
+        {
+            if let Ok(value) = archive.read_to_string(&name) {
+                metadata.insert(name, value);
+            }
+        }
+    }
+    if let Some(description) = Metadata::from_model_bytes(model_data).description {
+        metadata.insert("description".to_string(), description);
+    }
+
+    let signals = ModelSignals {
+        // The box convention follows the container, and TFLite exports are
+        // normalized to [0, 1]. Naming the source is what lets inference
+        // avoid guessing it.
+        source: ModelSource::TfLite,
+        inputs: interpreter
+            .inputs()?
+            .iter()
+            .map(tensor_info)
+            .collect::<Result<Vec<_>>>()?,
+        outputs: interpreter
+            .outputs()?
+            .iter()
+            .map(tensor_info)
+            .collect::<Result<Vec<_>>>()?,
+        metadata,
+    };
+
+    let inferred = infer_ultralytics_schema(&signals).map_err(|e| {
+        Error::unsupported(format!(
+            "model carries no embedded edgefirst.json, and its schema could \
+             not be inferred: {e}"
+        ))
+    })?;
+    println!(
+        "  Schema:  inferred from model signals ({}, {} labels)",
+        inferred.description,
+        inferred.labels.len(),
+    );
+    Ok((inferred.schema, inferred.labels))
+}
+
 struct OutputBuffers(Vec<TensorDyn>);
 
 impl OutputBuffers {
@@ -368,7 +542,7 @@ fn maybe_normalize_boxes(detections: &mut [DetectBox], in_w: usize, in_h: usize)
 /// Import a *delegate-owned* DMA-BUF plane as a HAL image tensor.
 ///
 /// A thin wrapper over [`ImageProcessor::import_image`], which every
-/// `edgefirst-hal` release gates on `#[cfg(target_os = "linux")]`: importing a
+/// `edgefirst-image` release gates on `#[cfg(target_os = "linux")]`: importing a
 /// foreign buffer by file descriptor is a Linux/DMA-BUF concept, and no
 /// `TFLite` delegate outside embedded Linux hands one out.
 ///
@@ -404,7 +578,7 @@ fn import_dmabuf(
 
 /// Allocate an image the GPU can render into without a host round-trip.
 ///
-/// [`TensorMemory::Dma`] is the HAL's portable name for a platform-native
+/// [`TensorMemory::DmaBuf`] is `edgefirst-tensor`'s portable name for a platform-native
 /// zero-copy GPU buffer: a DRM/dma-heap DMA-BUF on Linux, an `IOSurface` on
 /// macOS and iOS, and an `AHardwareBuffer` on Android. Requesting it
 /// explicitly is a contract — the HAL returns an error rather than silently
@@ -427,7 +601,7 @@ fn allocate_zero_copy(
         height,
         format,
         dtype,
-        Some(TensorMemory::Dma),
+        Some(TensorMemory::DmaBuf),
         access,
     ) {
         Ok(image) => Ok(image),
@@ -483,7 +657,7 @@ fn try_bind_input_buffer(
         println!("  Zero-copy input: unavailable (runtime lacks the experimental C API)");
         return false;
     }
-    if staging.memory() != TensorMemory::Dma {
+    if staging.memory() != TensorMemory::DmaBuf {
         println!("  Zero-copy input: skipped (input buffer is not GPU-resident)");
         return false;
     }
@@ -542,7 +716,13 @@ fn preprocess_step(
     letterbox: Crop,
     use_dmabuf: bool,
     input_type: TensorType,
+    nchw: bool,
 ) -> Result<()> {
+    /// Channels the staging tensor carries. `input_fmt` is `Rgb` on every
+    /// path that reaches the deinterleave, and `Rgba` only ever pairs with
+    /// the `CameraAdaptor` DMA-BUF route, which NCHW does not take.
+    const CHANNELS: usize = 3;
+
     match model_input {
         ModelInput::DmaBuf(dst) => {
             processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
@@ -567,16 +747,37 @@ fn preprocess_step(
             let inp = &mut inputs[0];
             match input_type {
                 TensorType::Int8 => {
-                    inp.copy_from_slice(staging.as_i8().expect("i8").map()?.as_slice())?;
+                    let map = staging.as_i8().expect("i8").map()?;
+                    if nchw {
+                        deinterleave(map.as_slice(), inp.as_mut_slice::<i8>()?, CHANNELS);
+                    } else {
+                        inp.copy_from_slice(map.as_slice())?;
+                    }
                 }
                 TensorType::UInt8 => {
-                    inp.copy_from_slice(staging.as_u8().expect("u8").map()?.as_slice())?;
+                    let map = staging.as_u8().expect("u8").map()?;
+                    if nchw {
+                        deinterleave(map.as_slice(), inp.as_mut_slice::<u8>()?, CHANNELS);
+                    } else {
+                        inp.copy_from_slice(map.as_slice())?;
+                    }
                 }
                 TensorType::Float32 => {
                     let map = staging.as_u8().expect("u8 staging for f32").map()?;
                     let f32_slice = inp.as_mut_slice::<f32>()?;
-                    for (d, &s) in f32_slice.iter_mut().zip(map.as_slice().iter()) {
-                        *d = f32::from(s) / 255.0;
+                    if nchw {
+                        let plane = map.as_slice().len() / CHANNELS;
+                        for (pixel, samples) in
+                            map.as_slice().as_chunks::<CHANNELS>().0.iter().enumerate()
+                        {
+                            for (c, &value) in samples.iter().enumerate() {
+                                f32_slice[c * plane + pixel] = f32::from(value) / 255.0;
+                            }
+                        }
+                    } else {
+                        for (d, &s) in f32_slice.iter_mut().zip(map.as_slice().iter()) {
+                            *d = f32::from(s) / 255.0;
+                        }
                     }
                 }
                 other => return Err(Error::unsupported(format!("input type: {other:?}"))),
@@ -584,6 +785,20 @@ fn preprocess_step(
         }
     }
     Ok(())
+}
+
+/// Rewrites interleaved `H x W x C` samples as channel-planar `C x H x W`.
+///
+/// `ImageProcessor` always produces interleaved pixels — that is what a GPU
+/// render target is — so a channel-first model input needs this one CPU pass.
+/// It is the reason an NCHW model gives up the zero-copy paths.
+fn deinterleave<T: Copy>(src: &[T], dst: &mut [T], channels: usize) {
+    let plane = src.len() / channels;
+    for (pixel, samples) in src.chunks_exact(channels).enumerate() {
+        for (c, &value) in samples.iter().enumerate() {
+            dst[c * plane + pixel] = value;
+        }
+    }
 }
 
 // ── Pipeline iteration ───────────────────────────────────────────────────────
@@ -594,7 +809,7 @@ fn preprocess_step(
 fn run_iterations(
     n: usize,
     interpreter: &mut Interpreter<'_>,
-    decoder: &edgefirst_hal::decoder::Decoder,
+    decoder: &edgefirst_decoder::Decoder,
     processor: &mut ImageProcessor,
     src: &TensorDyn,
     model_input: &mut ModelInput,
@@ -605,6 +820,7 @@ fn run_iterations(
     in_h: usize,
     use_dmabuf: bool,
     input_type: TensorType,
+    nchw: bool,
 ) -> Result<(Vec<DetectBox>, IterTimings)> {
     let mut timings = IterTimings::with_capacity(n);
     let mut detections: Vec<DetectBox> = Vec::with_capacity(100);
@@ -630,6 +846,7 @@ fn run_iterations(
             letterbox,
             use_dmabuf,
             input_type,
+            nchw,
         )?;
         timings.preprocess.push(ms(t_pre.elapsed()));
 
@@ -742,19 +959,31 @@ fn main() -> Result<()> {
     println!("Outputs: {}", interpreter.output_count());
 
     // ── 2. Inspect input tensor ─────────────────────────────────────
-    let (in_h, in_w, input_type, _input_quant) = {
+    let (in_h, in_w, in_nchw, input_type, _input_quant) = {
         let inputs = interpreter.inputs()?;
         let input = &inputs[0];
         let shape = input.shape()?;
         let tt = input.tensor_type();
         let qp = input.quantization_params();
-        let h = shape[1];
-        let w = shape[2];
+        // Channel axis, not assumed. The EdgeFirst converter emits NHWC, but a
+        // stock Ultralytics LiteRT export keeps PyTorch's NCHW, and reading H
+        // and W off the wrong axes is silent: it builds a 3-pixel-wide
+        // letterbox, feeds the model noise and reports zero detections rather
+        // than failing.
+        let nchw = shape.len() == 4 && matches!(shape[1], 1 | 3) && !matches!(shape[3], 1 | 3);
+        let (h, w) = if nchw {
+            (shape[2], shape[3])
+        } else {
+            (shape[1], shape[2])
+        };
         println!(
-            "  input[0]: {} (scale={}, zero_point={})",
-            input, qp.scale, qp.zero_point
+            "  input[0]: {} (scale={}, zero_point={}, layout={})",
+            input,
+            qp.scale,
+            qp.zero_point,
+            if nchw { "NCHW" } else { "NHWC" },
         );
-        (h, w, tt, qp)
+        (h, w, nchw, tt, qp)
     };
 
     if use_camera_adaptor {
@@ -775,24 +1004,14 @@ fn main() -> Result<()> {
         }
     }
 
-    // The model has no embedded EdgeFirst metadata archive when this returns
-    // an error — propagate as `Error::Tflite` (its inner cause already carries
-    // the missing-archive message).
-    let mut archive = ModelArchive::new(model.data())?;
-    let edgefirst_json = archive.edgefirst_json()?;
-    let labels = archive.labels().unwrap_or_default();
-    println!(
-        "  Schema:  edgefirst.json embedded ({} bytes), labels.txt: {} entries",
-        edgefirst_json.len(),
-        labels.len(),
-    );
-
-    // Parse the JSON into a SchemaV2 so we can both feed the builder via the
-    // schema-aware path (`with_schema` preserves per-scale FPN children that
-    // the merge pipeline relies on for DFL decode) and inspect the logical
-    // outputs to decide segmentation vs detection mode without depending on
-    // the runtime `Decoder::model_type()` debug formatting.
-    let schema = SchemaV2::parse_json(&edgefirst_json)?;
+    // Either the embedded edgefirst.json or, for a stock Ultralytics export,
+    // a schema inferred from the model's own signals.
+    //
+    // `with_schema` below preserves the per-scale FPN children that the merge
+    // pipeline relies on for DFL decode, and inspecting the logical outputs
+    // here decides segmentation vs detection without depending on the runtime
+    // `Decoder::model_type()` debug formatting.
+    let (schema, labels) = load_schema(model.data(), &interpreter)?;
     let is_segmentation = schema
         .outputs
         .iter()
@@ -878,7 +1097,11 @@ fn main() -> Result<()> {
         (PixelFormat::Rgb, dt)
     };
 
-    let mut model_input: ModelInput = if use_dmabuf && input_type != TensorType::Float32 {
+    // An NCHW model cannot take either zero-copy route: the GPU writes
+    // interleaved pixels, so the channel-first buffer has to be built on the
+    // CPU from the staging tensor.
+    let mut model_input: ModelInput = if use_dmabuf && input_type != TensorType::Float32 && !in_nchw
+    {
         let delegate_ref = interpreter.delegate(0).expect("delegate not found");
         let dmabuf_api = delegate_ref.dmabuf().expect("DMA-BUF not available");
 
@@ -952,7 +1175,7 @@ fn main() -> Result<()> {
         // Try to hand the runtime the buffer itself. When this takes, the
         // arena copy disappears: the GPU writes exactly the memory the model
         // reads.
-        if try_bind_input_buffer(&lib, &mut interpreter, &staging, input_type) {
+        if !in_nchw && try_bind_input_buffer(&lib, &mut interpreter, &staging, input_type) {
             println!("  Input: IOSurface bound as model input (GPU \u{2192} NPU/CPU, no copy)");
             ModelInput::Bound(staging)
         } else {
@@ -960,12 +1183,12 @@ fn main() -> Result<()> {
             // convert result lands in host memory and the arena copy reads it
             // back — a real cost the preprocess timings below will show.
             match staging.memory() {
-                TensorMemory::Dma if cfg!(any(target_os = "macos", target_os = "ios")) => {
+                TensorMemory::DmaBuf if cfg!(any(target_os = "macos", target_os = "ios")) => {
                     println!(
                         "  Input: IOSurface staging (GPU \u{2192} IOSurface \u{2192} TFLite arena)"
                     );
                 }
-                TensorMemory::Dma => {
+                TensorMemory::DmaBuf => {
                     println!(
                         "  Input: DMA-BUF staging (GPU \u{2192} DMA-BUF \u{2192} TFLite arena)"
                     );
@@ -1015,6 +1238,7 @@ fn main() -> Result<()> {
             in_h,
             use_dmabuf,
             input_type,
+            in_nchw,
         )?;
         println!();
         warmup_timings.print_stats("Warmup");
@@ -1035,6 +1259,7 @@ fn main() -> Result<()> {
         in_h,
         use_dmabuf,
         input_type,
+        in_nchw,
     )?;
 
     // ── 9. Print detections ───────────────────────────────────────────

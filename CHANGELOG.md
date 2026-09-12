@@ -7,6 +7,174 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`yolov8` Python example: the letterbox rect disagreed with the library for
+  about half of all source sizes.** `compute_letterbox` scaled by
+  `int(src * scale)` while `edgefirst-image`'s `letterbox_rect` rounds, so the
+  rect the example used for `letterbox_norm` and the inverse box transform did
+  not always describe where `convert(letterbox=...)` actually placed the image
+  — masks landed a row off and printed boxes were scaled by the wrong factor.
+  It now mirrors the library's placement, using `floor(x + 0.5)` rather than
+  Python's banker's `round` so exact halves agree with Rust's `f64::round`. A
+  sweep of 150321 source sizes into 640x640 goes from 50.5% disagreement to
+  none. Not visible on `zidane.jpg` (1280x720 into 640x640 divides exactly),
+  which is why on-target testing did not surface it.
+- **`yolov8` Python example: `load_image()` ignored the caller's `access` when
+  the source already decoded to the requested format.** A PNG that decodes
+  straight to RGBA took an early return handing back the buffer allocated for
+  the decode itself, so a caller asking for `"readwrite"` got a write-only
+  declaration. No failure was observed on either the DMA-BUF or CPU backend,
+  but the declaration is what keeps hardware pipelines eligible for vendor
+  tile compression, so it should say what the host actually does.
+- **`Interpreter::set_custom_allocation_for_input` doc named `TensorMemory::Dma`**,
+  which 0.30 renamed to `DmaBuf` — published API documentation pointing at a
+  symbol that no longer exists.
+
+### Changed
+
+- **Depend on the EdgeFirst HAL 0.31.0 packages.** 0.31.0 carries
+  quantization across the `edgefirst_tensor_v2` capsule and through
+  `interop::reconstruct`, which unblocks two things the Python example could
+  not do on 0.30.0 — see *Fixed upstream* below. The Rust API is source
+  compatible; only the Python interop wire format changed.
+
+- **Both `yolov8` examples now run a stock Ultralytics export, with no
+  `edgefirst.json`.** When a model carries no EdgeFirst schema, the examples
+  hand the model's own signals — the shapes, dtypes and quantization of its
+  boundary tensors, plus whatever metadata it ships — to
+  `edgefirst-decoder`'s `infer_ultralytics_schema`, which reconstructs the
+  equivalent schema from Ultralytics' `metadata.json` envelope (`names`,
+  `task`). The Rust example previously refused such a model outright at
+  `ModelArchive::new` with `no embedded ZIP archive`; the Python example fell
+  back to its own shape heuristic. That heuristic is still the last resort,
+  for a model with neither a schema nor an Ultralytics signature.
+
+  Verified against a stock `yolo export model=yolov8n.pt format=tflite
+  int8=True imgsz=640` from Ultralytics 8.4.148 — no EdgeFirst tooling in the
+  chain. Both examples infer `Ultralytics YOLOv8/11 detect, 80 classes` and
+  report the same two detections on `zidane.jpg`, matching a NumPy reference
+  decode of the same model: `person 68.0%` twice on both boards.
+
+- **`yolov8` examples: the input layout is read from the shape rather than
+  assumed to be NHWC.** Ultralytics' LiteRT exports keep PyTorch's NCHW
+  layout, and the previous code took H and W from axes 1 and 2 — which for
+  `1x3x640x640` yields a 3x640 letterbox. Nothing failed: the model was fed
+  noise and reported zero detections. Both examples now detect the channel
+  axis, size the letterbox correctly, and deinterleave HWC to CHW when
+  staging. An NCHW model necessarily gives up the zero-copy input paths,
+  since `ImageProcessor` renders interleaved pixels, so it is routed to CPU
+  staging.
+
+- **`yolov8` Python example: the documented `edgefirst-tflite` floor was
+  wrong.** It read `>=0.4.0`, but a stock Ultralytics export needs `0.10.1`,
+  which is where support for their offset-stored constant buffers landed —
+  before it, such a model aborts at invoke with `Input tensor N lacks data`.
+  EdgeFirst-converted models are unaffected and still run on older versions.
+
+- **`yolov8` Python example: the decoder is now built from the model's
+  embedded `edgefirst.json` schema.** It previously called
+  `Decoder.new_from_outputs()`, which infers the layout from tensor shapes and
+  cannot express per-scale children — the `Output` API exposes no
+  stride/level/scale_index — so it rejected every per-scale FPN-split
+  ("smart") export with `InvalidConfig("Invalid Yolo model outputs")`. Since
+  every model in the EdgeFirst zoo is a smart export, the Python example could
+  not run any official model. It now reads the schema through
+  `edgefirst_tflite.ModelArchive`, the way the Rust example already did via
+  `DecoderBuilder::with_schema`, and falls back to shape inference for models
+  without the ZIP trailer. Class names come from the archive's `labels.txt`
+  when present, falling back to the built-in COCO list, and the output tensors
+  carry their per-scale quantization so the schema decoder can read it.
+
+  This also fixes the mode line, which reported `segmentation` for any smart
+  detection model: it tested for a 4-D output tensor, and a smart export's
+  per-scale tensors are all 4-D. It now asks the schema whether an output is
+  `protos`.
+
+  With this the Python and Rust examples agree exactly. On the zoo models with
+  `zidane.jpg`, both report identical scores *and* boxes — i.MX8MP detection
+  `person 73.4% [138, 203, 670, 711]` / `person 66.3% [748, 42, 1147, 713]`;
+  i.MX8MP segmentation `85.5% / 78.0% / 55.3%`; i.MX95 detection
+  `79.5% / 58.4% / 36.5%`; i.MX95 segmentation `88.4% / 85.5% / 60.5%`.
+
+- **`yolov8` example: migrated off the `edgefirst-hal` umbrella onto the
+  modular 0.31.0 crates.** `edgefirst-hal` names the collection and its
+  repository, not a shipped library; the Rust example now depends on
+  `edgefirst-codec`, `edgefirst-decoder`, `edgefirst-image` and
+  `edgefirst-tensor` directly, and the Python example imports them from the
+  PEP 420 `edgefirst.*` namespace (`edgefirst.image`, `edgefirst.decoder`, …)
+  instead of the flat `edgefirst_hal` module.
+- **`TensorMemory::Dma` is now `TensorMemory::DmaBuf`.** 0.30 spells out
+  `IoSurface`, `Pbo` and `Cuda` as distinct codes, so the portable
+  platform-native GPU buffer needed an unambiguous name. Semantics are
+  unchanged — DMA-BUF on Linux, `IOSurface` on macOS/iOS, `AHardwareBuffer`
+  on Android, `ID3D11Texture2D` on Windows.
+- **Python `ImageProcessor.convert` replaces `dst_crop`/`dst_color` with
+  `letterbox=(r, g, b, a)`.** The processor resolves the centred
+  aspect-preserving placement itself, matching the `Crop::new().with_fit(
+  Fit::Letterbox { pad })` form the Rust example already used. The example
+  still computes the letterbox rect, but only for the normalised bounds handed
+  to `materialize_masks` and `draw_decoded_masks`. Letting the library place
+  the letterbox makes the Python example agree with the Rust one. Verified
+  against the model-zoo `yolov8n-det-int8-smart` export on i.MX8MP: the Rust
+  example and a Python decode over the same schema both report `person 73.4%`
+  and `person 66.3%` with identical horizontal extents.
+- **Python `ImageProcessor.create_image` gained an `access` parameter that
+  defaults to `"none"`.** The strict default keeps hardware pipelines eligible
+  for vendor tile compression; a tensor the script later maps itself
+  (`normalize_to_numpy`, `save_jpeg`, `map()`) must declare `"read"`,
+  `"write"` or `"readwrite"` or the map fails with `EACCES`. Each allocation
+  in the Python example now declares what the host actually does with it, as
+  the Rust example already did with `CpuAccess`.
+
+### Documentation
+
+- **The READMEs and both examples now point at the EdgeFirst model zoo.**
+  `README.md` and `crates/python/README.md` name the detection
+  (<https://huggingface.co/EdgeFirst/yolov8-det>) and segmentation
+  (<https://huggingface.co/EdgeFirst/yolov8-seg>) repositories, explain the
+  `tflite/` and `imx95/` layout, and give `curl` lines for the two models the
+  examples are demonstrated with. The example module docs carry the same
+  pointers, and their usage samples name real zoo artifacts rather than
+  placeholder filenames. Both also document the stock-Ultralytics path, its
+  `yolo export` line, and the two things to expect from those exports (NCHW
+  float32 boundary, `edgefirst-tflite >= 0.10.1`).
+
+### Fixed upstream (EdgeFirst HAL 0.31.0)
+
+- **Python instance segmentation now works.** On 0.30.0
+  `ImageProcessor.materialize_masks()` rejected int8 mask coefficients from
+  `Decoder.decode_proto()` with `InvalidShape("I8 mask_coefficients require
+  quantization metadata")`, because the `__edgefirst_protodata__` capsule
+  dropped quantization crossing from `edgefirst.decoder` into
+  `edgefirst.image`. Verified on i.MX8MP (VxDelegate): the unmodified example
+  decodes 3 detections and renders per-instance masks, `Materialize` 1.9 ms,
+  `Render` 9.1 ms.
+
+- **Per-scale FPN-split ("smart") models can now be decoded from Python.**
+  `Decoder.new_from_json_str()` built from the embedded `edgefirst.json` used
+  to raise `QuantMissing { role: "boxes", level: 0 }` at `decode_proto()`;
+  the same root cause, on the same-module `interop::reconstruct` path.
+  Verified against the model zoo on both boards, matching the Rust example
+  exactly: i.MX8MP det `73.4% / 66.3%`, seg `85.5% / 78.0% / 55.3%`; i.MX95
+  det `79.5% / 58.4% / 36.5%`, seg `88.4% / 85.5% / 60.5%`.
+
+
+### Known limitations
+
+- **A `.tflite` without an embedded ZIP archive cannot be run by the Rust
+  example.** `ModelArchive::new` fails with `no embedded ZIP archive`, so
+  exports predating the `edgefirst.json` trailer are Python-only. Every
+  model-zoo artifact carries the archive; only older local exports do not.
+
+### Removed
+
+- **Python `Tensor.load(path, format)` is gone.** `edgefirst.codec` decodes
+  into a pre-allocated tensor in the source's native pixel format, so the
+  example gained a `load_image()` helper that peeks the header, sizes a
+  native-format tensor, calls `decode_file_into()`, and converts to the
+  requested format.
+
 ## [0.10.1] - 2026-09-02
 
 ### Fixed

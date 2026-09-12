@@ -269,16 +269,70 @@ The accessor is invalidated by `allocate_tensors()` or
 ## YOLOv8 Example
 
 A complete YOLOv8 detection and segmentation example is included at
-`examples/yolov8/python/yolov8.py`, demonstrating the full pipeline
-with `edgefirst-tflite` + `edgefirst-hal`:
+`examples/yolov8/python/yolov8.py`, demonstrating the full pipeline with
+`edgefirst-tflite` and the modular EdgeFirst HAL packages:
+
+```bash
+pip install edgefirst-tflite numpy \
+    edgefirst-codec edgefirst-decoder edgefirst-image edgefirst-tensor
+```
+
+### Models
+
+Official pre-trained models are published in the EdgeFirst model zoo on
+Hugging Face:
+
+| Task | Repository |
+| --- | --- |
+| Detection | <https://huggingface.co/EdgeFirst/yolov8-det> |
+| Segmentation | <https://huggingface.co/EdgeFirst/yolov8-seg> |
+
+Each repository ships a `tflite/` directory for i.MX8MP and other
+VxDelegate/CPU targets and an `imx95/` directory of `.imx95.tflite` exports
+compiled for the i.MX95 Neutron NPU, in `n`/`s`/`m` sizes:
+
+```bash
+# Detection for i.MX8MP / CPU
+curl -LO https://huggingface.co/EdgeFirst/yolov8-det/resolve/main/tflite/yolov8n-det-int8-smart.tflite
+
+# Segmentation for i.MX95 Neutron
+curl -LO https://huggingface.co/EdgeFirst/yolov8-seg/resolve/main/imx95/yolov8n-seg-int8-smart.imx95.tflite
+```
+
+These are per-scale FPN-split ("smart") int8 exports. The example reads the
+`edgefirst.json` schema embedded in each `.tflite` to configure the decoder,
+which is what makes that layout decodable — it carries a `stride` and
+`scale_index` per scale that cannot be recovered from tensor shapes.
+
+A stock Ultralytics export works too, with no EdgeFirst tooling and no
+`edgefirst.json`:
+
+```bash
+yolo export model=yolov8n.pt format=tflite int8=True imgsz=640
+python yolov8.py yolov8n_int8.tflite zidane.jpg
+```
+
+The schema is inferred from the model's own signals — the shapes, dtypes and
+quantization of its boundary tensors, plus Ultralytics' `metadata.json`
+envelope (`names`, `task`). Two things to expect from these exports: they keep
+PyTorch's NCHW layout and a float32 boundary, so they take the CPU staging
+path rather than zero-copy; and they need `edgefirst-tflite >= 0.10.1`, which
+is where support for their offset-stored constant buffers landed (earlier
+versions abort at invoke with `Input tensor N lacks data`).
+
+A model with neither an embedded schema nor an Ultralytics signature falls
+back to classifying outputs by shape, which handles the fused and
+logical-split layouts only.
+
+### Running
 
 ```bash
 # Detection on i.MX8MP with VxDelegate
-python yolov8.py yolov8n-int8.tflite zidane.jpg \
+python yolov8.py yolov8n-det-int8-smart.tflite zidane.jpg \
     --delegate /usr/lib/libvx_delegate.so --warmup 3 --iters 10 --save
 
 # Segmentation on i.MX95 with Neutron
-python yolov8.py yolov8n-seg-int8.imx95.tflite zidane.jpg \
+python yolov8.py yolov8n-seg-int8-smart.imx95.tflite zidane.jpg \
     --delegate /usr/lib/libneutron_delegate.so --warmup 3 --iters 10 --save
 ```
 

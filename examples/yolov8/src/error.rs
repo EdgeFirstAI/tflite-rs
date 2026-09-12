@@ -16,14 +16,14 @@ pub enum Error {
     Io(std::io::Error),
     /// `edgefirst-tflite` reported an inference-runtime failure.
     Tflite(edgefirst_tflite::Error),
-    /// HAL `Decoder` build or decode failure.
-    Decoder(edgefirst_hal::decoder::DecoderError),
-    /// HAL `codec` (image decode / peek) failure.
-    Codec(edgefirst_hal::codec::CodecError),
-    /// HAL `image` (load / convert / save / overlay) failure.
-    Image(edgefirst_hal::image::Error),
-    /// HAL `tensor` (allocation / quantization / map) failure.
-    Tensor(edgefirst_hal::tensor::Error),
+    /// `edgefirst-decoder` `Decoder` build or decode failure.
+    Decoder(edgefirst_decoder::DecoderError),
+    /// `edgefirst-codec` (image decode / peek) failure.
+    Codec(edgefirst_codec::CodecError),
+    /// `edgefirst-image` (load / convert / save / overlay) failure.
+    Image(edgefirst_image::Error),
+    /// `edgefirst-tensor` (allocation / quantization / map) failure.
+    Tensor(edgefirst_tensor::Error),
     /// Unsupported configuration the example explicitly rejects, e.g. an
     /// output dtype the post-processing path doesn't handle.
     Unsupported(String),
@@ -75,26 +75,26 @@ impl From<edgefirst_tflite::Error> for Error {
     }
 }
 
-impl From<edgefirst_hal::decoder::DecoderError> for Error {
-    fn from(e: edgefirst_hal::decoder::DecoderError) -> Self {
+impl From<edgefirst_decoder::DecoderError> for Error {
+    fn from(e: edgefirst_decoder::DecoderError) -> Self {
         Self::Decoder(e)
     }
 }
 
-impl From<edgefirst_hal::image::Error> for Error {
-    fn from(e: edgefirst_hal::image::Error) -> Self {
+impl From<edgefirst_image::Error> for Error {
+    fn from(e: edgefirst_image::Error) -> Self {
         Self::Image(e)
     }
 }
 
-impl From<edgefirst_hal::codec::CodecError> for Error {
-    fn from(e: edgefirst_hal::codec::CodecError) -> Self {
+impl From<edgefirst_codec::CodecError> for Error {
+    fn from(e: edgefirst_codec::CodecError) -> Self {
         Self::Codec(e)
     }
 }
 
-impl From<edgefirst_hal::tensor::Error> for Error {
-    fn from(e: edgefirst_hal::tensor::Error) -> Self {
+impl From<edgefirst_tensor::Error> for Error {
+    fn from(e: edgefirst_tensor::Error) -> Self {
         Self::Tensor(e)
     }
 }

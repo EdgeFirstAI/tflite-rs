@@ -2,30 +2,79 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
 
-"""YOLOv8 Object Detection & Segmentation with edgefirst-tflite + edgefirst-hal.
+"""YOLOv8 Object Detection & Segmentation with edgefirst-tflite.
 
-End-to-end YOLOv8 inference using edgefirst-tflite for model execution and
-edgefirst-hal for image preprocessing, YOLO decoding (via high-level Decoder
-API), and overlay rendering.
+End-to-end YOLOv8 inference using edgefirst-tflite for model execution and the
+modular EdgeFirst HAL packages for the rest of the pipeline: edgefirst-codec
+(JPEG/PNG decode), edgefirst-tensor (zero-copy tensor allocation),
+edgefirst-image (preprocessing and overlay rendering), and edgefirst-decoder
+(YOLO decoding via the high-level Decoder API).
+
+The HAL packages share the PEP 420 ``edgefirst.*`` namespace, so each one is
+installed separately and imported as ``edgefirst.<name>``.
+
+The decoder is configured from the model's embedded ``edgefirst.json``
+schema, so fused, logical-split and per-scale FPN-split ("smart") exports all
+work without manual output classification. A model without that schema falls
+back to inferring the layout from tensor shapes, which cannot express the
+per-scale form.
+
+Models:
+    Official pre-trained models are published in the EdgeFirst model zoo on
+    Hugging Face:
+
+      Detection:    https://huggingface.co/EdgeFirst/yolov8-det
+      Segmentation: https://huggingface.co/EdgeFirst/yolov8-seg
+
+    Each repository ships a ``tflite/`` directory for i.MX8MP and other
+    VxDelegate/CPU targets and an ``imx95/`` directory of ``.imx95.tflite``
+    exports compiled for the i.MX95 Neutron NPU, in n/s/m sizes.
+
+      curl -LO https://huggingface.co/EdgeFirst/yolov8-det/resolve/main/tflite/yolov8n-det-int8-smart.tflite
+      curl -LO https://huggingface.co/EdgeFirst/yolov8-seg/resolve/main/imx95/yolov8n-seg-int8-smart.imx95.tflite
+
+    A stock Ultralytics export also runs here unmodified -- no EdgeFirst
+    tooling and no ``edgefirst.json``:
+
+      yolo export model=yolov8n.pt format=tflite int8=True imgsz=640
+
+    Its schema is inferred from the model's own signals (see
+    ``resolve_schema``). Note that Ultralytics' LiteRT exports keep PyTorch's
+    NCHW layout and a float32 boundary, so they take the CPU staging path
+    rather than zero-copy, and are correspondingly slower.
 
 Usage:
     python yolov8.py <model.tflite> <image.jpg> [options]
 
 Examples:
     # CPU-only detection
-    python yolov8.py yolov8n.tflite image.jpg
+    python yolov8.py yolov8n-det-int8-smart.tflite zidane.jpg
 
-    # Benchmark with 5 warmup + 100 iterations
-    python yolov8.py model.tflite image.jpg --delegate /usr/lib/libvx_delegate.so \
-        --warmup 5 --iters 100 --save
+    # Detection on i.MX8MP, 5 warmup + 100 benchmark iterations
+    python yolov8.py yolov8n-det-int8-smart.tflite zidane.jpg \
+        --delegate /usr/lib/libvx_delegate.so --warmup 5 --iters 100 --save
+
+    # Segmentation on i.MX95 Neutron
+    python yolov8.py yolov8n-seg-int8-smart.imx95.tflite zidane.jpg \
+        --delegate /usr/lib/libneutron_delegate.so --warmup 5 --iters 100 --save
 
 Requirements:
-    pip install edgefirst-tflite>=0.4.0 edgefirst-hal>=0.15.0 numpy
+    pip install edgefirst-tflite>=0.10.1 numpy \
+        edgefirst-codec>=0.31.0 edgefirst-decoder>=0.31.0 \
+        edgefirst-image>=0.31.0 edgefirst-tensor>=0.31.0
+
+    edgefirst-tflite 0.10.1 is the floor for stock Ultralytics exports
+    specifically: they store constant buffers outside the flatbuffer, which
+    earlier versions could not resolve through the TFLite C API, and the model
+    aborted at invoke with "Input tensor N lacks data". EdgeFirst-converted
+    models run on older versions.
 """
 
 from __future__ import annotations
 
 import argparse
+import json
+import math
 import os
 import time
 
@@ -53,8 +102,8 @@ COCO = [
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def classify_outputs(output_details: list[dict]) -> list:
-    """Classify TFLite output tensors into edgefirst-hal Output objects."""
-    from edgefirst_hal import Output
+    """Classify TFLite output tensors into edgefirst.decoder Output objects."""
+    from edgefirst.decoder import Output
 
     has_protos = False
     proto_channels = 0
@@ -101,13 +150,153 @@ def classify_outputs(output_details: list[dict]) -> list:
     return outputs
 
 
+def resolve_schema(model_path, input_details, output_details):
+    """Resolve the decoder schema and class labels for a model.
+
+    Three sources, in descending order of authority:
+
+    1. **``edgefirst.json``**, embedded by the EdgeFirst converter in a ZIP
+       trailer appended to the flatbuffer. It describes the output layout
+       exactly, including the per-scale FPN children a "smart" export needs.
+    2. **Inference from the model's own signals**, for a stock Ultralytics
+       export that carries no ``edgefirst.json``.
+       ``infer_ultralytics_schema`` reads the shapes, dtypes and quantization
+       of the boundary tensors together with Ultralytics' ``metadata.json``
+       envelope (``names``, ``task``) and reconstructs the equivalent schema.
+       This is what lets a stock ``yolo export format=tflite`` model run here
+       unmodified.
+    3. **Nothing** -- the caller falls back to classifying the outputs by
+       shape, which handles fused and logical-split layouts only.
+
+    Returns ``(schema_dict_or_None, labels, description)``.
+    """
+    from edgefirst.decoder import infer_ultralytics_schema
+    from edgefirst_tflite import ModelArchive
+
+    # A model may carry a ZIP trailer holding `metadata.json` but no
+    # `edgefirst.json` -- that is exactly the stock Ultralytics case -- so a
+    # missing EdgeFirst schema falls through to inference rather than failing.
+    try:
+        archive = ModelArchive(path=model_path)
+    except Exception:
+        archive = None
+
+    metadata = {}
+    if archive is not None:
+        try:
+            schema = json.loads(archive.edgefirst_json())
+        except Exception:
+            schema = None
+        if schema is not None:
+            try:
+                labels = archive.labels()
+            except Exception:
+                labels = []
+            return schema, labels, "edgefirst.json embedded"
+
+        # Collect every metadata string the model offers and let inference
+        # scan them. Ultralytics writes its envelope as `metadata.json`; the
+        # inference looks for whichever value parses as JSON carrying `names`,
+        # so offering all of them avoids encoding a guess about the exporter.
+        for name in archive.entry_names():
+            try:
+                metadata[name] = archive.read_to_string(name)
+            except Exception:
+                pass
+
+    def signals(details):
+        """Describe boundary tensors as (name, shape, dtype, quantization)."""
+        described = []
+        for det in details:
+            scale, zero_point = det["quantization"]
+            # A scale of zero is TFLite's "not quantized" encoding.
+            quant = ([float(scale)], [int(zero_point)]) if scale != 0.0 else None
+            described.append((
+                det["name"],
+                [int(s) for s in det["shape"]],
+                str(det["dtype"]),
+                quant,
+            ))
+        return described
+
+    try:
+        inferred = infer_ultralytics_schema(
+            # The box convention follows the container, and TFLite exports are
+            # normalized to [0, 1]. Naming the source is what lets inference
+            # avoid guessing it.
+            "tflite",
+            signals(input_details),
+            signals(output_details),
+            metadata,
+        )
+    except ValueError:
+        # No recognizable Ultralytics signature. Not an error: the caller has
+        # a shape-based fallback, and reporting here would be noise for the
+        # EdgeFirst models that never reach this branch.
+        return None, [], None
+
+    return inferred.schema, inferred.labels, f"inferred ({inferred.description})"
+
+
+def load_image(processor, path, fmt, access="none"):
+    """Decode an image file into a GPU-backed tensor in `fmt`.
+
+    edgefirst.codec decodes into a pre-allocated tensor in the source's native
+    pixel format (JPEG → NV12, PNG → RGB/RGBA), so peek the header to size a
+    native-format tensor, decode into it, then let the processor convert to
+    `fmt`.
+
+    `access` declares what the *CPU* will do with the result. The default
+    "none" keeps hardware pipelines eligible for vendor tile compression;
+    anything the script later maps itself — normalize_to_numpy(), save_jpeg(),
+    map() — must declare "read", "write" or "readwrite" or the map fails.
+    """
+    import edgefirst.codec as codec
+
+    info = codec.Tensor.peek_image_info_file(path)
+    # When the source decodes straight to `fmt` (a PNG already in RGBA) this
+    # buffer is returned as-is, so it must carry the caller's `access`, not
+    # just the "write" the decode itself needs.
+    decodes_to_fmt = info.format == fmt
+    native = processor.create_image(
+        info.width, info.height, info.format, "uint8",
+        access=access if decodes_to_fmt else "write",
+    )
+    codec.decode_file_into(native, path)
+    if native.format == fmt:
+        return native
+
+    out = processor.create_image(
+        info.width, info.height, fmt, "uint8", access=access,
+    )
+    processor.convert(native, out)
+    return out
+
+
 def compute_letterbox(src_w, src_h, dst_w, dst_h):
-    """Compute letterbox destination rect preserving aspect ratio."""
-    scale = min(dst_w / src_w, dst_h / src_h)
-    new_w = int(src_w * scale)
-    new_h = int(src_h * scale)
-    left = (dst_w - new_w) // 2
-    top = (dst_h - new_h) // 2
+    """Compute the letterbox destination rect preserving aspect ratio.
+
+    Mirrors `letterbox_rect` in edgefirst-image exactly, including its
+    rounding. `convert(letterbox=...)` places the image itself; this only
+    recovers where it put it, for `letterbox_norm` and the inverse box
+    transform. Scaling by `int(src * scale)` instead rounds the other way for
+    roughly half of all source sizes, which lands masks a row off and scales
+    printed boxes by the wrong factor.
+
+    `floor(x + 0.5)`, not `round()`: Rust's `f64::round` goes half away from
+    zero while Python's `round` is banker's rounding, and the two disagree on
+    exact halves.
+    """
+    if src_w == 0 or src_h == 0:
+        return 0, 0, dst_w, dst_h
+    src_aspect = src_w / src_h
+    dst_aspect = dst_w / dst_h
+    if src_aspect > dst_aspect:
+        new_w, new_h = dst_w, max(1, math.floor(dst_w / src_aspect + 0.5))
+    else:
+        new_w, new_h = max(1, math.floor(dst_h * src_aspect + 0.5)), dst_h
+    left = max(0, dst_w - new_w) // 2
+    top = max(0, dst_h - new_h) // 2
     return left, top, new_w, new_h
 
 
@@ -203,34 +392,69 @@ def main():
     print(f"Outputs: {len(output_details)}")
 
     inp = input_details[0]
-    in_shape = tuple(inp["shape"])
-    in_h, in_w = int(in_shape[1]), int(in_shape[2])
+    in_shape = tuple(int(s) for s in inp["shape"])
     in_dtype = str(inp["dtype"])
-    print(f"  input[0]: shape={list(in_shape)} dtype={in_dtype}")
+
+    # Channel axis, not assumed. The EdgeFirst converter emits NHWC, but a
+    # stock Ultralytics LiteRT export keeps PyTorch's NCHW, and reading H and W
+    # off the wrong axes is silent: it builds a 3-pixel-wide letterbox, feeds
+    # the model noise and reports zero detections rather than an error.
+    is_nchw = (
+        len(in_shape) == 4 and in_shape[1] in (1, 3) and in_shape[3] not in (1, 3)
+    )
+    if is_nchw:
+        in_h, in_w = in_shape[2], in_shape[3]
+    else:
+        in_h, in_w = in_shape[1], in_shape[2]
+    print(f"  input[0]: shape={list(in_shape)} dtype={in_dtype} "
+          f"layout={'NCHW' if is_nchw else 'NHWC'}")
 
     for i, det in enumerate(output_details):
         print(f"  output[{i}]: shape={list(det['shape'])} dtype={det['dtype']}")
 
     # ── 3. Auto-detect model type and build Decoder ──────────────────
-    from edgefirst_hal import Decoder, DecoderVersion, Nms
+    from edgefirst.decoder import Decoder, DecoderVersion, Nms
 
-    hal_outputs = classify_outputs(output_details)
+    schema, labels, schema_desc = resolve_schema(
+        args.model, input_details, output_details,
+    )
+    if not labels:
+        labels = COCO
 
-    is_segmentation = any(len(d["shape"]) == 4 for d in output_details)
+    if schema is not None:
+        # The model's own layout, either declared or inferred. This is the
+        # only path that handles per-scale ("smart") exports -- which is every
+        # model in the EdgeFirst zoo -- and it mirrors the Rust example's
+        # DecoderBuilder::with_schema.
+        is_segmentation = any(
+            o.get("type") == "protos" for o in schema.get("outputs", [])
+        )
+        decoder = Decoder(
+            schema,
+            score_threshold=args.threshold,
+            iou_threshold=args.iou,
+            nms=Nms.ClassAgnostic,
+        )
+        print(f"  Schema: {schema_desc}, {len(labels)} labels")
+    else:
+        # Last resort: classify the outputs by shape. Fused and logical-split
+        # only -- a smart export lands here as InvalidConfig("Invalid Yolo
+        # model outputs").
+        is_segmentation = any(len(d["shape"]) == 4 for d in output_details)
+        decoder = Decoder.new_from_outputs(
+            classify_outputs(output_details),
+            score_threshold=args.threshold,
+            iou_threshold=args.iou,
+            nms=Nms.ClassAgnostic,
+            decoder_version=DecoderVersion.Yolov8,
+        )
+        print("  Schema: none available, classified from output shapes")
+
     print(f"  Mode: {'segmentation' if is_segmentation else 'detection'}")
 
-    decoder = Decoder.new_from_outputs(
-        hal_outputs,
-        score_threshold=args.threshold,
-        iou_threshold=args.iou,
-        nms=Nms.ClassAgnostic,
-        decoder_version=DecoderVersion.Yolov8,
-    )
-
     # ── 4. Setup image preprocessing ─────────────────────────────────
-    from edgefirst_hal import (
-        Tensor, ImageProcessor, PixelFormat, Rotation, Flip, Rect, ColorMode,
-    )
+    from edgefirst.image import ColorMode, Flip, ImageProcessor, Rotation
+    from edgefirst.tensor import PixelFormat, Tensor
 
     # Pre-allocate HAL output tensors (reused each iteration, like Rust OutputBuffers).
     DTYPE_MAP = {"int8": "int8", "uint8": "uint8", "float32": "float32", "int32": "int32"}
@@ -240,26 +464,34 @@ def main():
         shape = [int(s) for s in det["shape"]]
         dt_str = str(det["dtype"])
         dt = DTYPE_MAP.get(dt_str, "float32")
-        output_tensors.append(Tensor(shape, dtype=dt))
+        tensor = Tensor(shape, dtype=dt)
+        # The schema decoder reads quantization off the tensors it is handed,
+        # per scale, the way the Rust example's OutputBuffers does. Without
+        # this a smart model fails with QuantMissing { role: "boxes" }.
+        scale, zero_point = det["quantization"]
+        if scale != 0.0:
+            tensor.set_quantization_per_tensor(scale, zero_point)
+        output_tensors.append(tensor)
 
     t_init = time.perf_counter()
 
     processor = ImageProcessor()
 
-    src = Tensor.load(args.image, PixelFormat.Rgba)
+    src = load_image(processor, args.image, PixelFormat.Rgba, access="read")
     img_w, img_h = src.width, src.height
     print(f"Image: {img_w}x{img_h}")
 
     dst_dtype = "int8" if in_dtype == "int8" else "uint8"
     left, top, new_w, new_h = compute_letterbox(img_w, img_h, in_w, in_h)
-    dst_crop = Rect(left, top, new_w, new_h)
 
     # Create preprocessing destination buffer (reused each iteration).
     #
     # Path A: DMA-BUF + integer model → zero-copy GPU → NPU
     # Path B: No DMA-BUF → copy via normalize_to_numpy + set_tensor
     dmabuf = interpreter.dmabuf()
-    use_dmabuf = dmabuf is not None and in_dtype != "float32"
+    # An NCHW model cannot take the zero-copy path: the GPU writes interleaved
+    # pixels, so the channel-first buffer has to be built on the CPU.
+    use_dmabuf = dmabuf is not None and in_dtype != "float32" and not is_nchw
 
     if use_dmabuf:
         # Try portable HAL tensor_info API first (Neutron, future delegates),
@@ -290,7 +522,9 @@ def main():
                 use_dmabuf = False
 
     if not use_dmabuf:
-        dst_img = processor.create_image(in_w, in_h, PixelFormat.Rgb, dst_dtype)
+        dst_img = processor.create_image(
+            in_w, in_h, PixelFormat.Rgb, dst_dtype, access="readwrite",
+        )
         print("  Input: CPU staging (GPU → staging → TFLite arena)")
 
     # Pre-allocate numpy buffer for CPU path.
@@ -303,7 +537,11 @@ def main():
     init_time = (time.perf_counter() - t_init) * 1000
 
     # Pre-allocate overlay for rendering (reused across iterations).
-    overlay = Tensor.load(args.image, PixelFormat.Rgba) if args.save else None
+    overlay = (
+        load_image(processor, args.image, PixelFormat.Rgba, access="readwrite")
+        if args.save
+        else None
+    )
 
     # Precompute normalised letterbox rect for materialize_masks / draw_decoded_masks.
     letterbox_norm = (left / in_w, top / in_h,
@@ -326,19 +564,22 @@ def main():
                 src, dst_img,
                 rotation=Rotation.Rotate0,
                 flip=Flip.NoFlip,
-                dst_crop=dst_crop,
-                dst_color=[114, 114, 114, 255],
+                letterbox=(114, 114, 114, 255),  # YOLO gray pad
             )
             if use_dmabuf:
                 dmabuf.sync_for_device(0)
             else:
                 dst_img.normalize_to_numpy(input_array)
                 if in_dtype == "float32":
-                    interpreter.set_tensor(
-                        0, input_array.astype(np.float32) / 255.0,
-                    )
+                    staged = input_array.astype(np.float32) / 255.0
                 else:
-                    interpreter.set_tensor(0, input_array)
+                    staged = input_array
+                if is_nchw:
+                    # HWC → CHW. `set_tensor` copies the buffer flat, so the
+                    # array has to be made contiguous in the new order rather
+                    # than merely reshaped.
+                    staged = np.ascontiguousarray(staged.transpose(2, 0, 1))
+                interpreter.set_tensor(0, staged)
             timings["preprocess"].append((time.perf_counter() - t0) * 1000)
 
             # Infer
@@ -419,7 +660,7 @@ def main():
     inv_lh = in_h / new_h
     for i in range(num_detections):
         label = int(classes[i])
-        name = COCO[label] if label < len(COCO) else "?"
+        name = labels[label] if label < len(labels) else "?"
         score = float(scores[i]) * 100.0
         bx0 = max(0.0, min(1.0, float(boxes[i, 0])))
         by0 = max(0.0, min(1.0, float(boxes[i, 1])))
