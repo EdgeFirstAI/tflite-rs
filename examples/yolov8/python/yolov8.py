@@ -255,12 +255,15 @@ def load_image(processor, path, fmt, access="none"):
 
     info = codec.Tensor.peek_image_info_file(path)
     # When the source decodes straight to `fmt` (a PNG already in RGBA) this
-    # buffer is returned as-is, so it must carry the caller's `access`, not
-    # just the "write" the decode itself needs.
+    # buffer is returned as-is, so its declaration has to cover both what the
+    # caller will do with it *and* the CPU write the decode itself performs --
+    # a caller asking for "read" needs "readwrite" here. Otherwise the buffer
+    # is only a convert source, and the decode's write is all the CPU does.
     decodes_to_fmt = info.format == fmt
+    decode_access = "readwrite" if access in ("read", "readwrite") else "write"
     native = processor.create_image(
         info.width, info.height, info.format, "uint8",
-        access=access if decodes_to_fmt else "write",
+        access=decode_access if decodes_to_fmt else "write",
     )
     codec.decode_file_into(native, path)
     if native.format == fmt:
@@ -429,11 +432,15 @@ def main():
         is_segmentation = any(
             o.get("type") == "protos" for o in schema.get("outputs", [])
         )
+        # No `nms=`: the default is `Nms.Auto`, which honours the policy the
+        # schema declares -- `class_aware` for every zoo export and for an
+        # inferred Ultralytics schema. Forcing `ClassAgnostic` here would
+        # suppress overlapping detections of *different* classes that the Rust
+        # example keeps, since `DecoderBuilder::with_schema` sets no override.
         decoder = Decoder(
             schema,
             score_threshold=args.threshold,
             iou_threshold=args.iou,
-            nms=Nms.ClassAgnostic,
         )
         print(f"  Schema: {schema_desc}, {len(labels)} labels")
     else:

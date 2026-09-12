@@ -48,9 +48,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `edgefirst-decoder`'s `infer_ultralytics_schema`, which reconstructs the
   equivalent schema from Ultralytics' `metadata.json` envelope (`names`,
   `task`). The Rust example previously refused such a model outright at
-  `ModelArchive::new` with `no embedded ZIP archive`; the Python example fell
-  back to its own shape heuristic. That heuristic is still the last resort,
-  for a model with neither a schema nor an Ultralytics signature.
+  `ModelArchive::new` with `no embedded ZIP archive`.
+
+  Note that the two examples do not end up with the same number of tiers.
+  Python keeps its shape heuristic as a third, last-resort tier for a model
+  that carries neither a schema nor an Ultralytics signature; Rust has no
+  equivalent and refuses that case — see *Known limitations* below.
 
   Verified against a stock `yolo export model=yolov8n.pt format=tflite
   int8=True imgsz=640` from Ultralytics 8.4.148 — no EdgeFirst tooling in the
@@ -67,6 +70,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   staging. An NCHW model necessarily gives up the zero-copy input paths,
   since `ImageProcessor` renders interleaved pixels, so it is routed to CPU
   staging.
+
+- **`yolov8` Python example: the decoder no longer overrides the schema's NMS
+  policy.** It passed `nms=Nms.ClassAgnostic` explicitly, which overrode the
+  `class_aware` policy that every zoo `edgefirst.json` declares and that
+  schema inference also derives for an Ultralytics export. The Rust example
+  sets no override, so the two could suppress different boxes: class-agnostic
+  NMS discards an overlapping detection of a *different* class that
+  class-aware NMS keeps. It now omits the argument, leaving the `Nms.Auto`
+  default to honour the schema. No result changed on `zidane.jpg` — the
+  person and tie boxes do not overlap enough for the two policies to differ,
+  which is why on-target testing did not surface it.
+
+- **`yolov8` Python example: `load_image()` under-declared its decode
+  target.** When the source decodes straight to the requested format the
+  buffer is returned to the caller, so it was declared with the caller's
+  access — leaving a caller asking for `"read"` with a read-only buffer that
+  `decode_file_into` then CPU-writes. The declaration now covers the decode as
+  well. No failure was observed on either the DMA-BUF or CPU backend with an
+  RGBA PNG, the source that reaches this path; the declaration is what keeps
+  hardware pipelines eligible for vendor tile compression, so it should say
+  what the host actually does.
 
 - **`yolov8` Python example: the documented `edgefirst-tflite` floor was
   wrong.** It read `>=0.4.0`, but a stock Ultralytics export needs `0.10.1`,
@@ -164,10 +188,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Known limitations
 
-- **A `.tflite` without an embedded ZIP archive cannot be run by the Rust
-  example.** `ModelArchive::new` fails with `no embedded ZIP archive`, so
-  exports predating the `edgefirst.json` trailer are Python-only. Every
-  model-zoo artifact carries the archive; only older local exports do not.
+- **The Rust example has no shape-only fallback.** It needs a model to
+  identify itself: either an embedded `edgefirst.json` or metadata carrying
+  an Ultralytics signature. A model with neither is refused with
+  `model carries no embedded edgefirst.json, and its schema could not be
+  inferred`. The Python example has a third tier for this case — it classifies
+  the outputs by shape — which handles fused and logical-split layouts only,
+  never a per-scale export. Every model-zoo artifact and every stock
+  Ultralytics export identifies itself, so this affects only older
+  locally-converted files.
 
 ### Removed
 
