@@ -268,6 +268,7 @@ interpreter.invoke()?;
 | [`camera_preprocessing`](examples/camera_preprocessing/) | NPU-accelerated format conversion | `camera_adaptor` |
 | [`yolov8`](examples/yolov8/) | Detection/segmentation with HAL DMA / IOSurface | `dmabuf` |
 | [`neutron_multi_context`](examples/neutron_multi_context/) | Multiple Neutron delegate contexts (worker pool) with per-instance DMA-BUF verification | `dmabuf` |
+| [`multislot_throughput`](examples/multislot_throughput/) | Concurrent multi-context throughput benchmark (N interpreters sharing one model) | `dmabuf` |
 
 ### Models
 
