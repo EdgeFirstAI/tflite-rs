@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`multislot_throughput` example** — a benchmark that measures inference
+  throughput as several interpreter contexts, all sharing one model, run
+  concurrently. It reveals whether a delegate's NPU overlaps multiple contexts
+  (throughput scales with context count) or serializes them (throughput stays
+  flat while latency grows), and documents that a single interpreter cannot be
+  invoked from multiple threads at once.
+
 ## [0.10.2] - 2026-09-11
 
 ### Fixed
