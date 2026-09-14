@@ -3,7 +3,7 @@
 
 //! Multi-context throughput benchmark.
 //!
-//! Measures inference throughput for a delegate under three sharing models,
+//! Measures inference throughput for a delegate under two sharing models,
 //! to answer whether concurrent multi-context invocation gains throughput on
 //! a single NPU (e.g. VX / Vivante on i.MX 8M Plus) or merely serializes:
 //!
@@ -28,6 +28,13 @@
 //! # Neutron (imx95): model.imx95.tflite /usr/lib/libneutron_delegate.so
 //! multislot-throughput <model> <delegate> [window_secs] [warmup_iters]
 //! ```
+//!
+//! **VX prerequisite:** `N > 1` creates one delegate instance per slot, which
+//! needs a multi-context-safe VxDelegate (EdgeFirst `tflite-vx-delegate-imx`
+//! with the EDGEAI-1435 instance-resolver fix). Older VxDelegate builds
+//! double-free or corrupt under concurrent contexts (see `ARCHITECTURE.md`), so
+//! this benchmark aborts instead of reporting results on them. Neutron and CPU
+//! delegates have no such prerequisite.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Barrier;
@@ -39,37 +46,18 @@ const DEFAULT_WINDOW_SECS: u64 = 4;
 const DEFAULT_WARMUP: usize = 5;
 const SLOT_COUNTS: [usize; 3] = [1, 2, 4];
 
-/// Element width in bytes, derived from the tensor's own byte size, so a fill
-/// touches the whole buffer regardless of element type (`as_slice`/
-/// `copy_from_slice` count elements, not bytes).
-fn elem_width(byte_size: usize, volume: usize) -> usize {
-    byte_size.checked_div(volume).unwrap_or(0)
-}
-
-/// Fill input 0 with a deterministic byte pattern (whole buffer).
+/// Fill input 0 with a deterministic byte pattern spanning the whole
+/// allocation. Writing raw bytes across `byte_size()` covers every fixed- or
+/// packed-width element type (`Int4`, `Complex128`, …) without an element-width
+/// table — the content is irrelevant to throughput; only that the buffer is
+/// initialized and identical every invoke.
 fn fill_input(interp: &mut Interpreter) {
     let mut inputs = interp.inputs_mut().expect("inputs_mut");
     let t = &mut inputs[0];
-    let volume = t.volume().expect("volume");
-    let byte = |i: usize| u8::try_from(i * 7 % 251).expect("pattern byte");
-
-    macro_rules! fill {
-        ($ty:ty, $w:expr) => {{
-            let data: Vec<$ty> = (0..volume)
-                .map(|e| <$ty>::from_ne_bytes(std::array::from_fn(|b| byte(e * $w + b))))
-                .collect();
-            t.copy_from_slice::<$ty>(&data).expect("fill input");
-        }};
-    }
-
-    match elem_width(t.byte_size(), volume) {
-        0 => {}
-        1 => fill!(u8, 1),
-        2 => fill!(u16, 2),
-        4 => fill!(u32, 4),
-        8 => fill!(u64, 8),
-        w => panic!("unsupported element width: {w} bytes"),
-    }
+    let data: Vec<u8> = (0..t.byte_size())
+        .map(|i| u8::try_from(i * 7 % 251).expect("pattern byte"))
+        .collect();
+    t.copy_from_bytes(&data).expect("fill input");
 }
 
 /// Report whether the crate resolved a live DMA-BUF path for this interpreter.
@@ -82,6 +70,11 @@ fn dmabuf_live(interp: &Interpreter) -> bool {
 }
 
 /// Build one interpreter for `model` with a fresh delegate instance.
+///
+/// Thread count is fixed at 1 so that raising the slot count changes only the
+/// number of concurrent contexts, not the amount of CPU parallelism — the
+/// reported speedup then reflects multi-context overlap alone, not extra
+/// per-context worker threads.
 fn build_interp<'lib>(
     lib: &'lib Library,
     model: &Model<'lib>,
@@ -90,6 +83,7 @@ fn build_interp<'lib>(
     let d = Delegate::load(delegate_path).expect("delegate load");
     Interpreter::builder(lib)
         .expect("builder")
+        .num_threads(1)
         .delegate(d)
         .build(model)
         .expect("interpreter build")
@@ -134,17 +128,25 @@ fn run_config(
     let build_secs = t_build.elapsed().as_secs_f64();
     let dmabuf = interps.first().map(dmabuf_live).unwrap_or(false);
 
-    let start = Barrier::new(n + 1);
+    // `ready` synchronizes warmup completion; `go` releases the workers only
+    // after the clock starts, so no counted invoke precedes `t0`; `stop` ends
+    // the window.
+    let ready = Barrier::new(n + 1);
+    let go = AtomicBool::new(false);
     let stop = AtomicBool::new(false);
 
     let (counts, elapsed) = std::thread::scope(|s| {
-        let start = &start;
+        let ready = &ready;
+        let go = &go;
         let stop = &stop;
         let handles: Vec<_> = interps
             .iter_mut()
             .map(|it| {
                 s.spawn(move || -> u64 {
-                    start.wait();
+                    ready.wait();
+                    while !go.load(Ordering::Acquire) {
+                        std::hint::spin_loop();
+                    }
                     let mut count = 0u64;
                     while !stop.load(Ordering::Relaxed) {
                         it.invoke().expect("invoke");
@@ -155,8 +157,12 @@ fn run_config(
             })
             .collect();
 
-        start.wait();
+        ready.wait();
+        // Start the clock, THEN release the workers: every counted invoke
+        // falls inside the measured window (`elapsed` also covers the in-flight
+        // invokes finishing after `stop`, so counts and window stay consistent).
         let t0 = Instant::now();
+        go.store(true, Ordering::Release);
         std::thread::sleep(window);
         stop.store(true, Ordering::Relaxed);
         let counts: Vec<u64> = handles
