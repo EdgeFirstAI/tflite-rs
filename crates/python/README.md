@@ -410,3 +410,5 @@ except TfLiteError as e:
 ## License
 
 Apache-2.0. See [LICENSE](https://github.com/EdgeFirstAI/tflite-rs/blob/main/LICENSE).
+
+<img referrerpolicy="no-referrer-when-downgrade" src="https://px.edgefirst.ai/a.png?x-pxid=2cc83b0f-62ff-47a3-858b-a54b612274cf" alt="" width="1" height="1" style="position:absolute; width:1px; height:1px; opacity:0; pointer-events:none;" />
