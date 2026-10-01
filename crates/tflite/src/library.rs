@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn required_symbol_list_is_non_empty_and_prefixed() {
         let symbols = LiteRtFunctions::required_symbols();
-        assert!(!symbols.is_empty());
+        assert_ne!(symbols.len(), 0);
         assert!(symbols.iter().all(|s| s.starts_with("LiteRt")));
     }
 }

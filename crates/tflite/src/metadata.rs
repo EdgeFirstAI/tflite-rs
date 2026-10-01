@@ -181,7 +181,7 @@ mod tests {
     fn display_no_fields_set() {
         let m = Metadata::default();
         let output = m.to_string();
-        assert!(output.is_empty());
+        assert_eq!(output, "");
     }
 
     #[test]

@@ -28,7 +28,7 @@ full = ["metadata", "archive", "dmabuf", "camera_adaptor"]
 edgefirst-tflite-sys.workspace = true
 libloading = "0.9"
 log = "0.4"
-num-derive = "0.4"
+num-derive = "0.5"
 num-traits = "0.2"
 
 # Used unconditionally by the model loader to inline offset-stored buffers

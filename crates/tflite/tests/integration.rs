@@ -38,7 +38,7 @@ fn model_from_bytes_valid() {
     common::require_tflite!();
     let lib = common::load_library().unwrap();
     let model = common::load_model(&lib);
-    assert!(!model.data().is_empty());
+    assert_ne!(model.data(), []);
 }
 
 #[test]
@@ -601,7 +601,7 @@ fn litert_environment_and_accelerators() {
         "expected a CPU accelerator, got {accels:?}"
     );
     for accel in &accels {
-        assert!(!accel.to_string().is_empty());
+        assert_ne!(accel.to_string(), "");
     }
 }
 

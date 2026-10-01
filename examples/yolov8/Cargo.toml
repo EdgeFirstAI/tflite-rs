@@ -16,10 +16,10 @@ edgefirst-tflite = { path = "../../crates/tflite", features = [
     "metadata",
     "archive",
 ] }
-edgefirst-codec = "0.31.0"
-edgefirst-decoder = "0.31.0"
-edgefirst-image = "0.31.0"
-edgefirst-tensor = "0.31.0"
+edgefirst-codec = "0.33.0"
+edgefirst-decoder = "0.33.0"
+edgefirst-image = "0.33.0"
+edgefirst-tensor = "0.33.0"
 
 [lints]
 workspace = true
