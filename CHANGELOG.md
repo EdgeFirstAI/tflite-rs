@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.10.3] - 2026-10-01
+
 ### Added
 
 - **`multislot_throughput` example** — a benchmark that measures inference
@@ -15,6 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (throughput scales with context count) or serializes them (throughput stays
   flat while latency grows), and documents that a single interpreter cannot be
   invoked from multiple threads at once.
+
+### Changed
+
+- `num-derive` updated to 0.5.
+- `yolov8` example updated to EdgeFirst HAL 0.33.
 
 ## [0.10.2] - 2026-09-11
 
@@ -630,7 +637,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.2...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.3...HEAD
+[0.10.3]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.9.0...v0.10.0

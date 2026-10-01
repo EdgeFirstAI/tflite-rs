@@ -526,7 +526,7 @@ mod tests {
     fn debug_formatting_not_empty() {
         let opts = DelegateOptions::new().option("cache", "/tmp");
         let debug = format!("{opts:?}");
-        assert!(!debug.is_empty());
+        assert_ne!(debug, "");
         assert!(debug.contains("DelegateOptions"));
         assert!(debug.contains("cache"));
         assert!(debug.contains("/tmp"));
