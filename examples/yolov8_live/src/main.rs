@@ -1014,7 +1014,9 @@ fn main() -> Result<()> {
 
     let t_start = Instant::now();
     let mut frame_count: u64 = 0;
-    let mut window = [Duration::ZERO; 6];
+    let mut window = [Duration::ZERO; 9];
+    let mut detections = Vec::new();
+    let mut masks = Vec::new();
     let mut dropped: u64 = 0;
 
     while display.is_open()? {
@@ -1050,40 +1052,65 @@ fn main() -> Result<()> {
         let t3 = Instant::now();
 
         interpreter.invoke()?;
-        output_bufs.sync_from(&interpreter)?;
         let t4 = Instant::now();
+        output_bufs.sync_from(&interpreter)?;
+        let t5 = Instant::now();
 
         let background = overlay_background(&mut overlay_processor, frame, &mut rgba_background)?;
+        let t6 = Instant::now();
+
+        // The two halves of `ImageProcessor::draw_masks`, timed separately:
+        // decoding runs on the CPU, drawing on the GPU.
+        detections.clear();
+        masks.clear();
+        let protos = decoder.decode_proto(&output_bufs.refs(), &mut detections)?;
+        if protos.is_none() {
+            decoder.decode(&output_bufs.refs(), &mut detections, &mut masks)?;
+        }
+        let t7 = Instant::now();
+
         let overlay = MaskOverlay::default()
             .with_background(background)
             .with_convert_options(&letterbox, cam_w, cam_h, in_w, in_h)
             .with_color_mode(args.color_mode);
-        let detections =
-            overlay_processor.draw_masks(&decoder, &output_bufs.refs(), &mut canvas, overlay)?;
-        let t5 = Instant::now();
+        match protos {
+            Some(ref protos) => {
+                overlay_processor.draw_proto_masks(&mut canvas, &detections, protos, overlay)?;
+            }
+            None => {
+                overlay_processor.draw_decoded_masks(&mut canvas, &detections, &masks, overlay)?;
+            }
+        }
+        let t8 = Instant::now();
 
         display.present(std::os::fd::AsFd::as_fd(&canvas_fd), canvas_stride)?;
-        let t6 = Instant::now();
+        let t9 = Instant::now();
 
-        for (acc, d) in
-            window
-                .iter_mut()
-                .zip([t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4, t6 - t5])
-        {
+        for (acc, d) in window.iter_mut().zip([
+            t1 - t0,
+            t2 - t1,
+            t3 - t2,
+            t4 - t3,
+            t5 - t4,
+            t6 - t5,
+            t7 - t6,
+            t8 - t7,
+            t9 - t8,
+        ]) {
             *acc += d;
         }
         frame_count += 1;
         if frame_count.is_multiple_of(u64::from(REPORT_EVERY)) {
             let fps = frame_count as f64 / t_start.elapsed().as_secs_f64();
-            let [pull, import, preprocess, infer, draw, present] =
+            let [pull, import, preprocess, infer, copy, background, decode, draw, present] =
                 window.map(|d| (d / REPORT_EVERY).as_secs_f64() * 1000.0);
             eprint!(
-                "\r  FPS: {fps:5.1}  pull:{pull:5.1} imp:{import:4.1} pre:{preprocess:4.1} \
-                 inf:{infer:5.1} draw:{draw:5.1} disp:{present:4.1} ms  \
-                 drop:{dropped} det:{:<3}",
+                "\r  FPS: {fps:5.1}  pull:{pull:4.1} imp:{import:4.1} pre:{preprocess:4.1} \
+                 inf:{infer:5.1} cpy:{copy:4.1} bg:{background:4.1} dec:{decode:5.1} \
+                 draw:{draw:5.1} disp:{present:4.1} ms  drop:{dropped} det:{:<3}",
                 detections.len()
             );
-            window = [Duration::ZERO; 6];
+            window = [Duration::ZERO; 9];
         }
     }
 
