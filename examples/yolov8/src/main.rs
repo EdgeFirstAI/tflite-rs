@@ -1058,16 +1058,23 @@ fn main() -> Result<()> {
     let mut img_decoder = ImageDecoder::new();
     cpu_img.load_image(&mut img_decoder, &image_bytes)?;
 
-    // `src_rgba` is written by the GPU convert below and sampled only by the
-    // GPU afterwards, so it stays hardware-only: no CPU mapping declared,
-    // which is also what keeps it eligible for vendor tile compression.
+    // `src_rgba` is sampled only by the GPU after the convert below, so it
+    // stays hardware-only where it can: no CPU mapping declared, which keeps
+    // it eligible for vendor tile compression. Neither GL nor G2D converts an
+    // RGB source (a PNG without alpha), so that convert runs on the CPU and
+    // the destination must admit a CPU write.
+    let src_access = if info.format == PixelFormat::Rgb {
+        CpuAccess::Write
+    } else {
+        CpuAccess::None
+    };
     let mut src_rgba = allocate_zero_copy(
         &processor,
         img_w,
         img_h,
         PixelFormat::Rgba,
         DType::U8,
-        CpuAccess::None,
+        src_access,
     )?;
     processor.convert(&cpu_img, &mut src_rgba, None)?;
     drop(cpu_img);

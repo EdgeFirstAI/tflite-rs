@@ -328,6 +328,39 @@ class OutputBuffers:
 # ── Camera frames ────────────────────────────────────────────────────────────
 
 
+def hal_colorimetry(color_space):
+    """The HAL colorimetry for a libcamera stream's color space.
+
+    Passing it to the import matters: an untagged YUV frame is converted with
+    a guess made from its height (BT.709, limited range for HD), while ISPs
+    commonly deliver sYCC (BT.601, full range). The mismatch stretches the
+    contrast and shifts the hue of every frame the model sees.
+    """
+    if color_space is None:
+        return None
+    space = {
+        "Smpte170m": ef_tensor.ColorSpace.Smpte170m,
+        "Rec709": ef_tensor.ColorSpace.Bt709,
+        "Rec2020": ef_tensor.ColorSpace.Bt2020,
+    }.get(color_space.primaries.name)
+    transfer = {
+        "Linear": ef_tensor.ColorTransfer.Linear,
+        "Srgb": ef_tensor.ColorTransfer.Srgb,
+        "Rec709": ef_tensor.ColorTransfer.Bt709,
+    }.get(color_space.transferFunction.name)
+    encoding = {
+        "Rec601": ef_tensor.ColorEncoding.Bt601,
+        "Rec709": ef_tensor.ColorEncoding.Bt709,
+        "Rec2020": ef_tensor.ColorEncoding.Bt2020,
+    }.get(color_space.ycbcrEncoding.name)
+    range_ = {
+        "Full": ef_tensor.ColorRange.Full,
+        "Limited": ef_tensor.ColorRange.Limited,
+    }.get(color_space.range.name)
+    return ef_tensor.Colorimetry(space, transfer, encoding, range_)
+
+
+
 class FrameCache:
     """HAL image tensors for libcamera's buffers, imported once per buffer.
 
@@ -337,12 +370,13 @@ class FrameCache:
     soon as its frame has been looked up.
     """
 
-    def __init__(self, capacity, width, height, stride, fmt):
+    def __init__(self, capacity, width, height, stride, fmt, colorimetry):
         self._entries = [None] * capacity
         self.width = width
         self.height = height
         self.stride = stride
         self.fmt = fmt
+        self.colorimetry = colorimetry
 
     def get_or_import(self, index, processor, framebuffer):
         tensor = self._entries[index]
@@ -363,6 +397,7 @@ class FrameCache:
                 self.height,
                 self.fmt,
                 stride=self.stride,
+                colorimetry=self.colorimetry,
                 **chroma,
             )
             self._entries[index] = tensor
@@ -433,7 +468,12 @@ def main() -> None:
     print(f"  Mode:    {'segmentation' if is_segmentation else 'detection'}")
 
     # ── 3. HAL processor, model I/O and display canvas ───────────────────
+    # Preprocessing and overlay drawing use separate processors. Sharing one
+    # corrupts the next frame's model input on i.MX95 (Mali): state left by
+    # draw_onto garbles the following convert into the packed-RGB input
+    # buffer, letterbox padding included, and detection quietly degrades.
     processor = ef_image.ImageProcessor()
+    overlay_processor = ef_image.ImageProcessor()
 
     dmabuf = interpreter.dmabuf()
     info = None
@@ -505,6 +545,7 @@ def main() -> None:
     buffers = allocator.buffers(stream)
     print(
         f"  Capture: {cam_w}x{cam_h} {args.format}, stride {stream_cfg.stride}, "
+        f"{stream_cfg.color_space}, "
         f"{len(buffers)} buffers"
     )
     requests = []
@@ -512,7 +553,14 @@ def main() -> None:
         request = camera.create_request(i)
         request.add_buffer(stream, fb)
         requests.append(request)
-    frames = FrameCache(len(buffers), cam_w, cam_h, stream_cfg.stride, hal_fmt)
+    frames = FrameCache(
+        len(buffers),
+        cam_w,
+        cam_h,
+        stream_cfg.stride,
+        hal_fmt,
+        hal_colorimetry(stream_cfg.color_space),
+    )
 
     # ── 5. Display ───────────────────────────────────────────────────────
     display = WaylandDisplay(
@@ -591,11 +639,11 @@ def main() -> None:
 
             background = frame
             if rgba_background is not None:
-                processor.convert(frame, rgba_background)
+                overlay_processor.convert(frame, rgba_background)
                 background = rgba_background
             try:
                 _, scores, _ = decoder.draw_onto(
-                    processor,
+                    overlay_processor,
                     outputs.tensors,
                     canvas,
                     background=background,

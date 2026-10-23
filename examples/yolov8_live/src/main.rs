@@ -92,7 +92,8 @@ use edgefirst_image::{
     ColorMode, ConvertOptions, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
 };
 use edgefirst_tensor::{
-    CpuAccess, DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMemory,
+    ColorEncoding, ColorRange, ColorSpace, ColorTransfer, Colorimetry, CpuAccess, DType,
+    PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMemory,
 };
 use edgefirst_tflite::{
     archive::ModelArchive, metadata::Metadata, Delegate, Interpreter, Library, Model, Tensor,
@@ -472,6 +473,39 @@ delegate_noop!(DisplayState: ignore zwp_linux_buffer_params_v1::ZwpLinuxBufferPa
 
 // ── Camera frames ────────────────────────────────────────────────────────────
 
+/// The HAL colorimetry for a libcamera stream's color space.
+///
+/// Passing it to the import matters: an untagged YUV frame is converted with
+/// a guess made from its height (BT.709, limited range for HD), while ISPs
+/// commonly deliver sYCC (BT.601, full range). The mismatch stretches the
+/// contrast and shifts the hue of every frame the model sees.
+fn colorimetry(cs: libcamera::color_space::ColorSpace) -> Colorimetry {
+    use libcamera::color_space::{Primaries, Range, TransferFunction, YcbcrEncoding};
+    Colorimetry {
+        space: match cs.primaries {
+            Primaries::Raw => None,
+            Primaries::Smpte170m => Some(ColorSpace::Smpte170m),
+            Primaries::Rec709 => Some(ColorSpace::Bt709),
+            Primaries::Rec2020 => Some(ColorSpace::Bt2020),
+        },
+        transfer: Some(match cs.transfer_function {
+            TransferFunction::Linear => ColorTransfer::Linear,
+            TransferFunction::Srgb => ColorTransfer::Srgb,
+            TransferFunction::Rec709 => ColorTransfer::Bt709,
+        }),
+        encoding: match cs.ycbcr_encoding {
+            YcbcrEncoding::None => None,
+            YcbcrEncoding::Rec601 => Some(ColorEncoding::Bt601),
+            YcbcrEncoding::Rec709 => Some(ColorEncoding::Bt709),
+            YcbcrEncoding::Rec2020 => Some(ColorEncoding::Bt2020),
+        },
+        range: Some(match cs.range {
+            Range::Full => ColorRange::Full,
+            Range::Limited => ColorRange::Limited,
+        }),
+    }
+}
+
 /// libcamera's fourcc for a HAL capture format.
 fn libcamera_format(format: PixelFormat) -> libcamera::pixel_format::PixelFormat {
     let fourcc = if format == PixelFormat::Yuyv {
@@ -494,6 +528,7 @@ struct FrameCache {
     height: usize,
     stride: usize,
     format: PixelFormat,
+    colorimetry: Option<Colorimetry>,
 }
 
 impl FrameCache {
@@ -539,7 +574,7 @@ impl FrameCache {
                 self.height,
                 self.format,
                 DType::U8,
-                None,
+                self.colorimetry,
             )?);
         }
         Ok(slot.as_ref().expect("imported above"))
@@ -836,7 +871,12 @@ fn main() -> Result<()> {
     );
 
     // ── 3. HAL processor, model I/O and display canvas ──────────────────
+    // Preprocessing and overlay drawing use separate processors. Sharing one
+    // corrupts the next frame's model input on i.MX95 (Mali): state left by
+    // draw_masks garbles the following convert into the packed-RGB input
+    // buffer, letterbox padding included, and detection quietly degrades.
     let mut processor = ImageProcessor::new()?;
+    let mut overlay_processor = ImageProcessor::new()?;
     let mut model_input = bind_model_input(&interpreter, &processor, in_w, in_h, input_dtype)?;
     let mut output_bufs = OutputBuffers::allocate(&interpreter)?;
     let letterbox = ConvertOptions::new().letterbox([114, 114, 114, 255]);
@@ -925,19 +965,19 @@ fn main() -> Result<()> {
         }
     }
     camera.configure(&mut config)?;
-    let (stream, stride) = {
+    let (stream, stride, color_space) = {
         let cfg = config.get(0).expect("one stream requested");
         let stream = cfg
             .stream()
             .ok_or_else(|| Error::camera("configured stream missing"))?;
-        (stream, cfg.get_stride() as usize)
+        (stream, cfg.get_stride() as usize, cfg.get_color_space())
     };
 
     let mut allocator = FrameBufferAllocator::new(&camera);
     let buffers = allocator.alloc(&stream)?;
     let n_buffers = buffers.len();
     println!(
-        "  Capture: {cam_w}x{cam_h} {:?}, stride {stride}, {n_buffers} buffers",
+        "  Capture: {cam_w}x{cam_h} {:?}, stride {stride}, {n_buffers} buffers, {color_space:?}",
         args.format
     );
     let mut requests = Vec::with_capacity(n_buffers);
@@ -954,6 +994,7 @@ fn main() -> Result<()> {
         height: cam_h,
         stride,
         format: args.format,
+        colorimetry: color_space.map(colorimetry),
     };
 
     let (tx, rx) = mpsc::channel();
@@ -1012,13 +1053,13 @@ fn main() -> Result<()> {
         output_bufs.sync_from(&interpreter)?;
         let t4 = Instant::now();
 
-        let background = overlay_background(&mut processor, frame, &mut rgba_background)?;
+        let background = overlay_background(&mut overlay_processor, frame, &mut rgba_background)?;
         let overlay = MaskOverlay::default()
             .with_background(background)
             .with_convert_options(&letterbox, cam_w, cam_h, in_w, in_h)
             .with_color_mode(args.color_mode);
         let detections =
-            processor.draw_masks(&decoder, &output_bufs.refs(), &mut canvas, overlay)?;
+            overlay_processor.draw_masks(&decoder, &output_bufs.refs(), &mut canvas, overlay)?;
         let t5 = Instant::now();
 
         display.present(std::os::fd::AsFd::as_fd(&canvas_fd), canvas_stride)?;
