@@ -115,8 +115,8 @@ use edgefirst_decoder::{
     DecoderBuilder, DetectBox, ModelSignals, ModelSource, ProtoData, Segmentation, TensorInfo,
 };
 use edgefirst_image::{
-    save_jpeg, ColorMode, Crop, Fit, Flip, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
-    MaskResolution, Rotation,
+    save_jpeg, ColorMode, ConvertOptions, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
+    MaskResolution,
 };
 use edgefirst_tensor::{
     CpuAccess, DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMapTrait as _,
@@ -201,15 +201,12 @@ fn parse_args() -> Args {
 
 // ── Letterbox ────────────────────────────────────────────────────────────────
 
-/// Compute a letterbox crop that preserves aspect ratio with gray padding.
+/// Convert options for an aspect-preserving letterbox with YOLO gray padding.
 ///
-/// The HAL `Crop` now resolves the centred aspect-preserving placement
-/// internally from the source and destination dimensions, so we only need to
-/// request a `Letterbox` fit with the YOLO gray pad colour.
-fn compute_letterbox() -> Crop {
-    Crop::new().with_fit(Fit::Letterbox {
-        pad: [114, 114, 114, 255], // YOLO gray
-    })
+/// The HAL resolves the centred placement from the source and destination
+/// dimensions, so only the fit and pad colour are requested here.
+fn compute_letterbox() -> ConvertOptions {
+    ConvertOptions::new().letterbox([114, 114, 114, 255])
 }
 
 // ── Timing / statistics ─────────────────────────────────────────────────────
@@ -713,7 +710,7 @@ fn preprocess_step(
     model_input: &mut ModelInput,
     processor: &mut ImageProcessor,
     interpreter: &mut Interpreter<'_>,
-    letterbox: Crop,
+    letterbox: ConvertOptions,
     use_dmabuf: bool,
     input_type: TensorType,
     nchw: bool,
@@ -725,7 +722,7 @@ fn preprocess_step(
 
     match model_input {
         ModelInput::DmaBuf(dst) => {
-            processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
+            processor.convert(src, dst, Some(letterbox))?;
             if use_dmabuf {
                 interpreter
                     .delegate(0)
@@ -739,10 +736,10 @@ fn preprocess_step(
             // The GPU writes the buffer the runtime will read. There is no
             // copy and no CPU map on this path — that is the whole point of
             // the custom allocation bound during setup.
-            processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
+            processor.convert(src, dst, Some(letterbox))?;
         }
         ModelInput::Staging(staging) => {
-            processor.convert(src, staging, Rotation::None, Flip::None, letterbox)?;
+            processor.convert(src, staging, Some(letterbox))?;
             let mut inputs = interpreter.inputs_mut()?;
             let inp = &mut inputs[0];
             match input_type {
@@ -815,7 +812,7 @@ fn run_iterations(
     model_input: &mut ModelInput,
     output_bufs: &mut OutputBuffers,
     mut dst: Option<&mut TensorDyn>,
-    letterbox: Crop,
+    letterbox: ConvertOptions,
     in_w: usize,
     in_h: usize,
     use_dmabuf: bool,
@@ -830,7 +827,7 @@ fn run_iterations(
     let src_h = src.height().unwrap_or(in_h);
     // Precompute the normalised letterbox rect once for use in materialize_segmentations.
     let letterbox_norm = MaskOverlay::default()
-        .with_letterbox_crop(&letterbox, src_w, src_h, in_w, in_h)
+        .with_convert_options(&letterbox, src_w, src_h, in_w, in_h)
         .letterbox;
 
     for _ in 0..n {
@@ -890,7 +887,7 @@ fn run_iterations(
         if let Some(ref mut d) = dst {
             let overlay = MaskOverlay::default()
                 .with_background(src)
-                .with_letterbox_crop(&letterbox, src_w, src_h, in_w, in_h)
+                .with_convert_options(&letterbox, src_w, src_h, in_w, in_h)
                 .with_color_mode(ColorMode::Instance);
             let t_render = Instant::now();
             processor.draw_decoded_masks(d, &detections, &masks, overlay)?;
@@ -1072,13 +1069,7 @@ fn main() -> Result<()> {
         DType::U8,
         CpuAccess::None,
     )?;
-    processor.convert(
-        &cpu_img,
-        &mut src_rgba,
-        Rotation::None,
-        Flip::None,
-        Crop::new(),
-    )?;
+    processor.convert(&cpu_img, &mut src_rgba, None)?;
     drop(cpu_img);
 
     let letterbox = compute_letterbox();
@@ -1266,12 +1257,11 @@ fn main() -> Result<()> {
     println!("\n--- Detections ({}) ---", detections.len());
     #[allow(clippy::cast_precision_loss)]
     {
-        // `Crop` no longer carries a `dst_rect`; resolve the normalised
-        // letterbox region (`[lx0, ly0, lx1, ly1]` in model-input space) via the
-        // same helper the renderer uses, from the source image dimensions fitted
-        // into the model input dimensions.
+        // Resolve the normalised letterbox region (`[lx0, ly0, lx1, ly1]` in
+        // model-input space) via the same helper the renderer uses, from the
+        // source image dimensions fitted into the model input dimensions.
         let [lx0, ly0, lx1, ly1] = MaskOverlay::default()
-            .with_letterbox_crop(&letterbox, img_w, img_h, in_w, in_h)
+            .with_convert_options(&letterbox, img_w, img_h, in_w, in_h)
             .letterbox
             .unwrap_or([0.0_f32, 0.0_f32, 1.0_f32, 1.0_f32]);
         let inv_lw = 1.0 / (lx1 - lx0);

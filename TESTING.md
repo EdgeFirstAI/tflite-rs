@@ -82,7 +82,7 @@ prefer).
 
 ## Cross-Compilation
 
-All workspace members, including examples, are cross-compiled for
+All workspace members except `yolov8-live` are cross-compiled for
 `aarch64-unknown-linux-gnu` using `cargo-zigbuild`:
 
 ```sh
@@ -90,13 +90,32 @@ All workspace members, including examples, are cross-compiled for
 cargo install cargo-zigbuild
 
 # Build everything
-cargo zigbuild --workspace --all-features --target aarch64-unknown-linux-gnu
+cargo zigbuild --workspace --exclude yolov8-live --all-features --target aarch64-unknown-linux-gnu
 
 # Build test binaries
-cargo zigbuild --workspace --all-features --target aarch64-unknown-linux-gnu --tests
+cargo zigbuild --workspace --exclude yolov8-live --all-features --target aarch64-unknown-linux-gnu --tests
 ```
 
 Binaries are located in `target/aarch64-unknown-linux-gnu/debug/`.
+
+### Cross-compiling `yolov8-live`
+
+`yolov8-live` links libcamera through a small C++ shim compiled at build time, so it needs two things zig cannot provide:
+
+- **A GCC cross toolchain.** The target's `libcamera.so` is built against libstdc++ and passes `std::string`/`std::vector` across its API; zig's libc++ is not ABI-compatible with it. Use the target's Yocto SDK (`aarch64-poky-linux-g++`).
+- **libcamera headers and libraries matching the target**, version >= 0.4. The Yocto SDK sysroot may carry a different libcamera than the board image (the i.MX95 6.12 SDK ships 0.5.2 while the 6.18 image runs 0.7.1); in that case point pkg-config at the board's `libcamera.so`/`libcamera-base.so` plus headers of the same minor version.
+
+```sh
+source /opt/<yocto-sdk>/environment-setup-armv8a-poky-linux
+export PKG_CONFIG_ALLOW_CROSS=1
+export PKG_CONFIG_PATH=<libcamera-target>/lib/pkgconfig
+export CC_aarch64_unknown_linux_gnu="$CC" CXX_aarch64_unknown_linux_gnu="$CXX"
+export BINDGEN_EXTRA_CLANG_ARGS_aarch64_unknown_linux_gnu="--sysroot=$SDKTARGETSYSROOT"
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-poky-linux-gcc
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=--sysroot=$SDKTARGETSYSROOT"
+unset CC CXX LD AR LDFLAGS CFLAGS CXXFLAGS CPPFLAGS
+cargo build --release -p yolov8-live --target aarch64-unknown-linux-gnu
+```
 
 ## On-Target Testing: NXP FRDM i.MX 8M Plus
 
@@ -142,8 +161,12 @@ the default search paths.
 
 ## On-Target Testing: NXP FRDM i.MX 95
 
-The i.MX 95 uses the **Neutron NPU** delegate. It does not support DMA-BUF or
-CameraAdaptor — the example falls back to standard tensor I/O automatically.
+The i.MX 95 uses the **Neutron NPU** delegate. DMA-BUF zero-copy input is
+available when the installed delegate exports the HAL DMA-BUF API
+(`hal_dmabuf_*`, present in the EdgeFirst delegate build); a delegate without
+it, such as a stock NXP build, falls back to standard tensor I/O
+automatically, and the examples print which path they took. CameraAdaptor is
+not supported.
 
 ### Prerequisites
 
@@ -177,6 +200,26 @@ ssh root@<imx95-ip> '/tmp/yolov8 \
     --delegate /usr/lib/libneutron_delegate.so \
     --save'
 ```
+
+### Live Camera
+
+Requires the os08a20 camera routed through the NeoISP
+(`imx95-19x19-evk-os08a20-isp-adv7535.dtb`) and Weston running on the HDMI
+output. Cross-compile `yolov8-live` as described above.
+
+```sh
+scp target/aarch64-unknown-linux-gnu/release/yolov8-live root@<imx95-ip>:/tmp/
+
+ssh root@<imx95-ip> 'cd /tmp && \
+    XDG_RUNTIME_DIR=/run/user/0 WAYLAND_DISPLAY=wayland-0 \
+    LIBCAMERA_PIPELINES_MATCH_LIST=nxp/neo \
+    ./yolov8-live /opt/edgefirst/yolov8n-seg-int8-smart.imx95.tflite \
+        --delegate /usr/lib/libneutron_delegate.so'
+```
+
+Expect an `Input:` line naming the path taken (`delegate DMA-BUF` or `staging copy`) and a running `FPS:` line with per-stage timings; the window on the display shows the camera with masks and boxes. Without `LIBCAMERA_PIPELINES_MATCH_LIST=nxp/neo` the camera is claimed by the `imx8-isi` handler, which offers only raw Bayer, and configuration fails.
+
+For the Python version, create a venv with `--system-site-packages` (for the libcamera bindings), `pip install pywayland "edgefirst-tflite>=0.10.3" "edgefirst-image>=0.36" "edgefirst-decoder>=0.36" "edgefirst-tensor>=0.36"`, and run `examples/yolov8_live/python/yolov8_live.py` with the same arguments and environment.
 
 ### Integration Tests
 

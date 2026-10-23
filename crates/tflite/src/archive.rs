@@ -57,11 +57,12 @@ pub const METADATA_JSON: &str = "metadata.json";
 /// Read-only view of the ZIP archive embedded at the end of a `.tflite`
 /// model file.
 ///
-/// Construction reads the central directory once; subsequent calls to
-/// [`ModelArchive::read`] / [`ModelArchive::read_to_string`] decompress
-/// individual entries on demand.
+/// Construction reads the central directory and decodes the entry names
+/// once; subsequent calls to [`ModelArchive::read`] /
+/// [`ModelArchive::read_to_string`] decompress individual entries on demand.
 pub struct ModelArchive<'a> {
     inner: zip::ZipArchive<Cursor<&'a [u8]>>,
+    names: Vec<String>,
 }
 
 impl std::fmt::Debug for ModelArchive<'_> {
@@ -80,7 +81,12 @@ impl<'a> ModelArchive<'a> {
     pub fn new(data: &'a [u8]) -> Result<Self> {
         let inner = zip::ZipArchive::new(Cursor::new(data))
             .map_err(|e| Error::invalid_argument(format!("no embedded ZIP archive: {e}")))?;
-        Ok(Self { inner })
+        let names = inner
+            .file_names()
+            .map(|name| name.map(std::borrow::Cow::into_owned))
+            .collect::<zip::result::ZipResult<Vec<_>>>()
+            .map_err(|e| Error::invalid_argument(format!("undecodable archive entry name: {e}")))?;
+        Ok(Self { inner, names })
     }
 
     /// Number of entries present in the archive.
@@ -97,7 +103,7 @@ impl<'a> ModelArchive<'a> {
 
     /// Iterate over the names of all entries in the archive.
     pub fn entry_names(&self) -> impl Iterator<Item = &str> {
-        self.inner.file_names()
+        self.names.iter().map(String::as_str)
     }
 
     /// Read an entry by name into an owned byte buffer.

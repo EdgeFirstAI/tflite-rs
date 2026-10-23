@@ -37,8 +37,10 @@ jobs:
       - name: Check formatting
         run: cargo fmt --all -- --check
 
+      # yolov8-live links libcamera >= 0.4, which no Ubuntu LTS runner ships;
+      # the live-example job lints it in a container that does.
       - name: Run Clippy
-        run: cargo clippy --workspace --all-features --all-targets -- -D warnings
+        run: cargo clippy --workspace --exclude yolov8-live --all-features --all-targets -- -D warnings
 
   build-check:
     name: Build Check
@@ -60,7 +62,40 @@ jobs:
           shared-key: build-check
 
       - name: Check workspace (default features)
-        run: cargo check --workspace --all-targets
+        run: cargo check --workspace --exclude yolov8-live --all-targets
+
+  live-example:
+    name: Lint (yolov8-live)
+    runs-on: ubuntu-24.04
+    container: debian:trixie
+    steps:
+      - name: Install libcamera and build tools
+        run: |
+          echo "deb http://deb.debian.org/debian trixie-backports main" \
+            > /etc/apt/sources.list.d/trixie-backports.list
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates clang curl git git-lfs libclang-dev pkg-config
+          apt-get install -y --no-install-recommends -t trixie-backports libcamera-dev
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          lfs: true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
+        with:
+          toolchain: stable
+          components: clippy
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: live-example
+
+      - name: Run Clippy
+        run: cargo clippy -p yolov8-live --all-targets -- -D warnings
 
   test:
     name: Test

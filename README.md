@@ -267,6 +267,7 @@ interpreter.invoke()?;
 | [`delegate_options`](examples/delegate_options/) | Delegate configuration and feature probing | `dmabuf`, `camera_adaptor` |
 | [`camera_preprocessing`](examples/camera_preprocessing/) | NPU-accelerated format conversion | `camera_adaptor` |
 | [`yolov8`](examples/yolov8/) | Detection/segmentation with HAL DMA / IOSurface | `dmabuf` |
+| [`yolov8_live`](examples/yolov8_live/) | Live libcamera capture with Wayland overlay display (Rust and Python) | `dmabuf` |
 | [`neutron_multi_context`](examples/neutron_multi_context/) | Multiple Neutron delegate contexts (worker pool) with per-instance DMA-BUF verification | `dmabuf` |
 | [`multislot_throughput`](examples/multislot_throughput/) | Concurrent multi-context throughput benchmark (N interpreters sharing one model) | `dmabuf` |
 
@@ -297,6 +298,20 @@ to the `.tflite` flatbuffer, which is what configures the decoder — both the
 Rust and Python examples read it, so all three YOLO output layouts (fused,
 logical-split, and per-scale FPN-split) work without manual output
 classification.
+
+### Live camera
+
+`yolov8_live` runs the same models on a live camera: libcamera captures NV12 or YUYV DMA-BUFs, the HAL letterboxes each frame into the delegate's input buffer, and the decoded overlay is composited onto the frame and handed to the Wayland compositor as a DMA-BUF. It needs libcamera >= 0.4 and a compositor offering `zwp_linux_dmabuf_v1` (Weston on the NXP BSPs).
+
+```sh
+# i.MX95: route the sensor through the NeoISP to get NV12/YUYV
+XDG_RUNTIME_DIR=/run/user/0 WAYLAND_DISPLAY=wayland-0 \
+LIBCAMERA_PIPELINES_MATCH_LIST=nxp/neo \
+    yolov8-live yolov8n-seg-int8-smart.imx95.tflite \
+    --delegate /usr/lib/libneutron_delegate.so
+```
+
+The Python version, [`yolov8_live.py`](examples/yolov8_live/python/yolov8_live.py), takes the same arguments and additionally needs `pywayland` and the libcamera Python bindings.
 
 Stock Ultralytics exports run too, with no EdgeFirst tooling and no
 `edgefirst.json` — the examples infer the schema from the model's own signals

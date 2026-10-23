@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`yolov8_live` example** (Rust and Python) — live libcamera capture → HAL
+  letterbox into the delegate's input DMA-BUF → TFLite → HAL overlay →
+  Wayland DMA-BUF display. On the i.MX95 EVK with Neutron: ~41 FPS detection
+  / ~35 FPS segmentation (Rust), ~27 FPS segmentation (Python), yolov8n at
+  1080p.
+
+### Changed
+
+- `yolov8` example (Rust and Python) updated to EdgeFirst HAL 0.36.
+- `zip` updated to 9. `ModelArchive` now decodes entry names when the archive
+  is opened.
+
 ## [0.10.3] - 2026-10-01
 
 ### Added

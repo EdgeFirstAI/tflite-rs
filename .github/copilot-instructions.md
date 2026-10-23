@@ -61,7 +61,9 @@ edgefirst-tflite/
 ├── examples/                   # Standalone example binaries
 │   ├── basic_inference/        # cargo run -p basic-inference -- model.tflite
 │   ├── litert_compiled_model/  # cargo run -p litert-compiled-model -- model.tflite
-│   └── dmabuf_zero_copy/       # cargo run -p dmabuf-zero-copy -- model.tflite
+│   ├── dmabuf_zero_copy/       # cargo run -p dmabuf-zero-copy -- model.tflite
+│   └── yolov8_live/            # libcamera + Wayland live demo (needs libcamera >= 0.4;
+│                               #   excluded from workspace-wide CI/zigbuild, see TESTING.md)
 └── testdata/
     └── minimal.tflite          # Minimal valid TFLite flatbuffer for integration tests
 ```

@@ -39,7 +39,7 @@ flatbuffers = "25.12"
 # Optional: archive feature — embedded ZIP-footer metadata (edgefirst.json,
 # labels.txt). `default-features = false` matches the workspace's tflite-sys
 # crate so we don't pull in non-deflate codecs we never read.
-zip = { version = "8", default-features = false, features = ["deflate"], optional = true }
+zip = { version = "9", default-features = false, features = ["deflate"], optional = true }
 
 [lints]
 workspace = true

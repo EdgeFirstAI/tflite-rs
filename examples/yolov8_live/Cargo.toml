@@ -1,0 +1,32 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2025 Au-Zone Technologies. All Rights Reserved.
+
+[package]
+name = "yolov8-live"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+edgefirst-tflite = { path = "../../crates/tflite", features = [
+    "dmabuf",
+    "metadata",
+    "archive",
+] }
+edgefirst-decoder = "0.36.0"
+# `decode` supplies `ImageProcessor::draw_masks`, the fused decode + composite
+# call the live loop uses. The default `codec` feature is dropped because the
+# frames come from the camera, not from encoded files.
+edgefirst-image = { version = "0.36.0", default-features = false, features = [
+    "opengl",
+    "decode",
+] }
+edgefirst-tensor = "0.36.0"
+libcamera = "0.7.0"
+wayland-client = { version = "0.31.15", default-features = false }
+wayland-protocols = { version = "0.32.13", features = ["unstable", "client"] }
+
+[lints]
+workspace = true
