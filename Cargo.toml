@@ -36,5 +36,12 @@ half = "2"
 numpy = "0.29"
 pyo3 = "0.29"
 
+# Release code generation with symbols and line tables, for perf and
+# flamegraphs: `cargo build --profile profiling`.
+[profile.profiling]
+inherits = "release"
+strip = false
+debug = "line-tables-only"
+
 [patch.crates-io]
 
