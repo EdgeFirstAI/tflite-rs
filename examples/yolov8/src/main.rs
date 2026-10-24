@@ -615,11 +615,11 @@ fn allocate_zero_copy(
 fn host_base_address(tensor: &TensorDyn) -> Option<(std::ptr::NonNull<u8>, usize)> {
     let (ptr, bytes) = match (tensor.as_u8(), tensor.as_i8()) {
         (Some(t), _) => {
-            let map = t.map().ok()?;
+            let map = t.map_read().ok()?;
             (map.as_slice().as_ptr().cast_mut(), map.size())
         }
         (_, Some(t)) => {
-            let map = t.map().ok()?;
+            let map = t.map_read().ok()?;
             (map.as_slice().as_ptr().cast::<u8>().cast_mut(), map.size())
         }
         _ => return None,
@@ -744,7 +744,7 @@ fn preprocess_step(
             let inp = &mut inputs[0];
             match input_type {
                 TensorType::Int8 => {
-                    let map = staging.as_i8().expect("i8").map()?;
+                    let map = staging.as_i8().expect("i8").map_read()?;
                     if nchw {
                         deinterleave(map.as_slice(), inp.as_mut_slice::<i8>()?, CHANNELS);
                     } else {
@@ -752,7 +752,7 @@ fn preprocess_step(
                     }
                 }
                 TensorType::UInt8 => {
-                    let map = staging.as_u8().expect("u8").map()?;
+                    let map = staging.as_u8().expect("u8").map_read()?;
                     if nchw {
                         deinterleave(map.as_slice(), inp.as_mut_slice::<u8>()?, CHANNELS);
                     } else {
@@ -760,7 +760,7 @@ fn preprocess_step(
                     }
                 }
                 TensorType::Float32 => {
-                    let map = staging.as_u8().expect("u8 staging for f32").map()?;
+                    let map = staging.as_u8().expect("u8 staging for f32").map_read()?;
                     let f32_slice = inp.as_mut_slice::<f32>()?;
                     if nchw {
                         let plane = map.as_slice().len() / CHANNELS;
