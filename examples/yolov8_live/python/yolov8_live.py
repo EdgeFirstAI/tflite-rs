@@ -55,7 +55,7 @@ Usage::
 
 Requirements:
     pip install "edgefirst-tflite>=0.10.3" numpy pywayland \\
-        "edgefirst-decoder>=0.36" "edgefirst-image>=0.36" "edgefirst-tensor>=0.36"
+        "edgefirst-decoder>=0.37" "edgefirst-image>=0.37" "edgefirst-tensor>=0.37"
 
     The libcamera Python bindings ship with libcamera; on the board create
     the virtual environment with ``--system-site-packages`` to see them.
@@ -647,7 +647,7 @@ def main() -> None:
                     outputs.tensors,
                     canvas,
                     background=background,
-                    letterbox=letterbox,
+                    content_region=letterbox,
                     color_mode=color_mode,
                 )
             except RuntimeError:

@@ -60,8 +60,8 @@ Examples:
 
 Requirements:
     pip install edgefirst-tflite>=0.10.1 numpy \
-        edgefirst-codec>=0.36.0 edgefirst-decoder>=0.36.0 \
-        edgefirst-image>=0.36.0 edgefirst-tensor>=0.36.0
+        edgefirst-codec>=0.37.0 edgefirst-decoder>=0.37.0 \
+        edgefirst-image>=0.37.0 edgefirst-tensor>=0.37.0
 
     edgefirst-tflite 0.10.1 is the floor for stock Ultralytics exports
     specifically: they store constant buffers outside the flatbuffer, which
@@ -628,7 +628,7 @@ def main():
             if proto_data is not None:
                 masks = processor.materialize_masks(
                     boxes, scores, classes, proto_data,
-                    letterbox=letterbox_norm,
+                    content_region=letterbox_norm,
                 )
             else:
                 masks = []
@@ -643,7 +643,7 @@ def main():
                 processor.draw_decoded_masks(
                     overlay, boxes, scores, classes,
                     seg=masks, background=src,
-                    letterbox=letterbox_norm,
+                    content_region=letterbox_norm,
                     color_mode=ColorMode.Instance,
                 )
                 timings["render"].append((time.perf_counter() - t0) * 1000)

@@ -15,15 +15,15 @@ edgefirst-tflite = { path = "../../crates/tflite", features = [
     "metadata",
     "archive",
 ] }
-edgefirst-decoder = "0.36.0"
+edgefirst-decoder = "0.37.0"
 # `decode` supplies `ImageProcessor::draw_masks`, the fused decode + composite
 # call the live loop uses. The default `codec` feature is dropped because the
 # frames come from the camera, not from encoded files.
-edgefirst-image = { version = "0.36.0", default-features = false, features = [
+edgefirst-image = { version = "0.37.0", default-features = false, features = [
     "opengl",
     "decode",
 ] }
-edgefirst-tensor = "0.36.0"
+edgefirst-tensor = "0.37.0"
 libcamera = "0.7.0"
 wayland-client = { version = "0.31.15", default-features = false }
 wayland-protocols = { version = "0.32.13", features = ["unstable", "client"] }

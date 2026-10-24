@@ -828,7 +828,7 @@ fn run_iterations(
     // Precompute the normalised letterbox rect once for use in materialize_segmentations.
     let letterbox_norm = MaskOverlay::default()
         .with_convert_options(&letterbox, src_w, src_h, in_w, in_h)
-        .letterbox;
+        .content_region;
 
     for _ in 0..n {
         detections.clear();
@@ -1269,7 +1269,7 @@ fn main() -> Result<()> {
         // source image dimensions fitted into the model input dimensions.
         let [lx0, ly0, lx1, ly1] = MaskOverlay::default()
             .with_convert_options(&letterbox, img_w, img_h, in_w, in_h)
-            .letterbox
+            .content_region
             .unwrap_or([0.0_f32, 0.0_f32, 1.0_f32, 1.0_f32]);
         let inv_lw = 1.0 / (lx1 - lx0);
         let inv_lh = 1.0 / (ly1 - ly0);

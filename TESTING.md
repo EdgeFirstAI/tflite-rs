@@ -219,7 +219,7 @@ ssh root@<imx95-ip> 'cd /tmp && \
 
 Expect an `Input:` line naming the path taken (`delegate DMA-BUF` or `staging copy`) and a running `FPS:` line with per-stage timings; the window on the display shows the camera with masks and boxes. Without `LIBCAMERA_PIPELINES_MATCH_LIST=nxp/neo` the camera is claimed by the `imx8-isi` handler, which offers only raw Bayer, and configuration fails.
 
-For the Python version, create a venv with `--system-site-packages` (for the libcamera bindings), `pip install pywayland "edgefirst-tflite>=0.10.3" "edgefirst-image>=0.36" "edgefirst-decoder>=0.36" "edgefirst-tensor>=0.36"`, and run `examples/yolov8_live/python/yolov8_live.py` with the same arguments and environment.
+For the Python version, create a venv with `--system-site-packages` (for the libcamera bindings), `pip install pywayland "edgefirst-tflite>=0.10.3" "edgefirst-image>=0.37" "edgefirst-decoder>=0.37" "edgefirst-tensor>=0.37"`, and run `examples/yolov8_live/python/yolov8_live.py` with the same arguments and environment.
 
 ### Integration Tests
 
