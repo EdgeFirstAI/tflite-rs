@@ -807,6 +807,7 @@ fn run_iterations(
     n: usize,
     interpreter: &mut Interpreter<'_>,
     decoder: &edgefirst_decoder::Decoder,
+    segmentation: bool,
     processor: &mut ImageProcessor,
     src: &TensorDyn,
     model_input: &mut ModelInput,
@@ -856,12 +857,14 @@ fn run_iterations(
         timings.copy.push(ms(t_copy.elapsed()));
 
         // decode_proto populates detections + returns prototype data for seg models.
-        // For detection-only models it returns None; fall back to decode().
+        // It returns None both for a detection model, whose boxes it has already
+        // decoded, and for a segmentation model it cannot give prototypes for;
+        // only the second needs decode().
         let t_decode = Instant::now();
         let refs = output_bufs.refs();
         let mut fallback_masks: Vec<Segmentation> = Vec::new();
         let proto: Option<ProtoData> = decoder.decode_proto(&refs, &mut detections)?;
-        if proto.is_none() {
+        if proto.is_none() && segmentation {
             decoder.decode(&refs, &mut detections, &mut fallback_masks)?;
         }
         maybe_normalize_boxes(&mut detections, in_w, in_h);
@@ -1226,6 +1229,7 @@ fn main() -> Result<()> {
             args.warmup,
             &mut interpreter,
             &decoder,
+            is_segmentation,
             &mut processor,
             &src_rgba,
             &mut model_input,
@@ -1247,6 +1251,7 @@ fn main() -> Result<()> {
         args.iters,
         &mut interpreter,
         &decoder,
+        is_segmentation,
         &mut processor,
         &src_rgba,
         &mut model_input,

@@ -1063,8 +1063,11 @@ fn main() -> Result<()> {
         // decoding runs on the CPU, drawing on the GPU.
         detections.clear();
         masks.clear();
+        // `decode_proto` returns `None` both for a detection model, whose boxes
+        // it has already decoded, and for a segmentation model it cannot give
+        // prototypes for; only the second needs `decode`.
         let protos = decoder.decode_proto(&output_bufs.refs(), &mut detections)?;
-        if protos.is_none() {
+        if protos.is_none() && is_segmentation {
             decoder.decode(&output_bufs.refs(), &mut detections, &mut masks)?;
         }
         let t7 = Instant::now();
