@@ -293,6 +293,8 @@ cargo run -p yolov8 -- yolov8n-det-int8-smart.tflite zidane.jpg \
     --delegate /usr/lib/libvx_delegate.so --save
 ```
 
+The Neutron driver and firmware on the board must match the converter that compiled an `.imx95.tflite` model; the zoo's current exports are compiled with Neutron 3.2.3. A mismatched model still runs but its detections are wrong, and the only sign is a `Microcode version mismatch!` line in the output. The EdgeFirst Yocto BSPs at <https://start.edgefirst.ai/nxp/> ship the latest Neutron release and EdgeFirst integrations; on another BSP, convert the `tflite/` export with the `neutron-converter` from the eIQ Neutron SDK matching the board. The converter drops the export's ZIP trailer (below), so append it again: unzip the export's entries into a new `trailer.zip`, then `cat converted.tflite trailer.zip > model.imx95.tflite && zip -A model.imx95.tflite`.
+
 Every zoo export embeds an `edgefirst.json` schema in a ZIP trailer appended
 to the `.tflite` flatbuffer, which is what configures the decoder — both the
 Rust and Python examples read it, so all three YOLO output layouts (fused,
