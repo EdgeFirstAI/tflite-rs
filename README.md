@@ -311,7 +311,27 @@ LIBCAMERA_PIPELINES_MATCH_LIST=nxp/neo \
     --delegate /usr/lib/libneutron_delegate.so
 ```
 
-The Python version, [`yolov8_live.py`](examples/yolov8_live/python/yolov8_live.py), takes the same arguments and additionally needs `pywayland` and the libcamera Python bindings.
+The stages run on their own threads so consecutive frames overlap: the GPU letterboxes the next frame while the NPU runs the current one and the CPU decodes the one before. Further options:
+
+| Option | Effect |
+| --- | --- |
+| `--fullscreen` | Fill the display; the compositor scales the canvas, so capture at the display's aspect ratio |
+| `--nms auto\|agnostic\|aware` | NMS policy; `agnostic` also suppresses overlapping boxes of different classes |
+| `--class-colors RRGGBB,...` | Colour of each class, in label order |
+| `--line-width N` | Box outline width in screen pixels (default 3) |
+| `--slots N` | Interpreter instances the letterbox and inference stages alternate between (default 2) |
+| `--exposure US --gain N` | Turn the camera's automatic exposure off and hold this exposure time in microseconds and analogue gain |
+| `--auto-exposure` | Cancel `--exposure` and `--gain` |
+
+A fixed exposure stops the frame-to-frame brightness changes of the automatic exposure. Mains lighting flickers at twice the mains frequency, so choose an exposure of whole flicker periods: 10000 µs under 50 Hz lighting, 8333 or 16666 µs under 60 Hz. The example warns when the camera lacks a control or clamps a value, and the status line ends with the exposure and gain the frames report.
+
+Some sensors also run an automatic exposure of their own, which libcamera leaves on and which fights the values set through libcamera, so the picture flickers although the status line shows steady values. The AR0234 on Phytec i.MX95 boards is one; turn its own exposure control off before starting the example:
+
+```sh
+v4l2-ctl -d /dev/cam-csi1-port0 -c auto_exposure=1,autogain_analogue=0
+```
+
+The Python version, [`yolov8_live.py`](examples/yolov8_live/python/yolov8_live.py), runs single-threaded and takes the model, capture and threshold arguments; it additionally needs `pywayland` and the libcamera Python bindings.
 
 Stock Ultralytics exports run too, with no EdgeFirst tooling and no
 `edgefirst.json` — the examples infer the schema from the model's own signals
