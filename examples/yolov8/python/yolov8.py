@@ -60,8 +60,8 @@ Examples:
 
 Requirements:
     pip install edgefirst-tflite>=0.10.1 numpy \
-        edgefirst-codec>=0.37.0 edgefirst-decoder>=0.37.0 \
-        edgefirst-image>=0.37.0 edgefirst-tensor>=0.37.0
+        edgefirst-codec>=0.38.1 edgefirst-decoder>=0.38.1 \
+        edgefirst-image>=0.38.1 edgefirst-tensor>=0.38.1
 
     edgefirst-tflite 0.10.1 is the floor for stock Ultralytics exports
     specifically: they store constant buffers outside the flatbuffer, which
