@@ -117,7 +117,7 @@
 mod error;
 mod pipeline;
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::IsTerminal as _;
 use std::os::fd::{AsFd as _, AsRawFd as _, BorrowedFd, OwnedFd};
 use std::path::PathBuf;
@@ -152,7 +152,7 @@ use libcamera::{
     stream::StreamRole,
     utils::UniquePtr,
 };
-use wayland_client::protocol::{wl_buffer, wl_callback, wl_compositor, wl_registry, wl_surface};
+use wayland_client::protocol::{wl_buffer, wl_compositor, wl_registry, wl_surface};
 use wayland_client::{delegate_noop, Connection, Dispatch, EventQueue, QueueHandle};
 use wayland_protocols::wp::linux_dmabuf::zv1::client::{
     zwp_linux_buffer_params_v1, zwp_linux_dmabuf_v1,
@@ -359,11 +359,11 @@ struct DisplayState {
     /// zero when it left the choice to the client.
     configured_size: (i32, i32),
     closed: bool,
-    /// `true` when the compositor is ready for the next frame. Cleared on
-    /// submit and set again by the `wl_surface.frame` callback.
-    frame_done: bool,
     /// One `wl_buffer` per DMA-BUF fd, imported on first submit.
     buffers: HashMap<i32, wl_buffer::WlBuffer>,
+    /// The fds of buffers the compositor holds: set on submit and cleared by
+    /// `wl_buffer.release`. Drawing into one of these tears the picture.
+    busy: HashSet<i32>,
 }
 
 /// Buffers of another size than the window, which the compositor scales.
@@ -397,10 +397,7 @@ impl WaylandDisplay {
         let qh = queue.handle();
         conn.display().get_registry(&qh, ());
 
-        let mut state = DisplayState {
-            frame_done: true,
-            ..DisplayState::default()
-        };
+        let mut state = DisplayState::default();
         queue
             .roundtrip(&mut state)
             .map_err(|e| Error::display(format!("registry roundtrip: {e}")))?;
@@ -474,19 +471,29 @@ impl WaylandDisplay {
         )
     }
 
-    /// Present the RGBA DMA-BUF `fd`, whose rows are `stride` bytes apart,
-    /// returning whether it was handed to the compositor.
+    /// The index of a buffer in `fds` that is free to draw into, or `None`
+    /// when the frame cannot be drawn.
     ///
-    /// Paced by `wl_surface.frame`: while the compositor has not consumed the
-    /// previous frame this is a no-op, so a fast pipeline drops frames at the
-    /// display rather than queueing them. A window that has been closed
-    /// presents nothing; [`Self::is_open`] reports it.
-    fn present(&mut self, fd: BorrowedFd<'_>, stride: u32) -> Result<bool> {
+    /// A buffer is free once `wl_buffer.release` says the compositor no
+    /// longer reads it. A closed window has no free buffer;
+    /// [`Self::is_open`] reports it.
+    fn free_buffer(&mut self, fds: &[OwnedFd]) -> Result<Option<usize>> {
         self.dispatch_pending()?;
-        if self.state.closed || !self.state.frame_done {
-            return Ok(false);
+        if self.state.closed {
+            return Ok(None);
         }
+        Ok(fds
+            .iter()
+            .position(|fd| !self.state.busy.contains(&fd.as_raw_fd())))
+    }
 
+    /// Present the RGBA DMA-BUF `fd`, whose rows are `stride` bytes apart and
+    /// which [`Self::free_buffer`] returned.
+    ///
+    /// Every frame is committed as soon as it is drawn. The compositor shows
+    /// the newest one at each refresh and releases those it replaced, so the
+    /// display never waits on the pipeline or the pipeline on the display.
+    fn present(&mut self, fd: BorrowedFd<'_>, stride: u32) -> Result<()> {
         let qh = self.queue.handle();
         let (w, h) = self
             .scaled
@@ -503,7 +510,7 @@ impl WaylandDisplay {
                 DRM_FORMAT_ABGR8888,
                 zwp_linux_buffer_params_v1::Flags::empty(),
                 &qh,
-                (),
+                raw,
             );
             params.destroy();
             buffer
@@ -512,13 +519,11 @@ impl WaylandDisplay {
         let surface = self.state.surface.as_ref().expect("created in new()");
         surface.attach(Some(buffer), 0, 0);
         surface.damage_buffer(0, 0, w, h);
-        surface.frame(&qh, ());
-        self.state.frame_done = false;
+        self.state.busy.insert(raw);
         surface.commit();
         self.conn
             .flush()
-            .map_err(|e| Error::display(format!("flush: {e}")))?;
-        Ok(true)
+            .map_err(|e| Error::display(format!("flush: {e}")))
     }
 
     /// Process pending events and report whether the window is still open.
@@ -529,7 +534,7 @@ impl WaylandDisplay {
 
     fn dispatch_pending(&mut self) -> Result<()> {
         // `dispatch_pending` only drains what is already queued; reading the
-        // socket first is what lets frame callbacks and close events arrive
+        // socket first is what lets buffer releases and close events arrive
         // without blocking.
         if let Some(guard) = self.queue.prepare_read() {
             match guard.read() {
@@ -633,26 +638,25 @@ impl Dispatch<xdg_toplevel::XdgToplevel, ()> for DisplayState {
     }
 }
 
-impl Dispatch<wl_callback::WlCallback, ()> for DisplayState {
-    fn event(
-        state: &mut Self,
-        _: &wl_callback::WlCallback,
-        event: wl_callback::Event,
-        (): &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-        if let wl_callback::Event::Done { .. } = event {
-            state.frame_done = true;
-        }
-    }
-}
-
 delegate_noop!(DisplayState: ignore wl_compositor::WlCompositor);
 delegate_noop!(DisplayState: ignore wp_viewporter::WpViewporter);
 delegate_noop!(DisplayState: ignore wp_viewport::WpViewport);
 delegate_noop!(DisplayState: ignore wl_surface::WlSurface);
-delegate_noop!(DisplayState: ignore wl_buffer::WlBuffer);
+impl Dispatch<wl_buffer::WlBuffer, i32> for DisplayState {
+    fn event(
+        state: &mut Self,
+        _: &wl_buffer::WlBuffer,
+        event: wl_buffer::Event,
+        fd: &i32,
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let wl_buffer::Event::Release = event {
+            state.busy.remove(fd);
+        }
+    }
+}
+
 delegate_noop!(DisplayState: ignore zwp_linux_dmabuf_v1::ZwpLinuxDmabufV1);
 delegate_noop!(DisplayState: ignore zwp_linux_buffer_params_v1::ZwpLinuxBufferParamsV1);
 
@@ -706,7 +710,7 @@ fn libcamera_format(format: PixelFormat) -> libcamera::pixel_format::PixelFormat
 /// `FrameBufferAllocator` hands out a fixed pool whose DMA-BUFs live as long
 /// as the camera, so each is imported on first use and indexed by the request
 /// cookie. A tensor is taken out while its frame is in the pipeline and put
-/// back once the frame has been displayed.
+/// back once the frame has been drawn or skipped.
 struct FrameCache {
     entries: Vec<Option<TensorDyn>>,
     width: usize,
@@ -735,8 +739,11 @@ impl FrameCache {
             // SAFETY: the fd belongs to a libcamera FrameBuffer that outlives
             // this call; PlaneDescriptor::new dups it, so the imported tensor
             // does not depend on the borrow.
-            let primary = PlaneDescriptor::new(unsafe { BorrowedFd::borrow_raw(luma.fd()) })?
+            let mut primary = PlaneDescriptor::new(unsafe { BorrowedFd::borrow_raw(luma.fd()) })?
                 .with_stride(self.stride);
+            if let Some(offset) = luma.offset().filter(|&o| o > 0) {
+                primary = primary.with_offset(offset);
+            }
             // NV12 may arrive as a second plane: a separate DMA-BUF, or the
             // same one at an offset past the luma rows.
             let chroma = match planes.get(1) {
@@ -1200,6 +1207,9 @@ fn overlay_background<'a>(
 /// Frames per timing report.
 const REPORT_EVERY: u32 = 30;
 
+/// Display buffers drawn into in turn.
+const CANVASES: usize = 4;
+
 #[allow(clippy::too_many_lines, clippy::cast_precision_loss)]
 fn main() -> Result<()> {
     let args = parse_args();
@@ -1336,15 +1346,18 @@ fn main() -> Result<()> {
     }
 
     // The canvas is what the compositor scans, so it has to be a DMA-BUF.
-    // Two canvases: each frame is drawn into the one the compositor is not
-    // showing, so it never displays a frame mid-draw.
-    let [(canvas_a, fd_a, canvas_stride), (canvas_b, fd_b, _)] = [
-        display_buffer(&processor, canvas_w, canvas_h)?,
-        display_buffer(&processor, canvas_w, canvas_h)?,
-    ];
-    let mut canvases = [canvas_a, canvas_b];
-    let canvas_fds = [fd_a, fd_b];
-    let mut back = 0;
+    // Each frame is drawn into a canvas the compositor has released, so it
+    // never displays a frame mid-draw. It can hold three: the one on screen,
+    // one waiting for the next refresh and the newest commit.
+    let mut canvases = Vec::with_capacity(CANVASES);
+    let mut canvas_fds = Vec::with_capacity(CANVASES);
+    let mut canvas_stride = 0;
+    for _ in 0..CANVASES {
+        let (canvas, fd, stride) = display_buffer(&processor, canvas_w, canvas_h)?;
+        canvases.push(canvas);
+        canvas_fds.push(fd);
+        canvas_stride = stride;
+    }
     let canvas_stride =
         u32::try_from(canvas_stride).map_err(|_| Error::display("canvas stride out of range"))?;
     // Drawing composites onto a background of the canvas's size and, without
@@ -1395,17 +1408,23 @@ fn main() -> Result<()> {
     match config.validate() {
         CameraConfigurationStatus::Valid => {}
         CameraConfigurationStatus::Adjusted => {
-            // The canvas, window and letterbox are all sized from the request,
-            // so an adjusted size would be drawn misregistered.
+            // libcamera may adjust the buffer count, stride or color space,
+            // which the import follows. The canvas, window and letterbox are
+            // all sized from the request, so a different size or format would
+            // be drawn misregistered.
             let cfg = config.get(0).expect("one stream requested");
             let size = cfg.get_size();
-            return Err(Error::camera(format!(
-                "camera cannot capture {cam_w}x{cam_h} {:?}; it offered {}x{} {:?}",
-                args.format,
-                size.width,
-                size.height,
-                cfg.get_pixel_format()
-            )));
+            if (size.width as usize, size.height as usize) != (cam_w, cam_h)
+                || cfg.get_pixel_format() != libcamera_format(args.format)
+            {
+                return Err(Error::camera(format!(
+                    "camera cannot capture {cam_w}x{cam_h} {:?}; it offered {}x{} {:?}",
+                    args.format,
+                    size.width,
+                    size.height,
+                    cfg.get_pixel_format()
+                )));
+            }
         }
         CameraConfigurationStatus::Invalid => {
             return Err(Error::camera(format!(
@@ -1496,6 +1515,7 @@ fn main() -> Result<()> {
     // pre, infer, copy, decode, background, draw, present, latency
     let mut window = [Duration::ZERO; 8];
     let mut dropped: u64 = 0;
+    let mut skipped: u64 = 0;
     let mut exposure_range = ExposureRange::default();
     let mut status_lines: u32 = 0;
     let stderr_is_terminal = std::io::stderr().is_terminal();
@@ -1544,38 +1564,41 @@ fn main() -> Result<()> {
                                 times,
                             } = *result;
                             let t0 = Instant::now();
-                            let background = overlay_background(
-                                &mut overlay_processor,
-                                &frame.image,
-                                &mut rgba_background,
-                            )?;
-                            let t1 = Instant::now();
-                            let overlay = MaskOverlay::default()
-                                .with_background(background)
-                                .with_convert_options(&letterbox, cam_w, cam_h, in_w, in_h)
-                                .with_color_mode(args.color_mode);
-                            if let Some(ref protos) = protos {
-                                overlay_processor.draw_proto_masks(
-                                    &mut canvases[back],
-                                    &detections,
-                                    protos,
-                                    overlay,
+                            let (mut t1, mut t2) = (t0, t0);
+                            if let Some(back) = display.free_buffer(&canvas_fds)? {
+                                let background = overlay_background(
+                                    &mut overlay_processor,
+                                    &frame.image,
+                                    &mut rgba_background,
                                 )?;
+                                t1 = Instant::now();
+                                let overlay = MaskOverlay::default()
+                                    .with_background(background)
+                                    .with_convert_options(&letterbox, cam_w, cam_h, in_w, in_h)
+                                    .with_color_mode(args.color_mode);
+                                if let Some(ref protos) = protos {
+                                    overlay_processor.draw_proto_masks(
+                                        &mut canvases[back],
+                                        &detections,
+                                        protos,
+                                        overlay,
+                                    )?;
+                                } else {
+                                    overlay_processor.draw_decoded_masks(
+                                        &mut canvases[back],
+                                        &detections,
+                                        &masks,
+                                        overlay,
+                                    )?;
+                                }
+                                t2 = Instant::now();
+                                display.present(canvas_fds[back].as_fd(), canvas_stride)?;
                             } else {
-                                overlay_processor.draw_decoded_masks(
-                                    &mut canvases[back],
-                                    &detections,
-                                    &masks,
-                                    overlay,
-                                )?;
-                            }
-                            let t2 = Instant::now();
-                            if display.present(canvas_fds[back].as_fd(), canvas_stride)? {
-                                back = 1 - back;
+                                skipped += 1;
                             }
                             let t3 = Instant::now();
 
-                            // The frame has been drawn, so its buffer can be
+                            // The frame has been drawn or skipped, so its buffer can be
                             // captured into again.
                             let latency = frame.entered.elapsed();
                             frames.put(frame.index, frame.image);
@@ -1607,7 +1630,7 @@ fn main() -> Result<()> {
                                     "  FPS: {fps:5.1}  pre:{pre:4.1} inf:{infer:5.1} \
                                      cpy:{copy:4.1} dec:{decode:5.1} bg:{bg:4.1} draw:{draw:5.1} \
                                      disp:{present:4.1} lat:{latency:5.1} ms  \
-                                     drop:{dropped} det:{last_detections:<3} {exposure_range}"
+                                     drop:{dropped} skip:{skipped} det:{last_detections:<3} {exposure_range}"
                                 );
                                 // The first window includes frames captured before the
                                 // controls took effect.

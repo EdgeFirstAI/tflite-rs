@@ -122,9 +122,9 @@ DRM_FORMAT_ABGR8888 = 0x34324241
 class WaylandDisplay:
     """An xdg-shell toplevel window that presents DMA-BUF RGBA buffers.
 
-    Frame pacing follows ``wl_surface.frame``: while the compositor has not
-    consumed the previous frame, ``present`` is a no-op, so a fast pipeline
-    drops frames at the display rather than queueing them.
+    Every frame is committed as soon as it is drawn. The compositor shows the
+    newest one at each refresh and releases those it replaced, so the display
+    never waits on the pipeline or the pipeline on the display.
     """
 
     def __init__(self, width: int, height: int, stride: int, title: str):
@@ -133,8 +133,10 @@ class WaylandDisplay:
         self.stride = stride
         self._closed = False
         self._configured = False
-        self._frame_done = True
         self._buffers: dict[int, WlBuffer] = {}
+        # The fds of buffers the compositor holds: set on submit and cleared
+        # by wl_buffer.release. Drawing into one of these tears the picture.
+        self._busy: set[int] = set()
         self._compositor = None
         self._wm_base = None
         self._dmabuf = None
@@ -177,10 +179,6 @@ class WaylandDisplay:
     def _on_close(self, *_args):
         self._closed = True
 
-    def _on_frame_done(self, callback, _time):
-        self._frame_done = True
-        callback._destroy()
-
     def _buffer_for(self, fd: int) -> WlBuffer:
         buf = self._buffers.get(fd)
         if buf is None:
@@ -190,26 +188,37 @@ class WaylandDisplay:
                 self.width, self.height, DRM_FORMAT_ABGR8888, 0
             )
             params.destroy()
+            buf.dispatcher["release"] = lambda _buf: self._busy.discard(fd)
             self._buffers[fd] = buf
         return buf
 
-    def present(self, fd: int) -> bool:
-        """Show the RGBA DMA-BUF *fd*. Returns ``False`` once closed."""
+    def _dispatch_pending(self):
+        # dispatch(block=False) only drains events already queued; buffer
+        # releases and close events arrive on the socket, which a blocking
+        # dispatch reads, so it is called only once the socket is readable.
+        while select.select([self._display.get_fd()], [], [], 0)[0]:
+            self._display.dispatch(block=True)
         self._display.dispatch(block=False)
+
+    def free_buffer(self, fds) -> int | None:
+        """The index of a buffer in *fds* that is free to draw into, or
+        ``None`` when the compositor still reads every buffer or the window
+        has been closed."""
+        self._dispatch_pending()
         if self._closed:
-            return False
-        if self._frame_done:
-            self._surface.attach(self._buffer_for(fd), 0, 0)
-            self._surface.damage_buffer(0, 0, self.width, self.height)
-            callback = self._surface.frame()
-            callback.dispatcher["done"] = self._on_frame_done
-            self._frame_done = False
-            self._surface.commit()
+            return None
+        return next((i for i, fd in enumerate(fds) if fd not in self._busy), None)
+
+    def present(self, fd: int) -> None:
+        """Show the RGBA DMA-BUF *fd*, which ``free_buffer`` returned."""
+        self._surface.attach(self._buffer_for(fd), 0, 0)
+        self._surface.damage_buffer(0, 0, self.width, self.height)
+        self._busy.add(fd)
+        self._surface.commit()
         self._display.flush()
-        return True
 
     def is_open(self) -> bool:
-        self._display.dispatch(block=False)
+        self._dispatch_pending()
         self._display.flush()
         return not self._closed
 
@@ -366,8 +375,9 @@ class FrameCache:
 
     ``FrameBufferAllocator`` hands out a fixed pool whose DMA-BUFs live as
     long as the camera, so each is imported on first use and indexed by the
-    request cookie. The import dups the fds, so a request can be requeued as
-    soon as its frame has been looked up.
+    request cookie. The import dups the fds, which keeps the buffers alive
+    but not their pixels: a request goes back to the camera only once its
+    frame has been read.
     """
 
     def __init__(self, capacity, width, height, stride, fmt, colorimetry):
@@ -397,6 +407,7 @@ class FrameCache:
                 self.height,
                 self.fmt,
                 stride=self.stride,
+                offset=planes[0].offset or None,
                 colorimetry=self.colorimetry,
                 **chroma,
             )
@@ -506,11 +517,18 @@ def main() -> None:
     pad = (114, 114, 114, 255)
     letterbox = compute_letterbox(cam_w, cam_h, in_w, in_h)
 
-    canvas = processor.create_image(cam_w, cam_h, ef_image.PixelFormat.Rgba)
-    if canvas.memory != ef_tensor.TensorMemory.DMABUF:
-        sys.exit(f"canvas is {canvas.memory}, but Wayland needs a DMA-BUF")
-    canvas_fd = canvas.fd
-    canvas_stride = canvas.row_stride or cam_w * 4
+    # Each frame is drawn into a canvas the compositor has released, so it
+    # never displays a frame mid-draw. It can hold three: the one on screen,
+    # one waiting for the next refresh and the newest commit.
+    canvases = [
+        processor.create_image(cam_w, cam_h, ef_image.PixelFormat.Rgba)
+        for _ in range(4)
+    ]
+    for canvas in canvases:
+        if canvas.memory != ef_tensor.TensorMemory.DMABUF:
+            sys.exit(f"canvas is {canvas.memory}, but Wayland needs a DMA-BUF")
+    canvas_fds = [canvas.fd for canvas in canvases]
+    canvas_stride = canvases[0].row_stride or cam_w * 4
 
     # ── 4. Camera ────────────────────────────────────────────────────────
     manager = libcamera.CameraManager.singleton()
@@ -529,9 +547,14 @@ def main() -> None:
     stream_cfg.pixel_format = libcam_fmt
     stream_cfg.size = libcamera.Size(cam_w, cam_h)
     status = config.validate()
-    if status != libcamera.CameraConfiguration.Status.Valid:
-        # The canvas, window and letterbox are all sized from the request, so
-        # an adjusted size would be drawn misregistered.
+    # libcamera may adjust the buffer count, stride or color space, which the
+    # import follows. The canvas, window and letterbox are all sized from the
+    # request, so a different size or format would be drawn misregistered.
+    if (
+        status == libcamera.CameraConfiguration.Status.Invalid
+        or (stream_cfg.size.width, stream_cfg.size.height) != (cam_w, cam_h)
+        or stream_cfg.pixel_format != libcam_fmt
+    ):
         sys.exit(
             f"camera cannot capture {cam_w}x{cam_h} {args.format}; it offered "
             f"{stream_cfg.size} {stream_cfg.pixel_format}. On i.MX95 set "
@@ -593,6 +616,8 @@ def main() -> None:
         report_every = 30
         window = [0.0] * 6
         dropped = 0
+        detections = 0
+        skipped = 0
 
         while running and display.is_open():
             t0 = time.monotonic()
@@ -612,55 +637,63 @@ def main() -> None:
             t1 = time.monotonic()
 
             frame = frames.get_or_import(request.cookie, processor, request.buffers[stream])
-            # The cached tensor holds its own fd, so the buffer can go back to the
-            # camera now; keeping requests queued avoids starving the ISP.
-            request.reuse()
-            camera.queue_request(request)
             t2 = time.monotonic()
 
-            processor.convert(frame, model_input, letterbox=pad)
-            if staging is None:
-                dmabuf.sync_for_device(0)
-            else:
-                model_input.normalize_to_numpy(staging[0])
-                interpreter.set_tensor(0, staging)
-            t3 = time.monotonic()
-
-            # A signal arriving inside invoke() interrupts the delegate's
-            # blocking wait and fails the inference, so SIGINT is held off
-            # until it returns.
-            signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+            # The camera would overwrite the frame if its buffer were queued
+            # again before the convert and the draw have read it.
             try:
-                interpreter.invoke()
+                processor.convert(frame, model_input, letterbox=pad)
+                if staging is None:
+                    dmabuf.sync_for_device(0)
+                else:
+                    model_input.normalize_to_numpy(staging[0])
+                    interpreter.set_tensor(0, staging)
+                t3 = time.monotonic()
+
+                # A signal arriving inside invoke() interrupts the delegate's
+                # blocking wait and fails the inference, so SIGINT is held off
+                # until it returns.
+                signal.pthread_sigmask(signal.SIG_BLOCK, {signal.SIGINT})
+                try:
+                    interpreter.invoke()
+                finally:
+                    signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGINT})
+                outputs.sync_from(interpreter)
+                t4 = time.monotonic()
+
+                back = display.free_buffer(canvas_fds)
+                if back is not None:
+                    background = frame
+                    if rgba_background is not None:
+                        overlay_processor.convert(frame, rgba_background)
+                        background = rgba_background
+                    try:
+                        _, scores, _ = decoder.draw_onto(
+                            overlay_processor,
+                            outputs.tensors,
+                            canvases[back],
+                            background=background,
+                            content_region=letterbox,
+                            color_mode=color_mode,
+                        )
+                    except RuntimeError:
+                        if rgba_background is not None:
+                            raise
+                        rgba_background = processor.create_image(
+                            cam_w, cam_h, ef_image.PixelFormat.Rgba
+                        )
+                        continue
+                    detections = len(scores)
+                else:
+                    skipped += 1
+                t5 = time.monotonic()
+
+                if back is not None:
+                    display.present(canvas_fds[back])
+                t6 = time.monotonic()
             finally:
-                signal.pthread_sigmask(signal.SIG_UNBLOCK, {signal.SIGINT})
-            outputs.sync_from(interpreter)
-            t4 = time.monotonic()
-
-            background = frame
-            if rgba_background is not None:
-                overlay_processor.convert(frame, rgba_background)
-                background = rgba_background
-            try:
-                _, scores, _ = decoder.draw_onto(
-                    overlay_processor,
-                    outputs.tensors,
-                    canvas,
-                    background=background,
-                    content_region=letterbox,
-                    color_mode=color_mode,
-                )
-            except RuntimeError:
-                if rgba_background is not None:
-                    raise
-                rgba_background = processor.create_image(
-                    cam_w, cam_h, ef_image.PixelFormat.Rgba
-                )
-                continue
-            t5 = time.monotonic()
-
-            display.present(canvas_fd)
-            t6 = time.monotonic()
+                request.reuse()
+                camera.queue_request(request)
 
             for i, d in enumerate((t1 - t0, t2 - t1, t3 - t2, t4 - t3, t5 - t4, t6 - t5)):
                 window[i] += d
@@ -673,7 +706,7 @@ def main() -> None:
                 print(
                     f"\r  FPS: {fps:5.1f}  pull:{pull:5.1f} imp:{imp:4.1f} "
                     f"pre:{pre:4.1f} inf:{inf:5.1f} draw:{draw:5.1f} "
-                    f"disp:{disp:4.1f} ms  drop:{dropped} det:{len(scores):<3}",
+                    f"disp:{disp:4.1f} ms  drop:{dropped} skip:{skipped} det:{detections:<3}",
                     end="",
                     flush=True,
                 )
@@ -685,7 +718,8 @@ def main() -> None:
         print()
         camera.stop()
         camera.release()
-        os.close(canvas_fd)
+        for fd in canvas_fds:
+            os.close(fd)
         display.destroy()
     if frame_count > 0:
         elapsed = time.monotonic() - t_start
