@@ -267,6 +267,7 @@ interpreter.invoke()?;
 | [`delegate_options`](examples/delegate_options/) | Delegate configuration and feature probing | `dmabuf`, `camera_adaptor` |
 | [`camera_preprocessing`](examples/camera_preprocessing/) | NPU-accelerated format conversion | `camera_adaptor` |
 | [`yolov8`](examples/yolov8/) | Detection/segmentation with HAL DMA / IOSurface | `dmabuf` |
+| [`yolov8_live`](examples/yolov8_live/) | Live libcamera capture with Wayland overlay display (Rust and Python) | `dmabuf` |
 | [`neutron_multi_context`](examples/neutron_multi_context/) | Multiple Neutron delegate contexts (worker pool) with per-instance DMA-BUF verification | `dmabuf` |
 | [`multislot_throughput`](examples/multislot_throughput/) | Concurrent multi-context throughput benchmark (N interpreters sharing one model) | `dmabuf` |
 
@@ -292,11 +293,47 @@ cargo run -p yolov8 -- yolov8n-det-int8-smart.tflite zidane.jpg \
     --delegate /usr/lib/libvx_delegate.so --save
 ```
 
+The Neutron driver and firmware on the board must match the converter that compiled an `.imx95.tflite` model; the zoo's current exports are compiled with Neutron 3.2.3. A mismatched model still runs but its detections are wrong, and the only sign is a `Microcode version mismatch!` line in the output. The EdgeFirst Yocto BSPs at <https://start.edgefirst.ai/nxp/> ship the latest Neutron release and EdgeFirst integrations; on another BSP, convert the `tflite/` export with the `neutron-converter` from the eIQ Neutron SDK matching the board. The converter drops the export's ZIP trailer (below), so append it again: unzip the export's entries into a new `trailer.zip`, then `cat converted.tflite trailer.zip > model.imx95.tflite && zip -A model.imx95.tflite`.
+
 Every zoo export embeds an `edgefirst.json` schema in a ZIP trailer appended
 to the `.tflite` flatbuffer, which is what configures the decoder — both the
 Rust and Python examples read it, so all three YOLO output layouts (fused,
 logical-split, and per-scale FPN-split) work without manual output
 classification.
+
+### Live camera
+
+`yolov8_live` runs the same models on a live camera: libcamera captures NV12 or YUYV DMA-BUFs, the HAL letterboxes each frame into the delegate's input buffer, and the decoded overlay is composited onto the frame and handed to the Wayland compositor as a DMA-BUF. It needs libcamera >= 0.4 and a compositor offering `zwp_linux_dmabuf_v1` (Weston on the NXP BSPs).
+
+```sh
+# i.MX95: route the sensor through the NeoISP to get NV12/YUYV
+XDG_RUNTIME_DIR=/run/user/0 WAYLAND_DISPLAY=wayland-0 \
+LIBCAMERA_PIPELINES_MATCH_LIST=nxp/neo \
+    yolov8-live yolov8n-seg-int8-smart.imx95.tflite \
+    --delegate /usr/lib/libneutron_delegate.so
+```
+
+The stages run on their own threads so consecutive frames overlap: the GPU letterboxes the next frame while the NPU runs the current one and the CPU decodes the one before. Further options:
+
+| Option | Effect |
+| --- | --- |
+| `--fullscreen` | Fill the display; the compositor scales the canvas, so capture at the display's aspect ratio |
+| `--nms auto\|agnostic\|aware` | NMS policy; `agnostic` also suppresses overlapping boxes of different classes |
+| `--class-colors RRGGBB,...` | Colour of each class, in label order |
+| `--line-width N` | Box outline width in screen pixels (default 3) |
+| `--slots N` | Interpreter instances the letterbox and inference stages alternate between (default 2) |
+| `--exposure US --gain N` | Turn the camera's automatic exposure off and hold this exposure time in microseconds and analogue gain |
+| `--auto-exposure` | Cancel `--exposure` and `--gain` |
+
+A fixed exposure stops the frame-to-frame brightness changes of the automatic exposure. Mains lighting flickers at twice the mains frequency, so choose an exposure of whole flicker periods: 10000 µs under 50 Hz lighting, 8333 or 16666 µs under 60 Hz. The example warns when the camera lacks a control or clamps a value, and the status line ends with the exposure and gain the frames report.
+
+Some sensors also run an automatic exposure of their own, which libcamera leaves on and which fights the values set through libcamera, so the picture flickers although the status line shows steady values. The AR0234 on Phytec i.MX95 boards is one; turn its own exposure control off before starting the example:
+
+```sh
+v4l2-ctl -d /dev/cam-csi1-port0 -c auto_exposure=1,autogain_analogue=0
+```
+
+The Python version, [`yolov8_live.py`](examples/yolov8_live/python/yolov8_live.py), runs single-threaded and takes the model, capture and threshold arguments; it additionally needs `pywayland` and the libcamera Python bindings.
 
 Stock Ultralytics exports run too, with no EdgeFirst tooling and no
 `edgefirst.json` — the examples infer the schema from the model's own signals

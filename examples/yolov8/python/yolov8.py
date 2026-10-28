@@ -60,8 +60,8 @@ Examples:
 
 Requirements:
     pip install edgefirst-tflite>=0.10.1 numpy \
-        edgefirst-codec>=0.31.0 edgefirst-decoder>=0.31.0 \
-        edgefirst-image>=0.31.0 edgefirst-tensor>=0.31.0
+        edgefirst-codec>=0.38.1 edgefirst-decoder>=0.38.1 \
+        edgefirst-image>=0.38.1 edgefirst-tensor>=0.38.1
 
     edgefirst-tflite 0.10.1 is the floor for stock Ultralytics exports
     specifically: they store constant buffers outside the flatbuffer, which
@@ -252,6 +252,7 @@ def load_image(processor, path, fmt, access="none"):
     map() — must declare "read", "write" or "readwrite" or the map fails.
     """
     import edgefirst.codec as codec
+    from edgefirst.tensor import PixelFormat
 
     info = codec.Tensor.peek_image_info_file(path)
     # When the source decodes straight to `fmt` (a PNG already in RGBA) this
@@ -261,16 +262,22 @@ def load_image(processor, path, fmt, access="none"):
     # is only a convert source, and the decode's write is all the CPU does.
     decodes_to_fmt = info.format == fmt
     decode_access = "readwrite" if access in ("read", "readwrite") else "write"
+    # Neither GL nor G2D converts an RGB source (a PNG without alpha), so that
+    # convert runs on the CPU: it reads the decoded buffer and writes `out`.
+    cpu_convert = info.format == PixelFormat.Rgb and not decodes_to_fmt
     native = processor.create_image(
         info.width, info.height, info.format, "uint8",
-        access=decode_access if decodes_to_fmt else "write",
+        access=decode_access if decodes_to_fmt or cpu_convert else "write",
     )
     codec.decode_file_into(native, path)
     if native.format == fmt:
         return native
 
+    out_access = access
+    if cpu_convert:
+        out_access = "readwrite" if access in ("read", "readwrite") else "write"
     out = processor.create_image(
-        info.width, info.height, fmt, "uint8", access=access,
+        info.width, info.height, fmt, "uint8", access=out_access,
     )
     processor.convert(native, out)
     return out
@@ -621,7 +628,7 @@ def main():
             if proto_data is not None:
                 masks = processor.materialize_masks(
                     boxes, scores, classes, proto_data,
-                    letterbox=letterbox_norm,
+                    content_region=letterbox_norm,
                 )
             else:
                 masks = []
@@ -636,7 +643,7 @@ def main():
                 processor.draw_decoded_masks(
                     overlay, boxes, scores, classes,
                     seg=masks, background=src,
-                    letterbox=letterbox_norm,
+                    content_region=letterbox_norm,
                     color_mode=ColorMode.Instance,
                 )
                 timings["render"].append((time.perf_counter() - t0) * 1000)

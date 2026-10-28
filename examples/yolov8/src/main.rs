@@ -115,8 +115,8 @@ use edgefirst_decoder::{
     DecoderBuilder, DetectBox, ModelSignals, ModelSource, ProtoData, Segmentation, TensorInfo,
 };
 use edgefirst_image::{
-    save_jpeg, ColorMode, Crop, Fit, Flip, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
-    MaskResolution, Rotation,
+    save_jpeg, ColorMode, ConvertOptions, ImageProcessor, ImageProcessorTrait as _, MaskOverlay,
+    MaskResolution,
 };
 use edgefirst_tensor::{
     CpuAccess, DType, PixelFormat, PlaneDescriptor, Quantization, TensorDyn, TensorMapTrait as _,
@@ -201,15 +201,12 @@ fn parse_args() -> Args {
 
 // ── Letterbox ────────────────────────────────────────────────────────────────
 
-/// Compute a letterbox crop that preserves aspect ratio with gray padding.
+/// Convert options for an aspect-preserving letterbox with YOLO gray padding.
 ///
-/// The HAL `Crop` now resolves the centred aspect-preserving placement
-/// internally from the source and destination dimensions, so we only need to
-/// request a `Letterbox` fit with the YOLO gray pad colour.
-fn compute_letterbox() -> Crop {
-    Crop::new().with_fit(Fit::Letterbox {
-        pad: [114, 114, 114, 255], // YOLO gray
-    })
+/// The HAL resolves the centred placement from the source and destination
+/// dimensions, so only the fit and pad colour are requested here.
+fn compute_letterbox() -> ConvertOptions {
+    ConvertOptions::new().letterbox([114, 114, 114, 255])
 }
 
 // ── Timing / statistics ─────────────────────────────────────────────────────
@@ -618,11 +615,11 @@ fn allocate_zero_copy(
 fn host_base_address(tensor: &TensorDyn) -> Option<(std::ptr::NonNull<u8>, usize)> {
     let (ptr, bytes) = match (tensor.as_u8(), tensor.as_i8()) {
         (Some(t), _) => {
-            let map = t.map().ok()?;
+            let map = t.map_read().ok()?;
             (map.as_slice().as_ptr().cast_mut(), map.size())
         }
         (_, Some(t)) => {
-            let map = t.map().ok()?;
+            let map = t.map_read().ok()?;
             (map.as_slice().as_ptr().cast::<u8>().cast_mut(), map.size())
         }
         _ => return None,
@@ -713,7 +710,7 @@ fn preprocess_step(
     model_input: &mut ModelInput,
     processor: &mut ImageProcessor,
     interpreter: &mut Interpreter<'_>,
-    letterbox: Crop,
+    letterbox: ConvertOptions,
     use_dmabuf: bool,
     input_type: TensorType,
     nchw: bool,
@@ -725,7 +722,7 @@ fn preprocess_step(
 
     match model_input {
         ModelInput::DmaBuf(dst) => {
-            processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
+            processor.convert(src, dst, Some(letterbox))?;
             if use_dmabuf {
                 interpreter
                     .delegate(0)
@@ -739,15 +736,15 @@ fn preprocess_step(
             // The GPU writes the buffer the runtime will read. There is no
             // copy and no CPU map on this path — that is the whole point of
             // the custom allocation bound during setup.
-            processor.convert(src, dst, Rotation::None, Flip::None, letterbox)?;
+            processor.convert(src, dst, Some(letterbox))?;
         }
         ModelInput::Staging(staging) => {
-            processor.convert(src, staging, Rotation::None, Flip::None, letterbox)?;
+            processor.convert(src, staging, Some(letterbox))?;
             let mut inputs = interpreter.inputs_mut()?;
             let inp = &mut inputs[0];
             match input_type {
                 TensorType::Int8 => {
-                    let map = staging.as_i8().expect("i8").map()?;
+                    let map = staging.as_i8().expect("i8").map_read()?;
                     if nchw {
                         deinterleave(map.as_slice(), inp.as_mut_slice::<i8>()?, CHANNELS);
                     } else {
@@ -755,7 +752,7 @@ fn preprocess_step(
                     }
                 }
                 TensorType::UInt8 => {
-                    let map = staging.as_u8().expect("u8").map()?;
+                    let map = staging.as_u8().expect("u8").map_read()?;
                     if nchw {
                         deinterleave(map.as_slice(), inp.as_mut_slice::<u8>()?, CHANNELS);
                     } else {
@@ -763,7 +760,7 @@ fn preprocess_step(
                     }
                 }
                 TensorType::Float32 => {
-                    let map = staging.as_u8().expect("u8 staging for f32").map()?;
+                    let map = staging.as_u8().expect("u8 staging for f32").map_read()?;
                     let f32_slice = inp.as_mut_slice::<f32>()?;
                     if nchw {
                         let plane = map.as_slice().len() / CHANNELS;
@@ -810,12 +807,13 @@ fn run_iterations(
     n: usize,
     interpreter: &mut Interpreter<'_>,
     decoder: &edgefirst_decoder::Decoder,
+    segmentation: bool,
     processor: &mut ImageProcessor,
     src: &TensorDyn,
     model_input: &mut ModelInput,
     output_bufs: &mut OutputBuffers,
     mut dst: Option<&mut TensorDyn>,
-    letterbox: Crop,
+    letterbox: ConvertOptions,
     in_w: usize,
     in_h: usize,
     use_dmabuf: bool,
@@ -830,8 +828,8 @@ fn run_iterations(
     let src_h = src.height().unwrap_or(in_h);
     // Precompute the normalised letterbox rect once for use in materialize_segmentations.
     let letterbox_norm = MaskOverlay::default()
-        .with_letterbox_crop(&letterbox, src_w, src_h, in_w, in_h)
-        .letterbox;
+        .with_convert_options(&letterbox, src_w, src_h, in_w, in_h)
+        .content_region;
 
     for _ in 0..n {
         detections.clear();
@@ -859,12 +857,14 @@ fn run_iterations(
         timings.copy.push(ms(t_copy.elapsed()));
 
         // decode_proto populates detections + returns prototype data for seg models.
-        // For detection-only models it returns None; fall back to decode().
+        // It returns None both for a detection model, whose boxes it has already
+        // decoded, and for a segmentation model it cannot give prototypes for;
+        // only the second needs decode().
         let t_decode = Instant::now();
         let refs = output_bufs.refs();
         let mut fallback_masks: Vec<Segmentation> = Vec::new();
         let proto: Option<ProtoData> = decoder.decode_proto(&refs, &mut detections)?;
-        if proto.is_none() {
+        if proto.is_none() && segmentation {
             decoder.decode(&refs, &mut detections, &mut fallback_masks)?;
         }
         maybe_normalize_boxes(&mut detections, in_w, in_h);
@@ -890,7 +890,7 @@ fn run_iterations(
         if let Some(ref mut d) = dst {
             let overlay = MaskOverlay::default()
                 .with_background(src)
-                .with_letterbox_crop(&letterbox, src_w, src_h, in_w, in_h)
+                .with_convert_options(&letterbox, src_w, src_h, in_w, in_h)
                 .with_color_mode(ColorMode::Instance);
             let t_render = Instant::now();
             processor.draw_decoded_masks(d, &detections, &masks, overlay)?;
@@ -1061,24 +1061,25 @@ fn main() -> Result<()> {
     let mut img_decoder = ImageDecoder::new();
     cpu_img.load_image(&mut img_decoder, &image_bytes)?;
 
-    // `src_rgba` is written by the GPU convert below and sampled only by the
-    // GPU afterwards, so it stays hardware-only: no CPU mapping declared,
-    // which is also what keeps it eligible for vendor tile compression.
+    // `src_rgba` is sampled only by the GPU after the convert below, so it
+    // stays hardware-only where it can: no CPU mapping declared, which keeps
+    // it eligible for vendor tile compression. Neither GL nor G2D converts an
+    // RGB source (a PNG without alpha), so that convert runs on the CPU and
+    // the destination must admit a CPU write.
+    let src_access = if info.format == PixelFormat::Rgb {
+        CpuAccess::Write
+    } else {
+        CpuAccess::None
+    };
     let mut src_rgba = allocate_zero_copy(
         &processor,
         img_w,
         img_h,
         PixelFormat::Rgba,
         DType::U8,
-        CpuAccess::None,
+        src_access,
     )?;
-    processor.convert(
-        &cpu_img,
-        &mut src_rgba,
-        Rotation::None,
-        Flip::None,
-        Crop::new(),
-    )?;
+    processor.convert(&cpu_img, &mut src_rgba, None)?;
     drop(cpu_img);
 
     let letterbox = compute_letterbox();
@@ -1228,6 +1229,7 @@ fn main() -> Result<()> {
             args.warmup,
             &mut interpreter,
             &decoder,
+            is_segmentation,
             &mut processor,
             &src_rgba,
             &mut model_input,
@@ -1249,6 +1251,7 @@ fn main() -> Result<()> {
         args.iters,
         &mut interpreter,
         &decoder,
+        is_segmentation,
         &mut processor,
         &src_rgba,
         &mut model_input,
@@ -1266,13 +1269,12 @@ fn main() -> Result<()> {
     println!("\n--- Detections ({}) ---", detections.len());
     #[allow(clippy::cast_precision_loss)]
     {
-        // `Crop` no longer carries a `dst_rect`; resolve the normalised
-        // letterbox region (`[lx0, ly0, lx1, ly1]` in model-input space) via the
-        // same helper the renderer uses, from the source image dimensions fitted
-        // into the model input dimensions.
+        // Resolve the normalised letterbox region (`[lx0, ly0, lx1, ly1]` in
+        // model-input space) via the same helper the renderer uses, from the
+        // source image dimensions fitted into the model input dimensions.
         let [lx0, ly0, lx1, ly1] = MaskOverlay::default()
-            .with_letterbox_crop(&letterbox, img_w, img_h, in_w, in_h)
-            .letterbox
+            .with_convert_options(&letterbox, img_w, img_h, in_w, in_h)
+            .content_region
             .unwrap_or([0.0_f32, 0.0_f32, 1.0_f32, 1.0_f32]);
         let inv_lw = 1.0 / (lx1 - lx0);
         let inv_lh = 1.0 / (ly1 - ly0);

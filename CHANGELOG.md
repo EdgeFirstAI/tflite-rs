@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **`yolov8_live` example** (Rust and Python) — live libcamera capture → HAL letterbox into the delegate's input DMA-BUF → TFLite → HAL overlay → Wayland DMA-BUF display. The Rust version runs its stages on separate threads so consecutive frames overlap, and takes `--fullscreen`, `--nms`, `--class-colors`, `--line-width`, `--slots`, and `--exposure`/`--gain`/`--auto-exposure`. On an i.MX95 FRDM with Neutron and an os08a20 at 1080p, yolov8n runs at 60 FPS detection (the camera's rate) and ~53 FPS segmentation in Rust, and ~35 FPS detection and ~27 FPS segmentation in Python. Each frame is drawn into one of four canvases the compositor has released and committed at once, so the compositor shows the newest; the status line's `skip` counts frames left undrawn because no canvas was free.
+
+### Changed
+
+- `yolov8` example (Rust and Python) updated to EdgeFirst HAL 0.38.1.
+- `zip` updated to 9. `ModelArchive` now decodes entry names when the archive
+  is opened.
+
 ## [0.10.3] - 2026-10-01
 
 ### Added

@@ -5,3 +5,4 @@ Cargo.lock
 # Agent-generated design notes, plans, and status reports. These are local
 # working artefacts, not project documentation, and must not be committed.
 /docs/superpowers/
+__pycache__/
