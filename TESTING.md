@@ -117,6 +117,35 @@ unset CC CXX LD AR LDFLAGS CFLAGS CXXFLAGS CPPFLAGS
 cargo build --release -p yolov8-live --target aarch64-unknown-linux-gnu
 ```
 
+A failed zigbuild shows up as `ld.lld: error: undefined symbol: libcamera::BoundMethodBase::activatePack(std::__1::shared_ptr<...>)`; the `std::__1` is zig's libc++ meeting libcamera's libstdc++. Nothing short of using a GCC toolchain fixes it.
+
+#### Without an installed SDK
+
+An EdgeFirst Yocto build already contains the GCC 15 cross compiler and the target libraries its libcamera was built with, so the example can be built against exactly the libcamera the image runs. Assemble a sysroot from the build's `tmp/sysroots-components`: merge `glibc`, `linux-libc-headers`, `gcc-runtime` and `libgcc` from the tune directory (for example `armv8-2a`) with `libcamera` from the SoC directory (for example `armv8-2a-mx95`), or extract the image's `libcamera` and `libcamera-dev` packages into it. A bare cross toolchain, unlike an SDK environment, needs three more things:
+
+- `-B <dir>` with plain `as`, `ld`, `ar`, `nm`, `objcopy`, `strip` and `ranlib` symlinks to the `aarch64-poky-linux-*` binutils, otherwise gcc runs the host assembler (`as: unrecognized option '-EL'`).
+- GCC's own include directory (`aarch64-poky-linux-gcc -print-file-name=include`) and the sysroot's `usr/include/c++/<version>` directories in `BINDGEN_EXTRA_CLANG_ARGS`, otherwise bindgen cannot find `stdbool.h` or the C++ headers.
+- `-Wl,--allow-shlib-undefined`, because `libcamera.so` pulls in libudev and gnutls, which are not in the partial sysroot; the board has them.
+
+```sh
+C=<build-dir>/tmp/sysroots-components
+T=$C/x86_64/gcc-cross-aarch64/usr/bin/aarch64-poky-linux
+BU=<dir with the plain binutils symlinks>
+Y=<merged sysroot>
+export PATH=$T:$C/x86_64/binutils-cross-aarch64/usr/bin/aarch64-poky-linux:$PATH
+export PKG_CONFIG_ALLOW_CROSS=1 PKG_CONFIG_SYSROOT_DIR=$Y PKG_CONFIG_LIBDIR=$Y/usr/lib/pkgconfig
+export CC_aarch64_unknown_linux_gnu="aarch64-poky-linux-gcc -B$BU --sysroot=$Y"
+export CXX_aarch64_unknown_linux_gnu="aarch64-poky-linux-g++ -B$BU --sysroot=$Y"
+export AR_aarch64_unknown_linux_gnu=$BU/ar
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-poky-linux-gcc
+export CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C link-arg=--sysroot=$Y -C link-arg=-Wl,--allow-shlib-undefined -C link-arg=-B$BU"
+GI=$(aarch64-poky-linux-gcc -B$BU --sysroot=$Y -print-file-name=include)
+export BINDGEN_EXTRA_CLANG_ARGS="--sysroot=$Y -I$Y/usr/include -I$GI -I$Y/usr/include/c++/<gcc-version> -I$Y/usr/include/c++/<gcc-version>/aarch64-poky-linux"
+cargo build --release -p yolov8-live --target aarch64-unknown-linux-gnu
+```
+
+The binary links `libcamera.so.0.7`, `libstdc++.so.6` and `libgcc_s.so.1` from the board image.
+
 ## On-Target Testing: NXP FRDM i.MX 8M Plus
 
 The i.MX 8M Plus uses the **VxDelegate** with the Vivante NPU. It supports
