@@ -329,18 +329,22 @@ cargo test --workspace --all-features
 ### Cross-compile for i.MX (aarch64)
 
 ```sh
-# Build all workspace members
-cargo zigbuild --workspace --all-features --target aarch64-unknown-linux-gnu
+# Build all workspace members except yolov8-live
+cargo zigbuild --workspace --exclude yolov8-live --all-features --target aarch64-unknown-linux-gnu
 
 # Build test binaries
-cargo zigbuild --workspace --all-features --target aarch64-unknown-linux-gnu --tests
+cargo zigbuild --workspace --exclude yolov8-live --all-features --target aarch64-unknown-linux-gnu --tests
 ```
+
+**`yolov8-live` must not be built with `cargo zigbuild`.** Its `libcamera-sys` dependency compiles a C++ shim at build time. zigbuild compiles C++ against zig's bundled libc++ (symbols in `std::__1`), but the board's `libcamera.so` is built with GCC's libstdc++ and exposes `std::` types across its API, so the link fails with `undefined symbol: libcamera::BoundMethodBase::activatePack(std::__1::shared_ptr<...>)`. Do not try to fix this with linker flags or by installing libc++ on the board; the ABI differs. Use plain `cargo build --release -p yolov8-live --target aarch64-unknown-linux-gnu` with a GCC aarch64 cross toolchain (a Yocto SDK, or the `aarch64-poky-linux-g++` of an EdgeFirst Yocto build under `build-<machine>/tmp/sysroots-components/x86_64/gcc-cross-aarch64`) and with libcamera headers and libraries of the same version as the board's libcamera (`cam --version` on the board; the libcamera in the SDK can differ from the one in the image). The environment variables, the sysroot assembled from a Yocto build, and the three extra flags that a bare toolchain needs (`-B` for the binutils, GCC's own include directory for bindgen, and `-Wl,--allow-shlib-undefined` for libcamera's own dependencies) are in `TESTING.md` under "Cross-compiling `yolov8-live`".
+
+On an i.MX 95 board libcamera lists no cameras unless the board boots a device tree with the sensor and the ISP (for the os08a20 on the EVK, `imx95-19x19-evk-os08a20-isp-adv7535.dtb`) and the application runs with `LIBCAMERA_PIPELINES_MATCH_LIST=nxp/neo`. "camera not found; available: []" means the device tree, not the build.
 
 ### On-device Integration Testing
 
 1. Cross-compile test binaries:
    ```sh
-   cargo zigbuild --workspace --all-features --target aarch64-unknown-linux-gnu --tests
+   cargo zigbuild --workspace --exclude yolov8-live --all-features --target aarch64-unknown-linux-gnu --tests
    ```
 2. Locate test binaries in `target/aarch64-unknown-linux-gnu/debug/deps/`.
 3. SCP test binaries and the `testdata/` directory to the device.
