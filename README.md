@@ -11,6 +11,7 @@ NPU-accelerated preprocessing.
 |-------|-------------|
 | [`edgefirst-tflite`](crates/tflite/) | Safe, idiomatic Rust API |
 | [`edgefirst-tflite-sys`](crates/tflite-sys/) | Low-level FFI bindings |
+| [`edgefirst-tflite-delegate`](crates/tflite-delegate/) | EdgeFirst delegate: runs the operators NPU delegates leave on the CPU, attention and DFL heads included, with the `edgefirst-kernels` NEON kernels |
 
 Most users should depend on **`edgefirst-tflite`** only.
 

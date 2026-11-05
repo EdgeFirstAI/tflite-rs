@@ -6,3 +6,9 @@ Cargo.lock
 # working artefacts, not project documentation, and must not be committed.
 /docs/superpowers/
 __pycache__/
+
+# Downloaded test models that are not redistributed here (see TESTING.md).
+/testdata/yolov8n-det-int8.imx95.tflite
+/testdata/yolo11n-det-int8.imx95.tflite
+/testdata/yolo11n-det-int8.tflite
+/testdata/yolo26n-det-int8.imx95.tflite

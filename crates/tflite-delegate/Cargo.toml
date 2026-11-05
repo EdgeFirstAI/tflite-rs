@@ -1,0 +1,25 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Au-Zone Technologies. All Rights Reserved.
+
+[package]
+name = "edgefirst-tflite-delegate"
+version.workspace = true
+edition.workspace = true
+# edgefirst-kernels needs 1.94.
+rust-version = "1.94"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "EdgeFirst TFLite delegate: runs CPU-fallback operators with edgefirst-kernels"
+documentation = "https://docs.rs/edgefirst-tflite-delegate"
+readme = "README.md"
+keywords = ["tflite", "tensorflow-lite", "delegate", "edgefirst", "edge-ai"]
+categories = ["science", "external-ffi-bindings"]
+
+[dependencies]
+edgefirst-tflite.workspace = true
+edgefirst-kernels.workspace = true
+
+[lints]
+workspace = true

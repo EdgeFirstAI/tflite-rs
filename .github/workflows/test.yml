@@ -121,5 +121,108 @@ jobs:
         with:
           tool: cargo-nextest
 
-      - name: Run unit tests (no TFLite runtime in CI)
-        run: cargo nextest run -p edgefirst-tflite -p edgefirst-tflite-sys --all-features -E 'kind(lib)'
+      - name: Run unit tests (no TFLite runtime on this runner; see board)
+        run: cargo nextest run -p edgefirst-tflite -p edgefirst-tflite-sys -p edgefirst-tflite-delegate --all-features -E 'kind(lib)'
+
+  # Integration tests need a TFLite runtime, and the custom delegate tests
+  # need one that exports the opaque delegate API, which the vendored host
+  # library does not. They run on the boards instead, against the BSP runtime
+  # and beside the NPU delegate each SoC uses. Labels are board identities
+  # from the Self-Hosted Runner Fleet Inventory; the i.MX 8M Plus entry also
+  # names the 6.18 BSP. Fork pull requests never reach the fleet.
+  board-build:
+    name: Build board tests
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          lfs: true
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
+        with:
+          toolchain: stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          shared-key: board-build
+
+      - name: Stage the board payload
+        run: |
+          set -euo pipefail
+          mkdir -p board-payload/bin board-payload/testdata
+          build() {
+            cargo test "$@" --no-run --message-format=json \
+              | jq -r 'select(.reason == "compiler-artifact" and .executable != null)
+                       | "\(.target.name) \(.executable)"' \
+              | while read -r name exe; do cp "$exe" "board-payload/bin/$name"; done
+          }
+          build -p edgefirst-tflite --test custom_delegate --test integration
+          build -p edgefirst-tflite-delegate --test edgefirst_delegate
+          for bin in custom_delegate integration edgefirst_delegate; do
+            test -x "board-payload/bin/$bin" || { echo "::error::$bin was not built"; exit 1; }
+          done
+          cp testdata/minimal.tflite testdata/minimal_offset_buffers.tflite \
+            testdata/softmax_int8.tflite testdata/softmax_int16.tflite \
+            testdata/yolov8n-t-b86_quant-u8-i8_combined.tflite board-payload/testdata/
+          # The model zoo's exports (AGPL-3.0, so not in this repository),
+          # pinned by revision and checksum. The .imx95 ones are compiled for
+          # Neutron 3.2.3. Columns: repository, revision, path, SHA-256.
+          while read -r repo rev path sha; do
+            model="board-payload/testdata/${path##*/}"
+            curl -fsSL --retry 3 -o "$model" \
+              "https://huggingface.co/EdgeFirst/$repo/resolve/$rev/$path"
+            echo "$sha  $model" | sha256sum -c -
+          done <<'MODELS'
+          yolov8-det 7fb4413528af0e22c489e7b85839df6e21fa221f imx95/yolov8n-det-int8.imx95.tflite 1e20d5abd5bc76c216b5d9bef1e83010d11e6d23dc189706c6dc494b382aa812
+          yolo11-det 6a09aa9c4b5e98370b84cacc97e79b2a9a7ae5cb imx95/yolo11n-det-int8.imx95.tflite 0a818437759da6eb1bae8943f35b48be55c75e076a6533bd1771fce99ec73706
+          yolo11-det 6a09aa9c4b5e98370b84cacc97e79b2a9a7ae5cb tflite/yolo11n-det-int8.tflite fbe712395cde9f6abfad5ea8f9f37cd28162b2cdd4fb87c2592e785e0483e5b9
+          yolo26-det 1f764994a8805b5531c04c34dd4d7ded8a3bc864 imx95/yolo26n-det-int8.imx95.tflite 43810d1196358b37c0a1315f241eacd55621fe455c20a0dc2ac9a7de470193cb
+          MODELS
+          cp .github/scripts/board-tests.sh board-payload/
+          ls -lR board-payload
+
+      - name: Upload board payload
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        with:
+          name: board-payload
+          path: board-payload
+          if-no-files-found: error
+          retention-days: 1
+
+  board:
+    name: On-target (${{ matrix.board }})
+    needs: board-build
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - board: imx8mp-evk
+            runs-on: [imx8mp-evk, imx8mp-evk-6.18.20-2.0.0]
+            npu-delegate: /usr/lib/libvx_delegate.so
+          - board: imx95-evk
+            runs-on: [imx95-evk]
+            npu-delegate: /usr/lib/libneutron_delegate.so
+    steps:
+      # Board runners persist between jobs, and a failed run leaves its
+      # payload behind.
+      - name: Reclaim the previous payload
+        run: rm -rf board-payload
+
+      - name: Download board payload
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: board-payload
+          path: board-payload
+
+      - name: Run integration tests
+        run: bash board-payload/board-tests.sh board-payload ${{ matrix.npu-delegate }}
+
+      - name: Clean up the payload
+        if: always()
+        run: rm -rf board-payload

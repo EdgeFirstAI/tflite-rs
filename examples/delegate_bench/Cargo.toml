@@ -1,0 +1,14 @@
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (c) 2026 Au-Zone Technologies. All Rights Reserved.
+
+[package]
+name = "delegate-bench"
+version.workspace = true
+edition.workspace = true
+rust-version = "1.94"
+license.workspace = true
+publish = false
+
+[dependencies]
+edgefirst-tflite = { path = "../../crates/tflite" }
+edgefirst-tflite-delegate = { path = "../../crates/tflite-delegate" }

@@ -166,7 +166,7 @@ pub struct QuantizationParams {
 /// allocation while `volume` derives from the shape, and the two diverge
 /// between `resize_input_tensor` and `allocate_tensors`, so this must be
 /// re-checked even when the element width matches.
-fn check_element_type<T>(ty: TensorType, byte_size: usize, volume: usize) -> Result<()> {
+pub(crate) fn check_element_type<T>(ty: TensorType, byte_size: usize, volume: usize) -> Result<()> {
     let t_size = std::mem::size_of::<T>();
     if let Some(width) = ty.byte_width() {
         if width != t_size {
