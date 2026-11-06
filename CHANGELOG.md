@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `yolov8` example (Rust and Python) updated to EdgeFirst HAL 0.38.1.
+- `yolov8` and `yolov8_live` examples (Rust and Python) updated to EdgeFirst HAL 0.40.0.
 - `zip` updated to 9. `ModelArchive` now decodes entry names when the archive
   is opened.
 
