@@ -17,8 +17,8 @@ The delegate is built on the TFLite opaque delegate API, so the runtime must exp
 
 ```toml
 [dependencies]
-edgefirst-tflite = "0.10"
-edgefirst-tflite-delegate = "0.10"
+edgefirst-tflite = "0.11"
+edgefirst-tflite-delegate = "0.11"
 ```
 
 ```rust,no_run
