@@ -24,7 +24,8 @@
 //!
 //! Options:
 //!
-//! * `--iters N` (default 200) and `--warmup N` (20);
+//! * `--iters N` (default 200) and `--warmup N` (20; outputs are compared after at least one
+//!   invoke);
 //! * `--threads N`: interpreter threads, which `TFLite` and the `EdgeFirst` delegate both use
 //!   (default 1);
 //! * `--before`: attention blocks only, before the NPU delegate;
@@ -139,21 +140,33 @@ fn build<'lib>(
     Ok((builder.build(model)?, stats))
 }
 
-/// Fill every input with the same deterministic bytes (xorshift32).
-fn fill_inputs(interp: &mut Interpreter<'_>) -> Result<(), Box<dyn std::error::Error>> {
+/// Fill every input with the same deterministic bytes (xorshift32), then copy `rgb` into each
+/// input of its byte size (shifted by 128 for int8 inputs).
+fn fill_inputs(
+    interp: &mut Interpreter<'_>,
+    rgb: Option<&[u8]>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let mut s = 0x9e37_79b9u32;
     for mut input in interp.inputs_mut()? {
-        for b in input.as_bytes_mut()? {
+        let int8 = input.tensor_type() == TensorType::Int8;
+        let bytes = input.as_bytes_mut()?;
+        for b in bytes.iter_mut() {
             s ^= s << 13;
             s ^= s >> 17;
             s ^= s << 5;
             *b = s.to_le_bytes()[0];
         }
+        if let Some(rgb) = rgb.filter(|rgb| rgb.len() == bytes.len()) {
+            for (d, &s) in bytes.iter_mut().zip(rgb) {
+                *d = if int8 { s ^ 0x80 } else { s };
+            }
+        }
     }
     Ok(())
 }
 
-/// Largest elementwise difference between two outputs, in LSB or float units.
+/// Largest elementwise difference between two outputs, in LSB or float units. A float NaN
+/// against a number counts as an infinite difference.
 fn max_diff(ty: TensorType, a: &[u8], b: &[u8]) -> f64 {
     let pairs: Box<dyn Iterator<Item = f64>> = match ty {
         TensorType::Int8 => Box::new(
@@ -168,13 +181,16 @@ fn max_diff(ty: TensorType, a: &[u8], b: &[u8]) -> f64 {
                 .zip(b.as_chunks::<2>().0)
                 .map(|(&x, &y)| f64::from(i16::from_le_bytes(x).abs_diff(i16::from_le_bytes(y)))),
         ),
-        TensorType::Float32 => Box::new(
-            a.as_chunks::<4>()
-                .0
-                .iter()
-                .zip(b.as_chunks::<4>().0)
-                .map(|(&x, &y)| f64::from((f32::from_le_bytes(x) - f32::from_le_bytes(y)).abs())),
-        ),
+        TensorType::Float32 => Box::new(a.as_chunks::<4>().0.iter().zip(b.as_chunks::<4>().0).map(
+            |(&x, &y)| {
+                let (x, y) = (f32::from_le_bytes(x), f32::from_le_bytes(y));
+                match (x.is_nan(), y.is_nan()) {
+                    (false, false) => f64::from((x - y).abs()),
+                    (true, true) => 0.0,
+                    _ => f64::INFINITY,
+                }
+            },
+        )),
         _ => Box::new(a.iter().zip(b).map(|(&x, &y)| f64::from(x.abs_diff(y)))),
     };
     pairs.fold(0.0, f64::max)
@@ -223,22 +239,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         EdgeFirstDelegate::new()?.tier().as_str()
     );
 
+    let rgb = args.image.as_deref().map(std::fs::read).transpose()?;
     let interps = [&mut stock, &mut ef];
     for interp in interps {
-        fill_inputs(interp)?;
-        if let Some(path) = &args.image {
-            let rgb = std::fs::read(path)?;
-            for mut input in interp.inputs_mut()? {
-                let int8 = input.tensor_type() == TensorType::Int8;
-                let bytes = input.as_bytes_mut()?;
-                if bytes.len() == rgb.len() {
-                    for (d, &s) in bytes.iter_mut().zip(&rgb) {
-                        *d = if int8 { s ^ 0x80 } else { s };
-                    }
-                }
-            }
-        }
-        for _ in 0..args.warmup {
+        fill_inputs(interp, rgb.as_deref())?;
+        // At least one invoke, so the outputs compared below are computed.
+        for _ in 0..args.warmup.max(1) {
             interp.invoke()?;
         }
     }
@@ -302,7 +308,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for (name, edgefirst) in names.iter().zip([false, true]) {
         let profiler = Profiler::new();
         let (mut interp, _) = build(&lib, &model, &args, edgefirst, Some(&profiler))?;
-        fill_inputs(&mut interp)?;
+        fill_inputs(&mut interp, rgb.as_deref())?;
         for _ in 0..args.warmup {
             interp.invoke()?;
         }

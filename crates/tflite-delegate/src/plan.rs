@@ -687,9 +687,23 @@ impl Planner<'_> {
         let lhs = self.input(node.input(0).ok_or_else(|| err("no lhs"))?)?;
         let rhs = self.input(node.input(1).ok_or_else(|| err("no rhs"))?)?;
         let dst = self.output(out)?;
+        // TFLite's NEON `ADD` and `MUL` run whole 16-element blocks over the output, and each
+        // call here takes its own tail: split along parts only if every part is whole blocks.
+        let blocks = self.o.kernels.neon_blocks() && !matches!(node.op, Op::Sub(_));
+        let whole_blocks = |axis: usize, n: usize| {
+            let len: usize = shape
+                .iter()
+                .enumerate()
+                .map(|(a, &s)| if a == axis { n } else { s })
+                .product();
+            len.is_multiple_of(16)
+        };
         // Follow the lhs parts when they have the output's rank; a parted rhs is made one view.
         match lhs {
-            Place::Parts { axis, parts } if parts[0].shape.len() == shape.len() => {
+            Place::Parts { axis, parts }
+                if parts[0].shape.len() == shape.len()
+                    && (!blocks || parts.iter().all(|p| whole_blocks(axis, p.shape[axis]))) =>
+            {
                 let rhs = self.materialize(rhs, Elem::I8)?;
                 let rhs = rhs.broadcast_to(&shape).ok_or_else(|| err("rhs shape"))?;
                 let mut at = 0;
@@ -1621,5 +1635,130 @@ mod tests {
             );
         }
         assert!(got != want, "the fused kernel ran");
+    }
+
+    /// In `BATCH_MATMUL → SOFTMAX → BATCH_MATMUL → SOFTMAX → BATCH_MATMUL` the middle matmul
+    /// ends one block and starts the next: only the first fuses, and the rest runs op by op.
+    #[test]
+    fn chained_attention_blocks_fuse_without_sharing_a_node() {
+        let (x, scores, probs, out) = (
+            Some((0.1251, -15)),
+            Some((0.1279, -9)),
+            Some((1.0 / 256.0, -128)),
+            Some((0.063_33, 2)),
+        );
+        let mm = Op::BatchMatMul {
+            adj_x: false,
+            adj_y: false,
+        };
+        let g = Graph {
+            tensors: [
+                (0, t(&[1, 4, 8], x)),
+                (1, t(&[1, 8, 4], x)),
+                (2, t(&[1, 4, 4], scores)),
+                (3, t(&[1, 4, 4], probs)),
+                (4, t(&[1, 4, 4], x)),
+                (5, t(&[1, 4, 4], scores)),
+                (6, t(&[1, 4, 4], probs)),
+                (7, t(&[1, 4, 4], x)),
+                (8, t(&[1, 4, 4], out)),
+            ]
+            .into_iter()
+            .collect(),
+            nodes: vec![
+                node(0, mm, &[0, 1], 2),
+                node(1, Op::Softmax { beta: 1.0 }, &[2], 3),
+                node(2, mm, &[3, 4], 5),
+                node(3, Op::Softmax { beta: 1.0 }, &[5], 6),
+                node(4, mm, &[6, 7], 8),
+            ],
+            outputs: vec![8],
+            ..Graph::default()
+        };
+        let blocks = attention::find(&g, &|_| true);
+        assert_eq!(blocks.len(), 1, "{blocks:?}");
+        assert_eq!((blocks[0].scores, blocks[0].output), (0, 2));
+
+        let nodes: Vec<usize> = (0..g.nodes.len()).collect();
+        let p = plan(&g, &nodes, &[0, 1, 4, 7], &[8], opts()).unwrap();
+        assert_eq!(p.fused_attention, 1);
+        let ins: Vec<Vec<i8>> = [32, 32, 16, 16]
+            .iter()
+            .map(|&n| (0..n).map(|i| (i * 7 % 50) as i8 - 25).collect())
+            .collect();
+        let ins: Vec<&[i8]> = ins.iter().map(Vec::as_slice).collect();
+        let mut got = vec![0i8; 16];
+        crate::exec::run_buffers(p, &ins, &mut [&mut got]).unwrap();
+    }
+
+    /// `TFLite`'s NEON `ADD` runs whole 16-element blocks over the output. An operand concatenated
+    /// from 8-element parts must not split the `ADD` into 8-element calls, which take the scalar
+    /// tail arithmetic instead.
+    #[test]
+    fn binary_ops_keep_the_neon_blocks_of_a_concatenated_operand() {
+        let x = Some((0.1251, -15));
+        let out = Some((0.2, 3));
+        let g = Graph {
+            tensors: [
+                (0, t(&[1, 8], x)),
+                (1, t(&[1, 8], x)),
+                (2, t(&[1, 16], x)),
+                (3, t(&[1, 16], x)),
+                (4, t(&[1, 16], out)),
+            ]
+            .into_iter()
+            .collect(),
+            nodes: vec![
+                node(
+                    0,
+                    Op::Concat {
+                        axis: 1,
+                        act: Activation::None,
+                    },
+                    &[0, 1],
+                    2,
+                ),
+                node(1, Op::Add(Activation::None), &[2, 3], 4),
+            ],
+            outputs: vec![4],
+            ..Graph::default()
+        };
+        let nodes: Vec<usize> = (0..g.nodes.len()).collect();
+        let p = plan(&g, &nodes, &[0, 1, 3], &[4], opts()).unwrap();
+        for s in &p.steps {
+            if let Step::Binary { dst, .. } = s {
+                assert!(dst.numel().is_multiple_of(16), "{:#?}", p.steps);
+            }
+        }
+
+        let lhs: Vec<i8> = (0..16)
+            .map(|i| i8::try_from(i * 16 - 128).unwrap())
+            .collect();
+        let rhs: Vec<i8> = (0..16)
+            .map(|i| i8::try_from(127 - i * 13).unwrap())
+            .collect();
+        let mut got = vec![0i8; 16];
+        crate::exec::run_buffers(p, &[&lhs[..8], &lhs[8..], &rhs], &mut [&mut got]).unwrap();
+        let add = BinaryI8Plan::with_features(
+            BinaryI8Params {
+                op: BinaryOp::Add,
+                lhs: Quant::new(0.1251, -15),
+                rhs: Quant::new(0.1251, -15),
+                output: Quant::new(0.2, 3),
+                activation: Activation::None,
+                kernels: TfliteKernels::NeonRuy,
+            },
+            CpuFeatures::default(),
+        )
+        .unwrap();
+        let mut want = vec![0i8; 16];
+        add.run(
+            TensorRef::I8(View::contiguous(&lhs, &[1, 16]).unwrap()),
+            TensorRef::I8(View::contiguous(&rhs, &[1, 16]).unwrap()),
+            TensorMut::I8(ViewMut::contiguous(&mut want, &[1, 16]).unwrap()),
+            None,
+        )
+        .unwrap();
+        assert_eq!(got, want);
     }
 }

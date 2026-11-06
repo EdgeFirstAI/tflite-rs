@@ -16,17 +16,42 @@ use crate::views::{Buf, Loc};
 use crate::workers::Threads;
 
 /// A buffer's address, length in elements and element size in bytes.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 struct Span {
-    addr: usize,
+    addr: *mut u8,
     len: usize,
     size: usize,
 }
 
+impl Default for Span {
+    fn default() -> Self {
+        Self {
+            addr: core::ptr::null_mut(),
+            len: 0,
+            size: 0,
+        }
+    }
+}
+
+// SAFETY: a `Span` is an address the kernel dereferences only during an invoke, on the threads
+// that invoke runs, while the buffer it names is valid; the address itself may move between
+// threads.
+unsafe impl Send for Span {}
+
 impl Span {
+    /// A buffer kernels only read.
     fn of<T>(s: &[T]) -> Self {
         Self {
-            addr: s.as_ptr() as usize,
+            addr: s.as_ptr().cast::<u8>().cast_mut(),
+            len: s.len(),
+            size: size_of::<T>(),
+        }
+    }
+
+    /// A buffer kernels write: its address keeps the write permission of `s`.
+    fn of_mut<T>(s: &mut [T]) -> Self {
+        Self {
+            addr: s.as_mut_ptr().cast::<u8>(),
             len: s.len(),
             size: size_of::<T>(),
         }
@@ -34,8 +59,8 @@ impl Span {
 
     /// The bytes `l` addresses in this buffer, given `l` lies in it.
     fn bytes(&self, l: &Loc) -> std::ops::Range<usize> {
-        let start = self.addr + l.off * self.size;
-        let end = self.addr + l.extent().unwrap_or(0).max(l.off) * self.size;
+        let start = self.addr.addr() + l.off * self.size;
+        let end = self.addr.addr() + l.extent().unwrap_or(0).max(l.off) * self.size;
         start..end
     }
 }
@@ -86,7 +111,7 @@ impl Mem<'_> {
             return Err(err("view outside its buffer"));
         }
         // SAFETY: `off` is inside the buffer (checked above), or the view is empty.
-        Ok(unsafe { (s.addr as *mut T).add(l.off.min(s.len)) })
+        Ok(unsafe { s.addr.cast::<T>().add(l.off.min(s.len)) })
     }
 
     fn view<'v, T>(&self, l: &Loc) -> Result<View<'v, T>, BoxError> {
@@ -180,8 +205,8 @@ impl EdgeFirstKernel {
         let scratch_spans = scratch
             .iter_mut()
             .map(|s| match s {
-                Scratch::I8(v) => Span::of(v.as_mut_slice()),
-                Scratch::I16(v) => Span::of(v.as_mut_slice()),
+                Scratch::I8(v) => Span::of_mut(v),
+                Scratch::I16(v) => Span::of_mut(v),
             })
             .collect();
         Ok(Self {
@@ -214,8 +239,8 @@ impl EdgeFirstKernel {
         for (k, (elem, _)) in self.outputs.iter().enumerate() {
             let mut t = io.output(k)?;
             let span = match elem {
-                Elem::I8 => Span::of(t.as_mut_slice::<i8>()?),
-                Elem::I16 => Span::of(t.as_mut_slice::<i16>()?),
+                Elem::I8 => Span::of_mut(t.as_mut_slice::<i8>()?),
+                Elem::I16 => Span::of_mut(t.as_mut_slice::<i16>()?),
                 _ => return Err(err("unsupported output type")),
             };
             self.outs.push(span);
@@ -385,7 +410,7 @@ pub(crate) fn run_buffers(
 ) -> Result<(), BoxError> {
     let mut k = EdgeFirstKernel::new(p, CpuFeatures::default(), Arc::default())?;
     k.ins = ins.iter().map(|s| Span::of(s)).collect();
-    k.outs = outs.iter_mut().map(|s| Span::of(s)).collect();
+    k.outs = outs.iter_mut().map(|s| Span::of_mut(s)).collect();
     let mem = Mem {
         ins: &k.ins,
         outs: &k.outs,

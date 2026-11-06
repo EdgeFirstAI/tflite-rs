@@ -40,9 +40,11 @@ fn sole_consumer(g: &Graph, t: Tid) -> Option<usize> {
     c.next().is_none().then_some(first)
 }
 
-/// Every attention block whose nodes all pass `ok`.
+/// Every attention block whose nodes all pass `ok`, in graph order. Blocks share no node: in a
+/// chain where one block's output matmul computes the next block's scores, only the first fuses.
 pub(crate) fn find(g: &Graph, ok: &dyn Fn(usize) -> bool) -> Vec<Attention> {
     let mut found = Vec::new();
+    let mut taken = vec![false; g.nodes.len()];
     for (si, s) in g.nodes.iter().enumerate() {
         if !matches!(s.op, Op::Softmax { .. }) || !ok(si) {
             continue;
@@ -113,6 +115,12 @@ pub(crate) fn find(g: &Graph, ok: &dyn Fn(usize) -> bool) -> Vec<Attention> {
         })() else {
             continue;
         };
+        if a.nodes().any(|n| taken[n]) {
+            continue;
+        }
+        for n in a.nodes() {
+            taken[n] = true;
+        }
         found.push(a);
     }
     found
