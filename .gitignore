@@ -1,5 +1,4 @@
 /target
-Cargo.lock
 /venv
 
 # Agent-generated design notes, plans, and status reports. These are local

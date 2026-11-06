@@ -6,23 +6,29 @@
 # This workflow orchestrates release publishing when a version tag is pushed:
 # - Waits for test.yml and sbom.yml workflows to complete
 # - Builds Python wheels for multiple platforms
-# - Downloads SBOM artifact from the commit's sbom.yml run
 # - Publishes crates to crates.io via trusted publishing
 # - Publishes Python wheels to PyPI via trusted publishing
-# - Creates GitHub Release with SBOM and wheels attached
+# - Creates the GitHub Release with the wheels, the commit's SBOM (sbom.json),
+#   NOTICE and SHA256SUMS attached
+#
+# Every publish skips what the registry already holds, so after a partial
+# failure "Re-run failed jobs" finishes the release.
 #
 # Release Process:
-# 1. Update version in Cargo.toml
-# 2. Update CHANGELOG.md with version entry
-# 3. Commit and push changes (triggers test.yml and sbom.yml)
-# 4. Create and push tag: git tag -s vX.Y.Z -m "vX.Y.Z" && git push --tags
-#    (release.yml waits for test.yml and sbom.yml to complete)
+# 1. Open a release/X.Y.Z pull request bumping Cargo.toml and CHANGELOG.md
+# 2. Merging it makes tag-release.yml push the tag vX.Y.Z, which starts
+#    this workflow
 #
-# Trusted Publisher Configuration:
-# - PyPI: https://pypi.org/manage/project/edgefirst-tflite/settings/publishing/
-#   Owner: EdgeFirstAI, Repository: tflite-rs, Workflow: release.yml, Environment: pypi
-# - crates.io: https://crates.io/settings/tokens
-#   Owner: EdgeFirstAI, Repository: tflite-rs, Workflow: release.yml, Environment: crates-io
+# Trusted Publisher Configuration (Owner: EdgeFirstAI, Repository: tflite-rs,
+# Workflow: release.yml):
+# - PyPI, Environment: pypi
+#   https://pypi.org/manage/project/edgefirst-tflite/settings/publishing/
+# - crates.io, Environment: crates-io, on each crate's settings page:
+#   https://crates.io/crates/edgefirst-tflite-sys/settings
+#   https://crates.io/crates/edgefirst-tflite/settings
+#   https://crates.io/crates/edgefirst-tflite-delegate/settings
+#   Trusted publishing cannot create a crate: a new crate's first version is
+#   published by hand with a token, then its trusted publisher is added.
 #
 # Action Versions (hash-pinned):
 # - actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd (v6.0.2)
@@ -117,19 +123,13 @@ jobs:
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
-      - name: Wait for SBOM
+      # The SBOM, the license policy and the NOTICE check are one job of the
+      # shared workflow sbom.yml calls, named "<caller job> / <called job>".
+      - name: Wait for SBOM and license policy
         uses: lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c # v1.5.0
         with:
           ref: ${{ github.sha }}
-          check-name: 'Generate SBOM'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
-
-      - name: Wait for License Compliance
-        uses: lewagon/wait-on-check-action@74049309dfeff245fe8009a0137eacf28136cb3c # v1.5.0
-        with:
-          ref: ${{ github.sha }}
-          check-name: 'License Compliance'
+          check-name: 'SBOM / SBOM (full)'
           repo-token: ${{ secrets.GITHUB_TOKEN }}
           wait-interval: 10
 
@@ -188,7 +188,9 @@ jobs:
 
   publish-crates:
     name: Publish to crates.io
-    needs: wait-for-ci
+    needs:
+      - prepare-release
+      - wait-for-ci
     runs-on: ubuntu-22.04
     environment: crates-io
     permissions:
@@ -209,30 +211,26 @@ jobs:
         id: auth
         uses: rust-lang/crates-io-auth-action@b7e9a28eded4986ec6b1fa40eeee8f8f165559ec # v1.0.3
 
-      - name: Publish edgefirst-tflite-sys
-        run: cargo publish -p edgefirst-tflite-sys
+      # In dependency order. `cargo publish` returns once the version is in the
+      # index, so the next crate resolves it. A version crates.io already holds
+      # is skipped rather than failing the job, so a re-run after a partial
+      # publish finishes the rest; any answer but 200 or 404 stops the job.
+      - name: Publish crates
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-
-      - name: Wait for crates.io index update
-        run: sleep 30
-
-      - name: Publish edgefirst-tflite
-        run: cargo publish -p edgefirst-tflite
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
-
-      - name: Wait for crates.io index update
-        run: sleep 30
-
-      # Depends on the edgefirst-tflite just published. Trusted publishing covers only crates
-      # that exist: on the crate's first release this step fails, the crate is published by
-      # hand with a token (`cargo publish -p edgefirst-tflite-delegate`, at the tag), and its
-      # trusted publisher is then added as above.
-      - name: Publish edgefirst-tflite-delegate
-        run: cargo publish -p edgefirst-tflite-delegate
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+          VERSION: ${{ needs.prepare-release.outputs.version }}
+        run: |
+          set -euo pipefail
+          for crate in edgefirst-tflite-sys edgefirst-tflite edgefirst-tflite-delegate; do
+            status=$(curl -sS -o /dev/null -w '%{http_code}' \
+              -A 'tflite-rs release (https://github.com/EdgeFirstAI/tflite-rs)' \
+              "https://crates.io/api/v1/crates/${crate}/${VERSION}")
+            case "$status" in
+              200) echo "${crate} ${VERSION} is already on crates.io" ;;
+              404) cargo publish -p "$crate" ;;
+              *) echo "::error::crates.io answered ${status} for ${crate} ${VERSION}"; exit 1 ;;
+            esac
+          done
 
   publish-pypi:
     name: Publish to PyPI
@@ -289,25 +287,17 @@ jobs:
           path: artifacts/wheels
           merge-multiple: true
 
+      # The shared SBOM workflow uploads sbom.json alone. NOTICE is the tracked
+      # file its NOTICE check has already validated against that SBOM.
       - name: Organize release assets
-        env:
-          VERSION: ${{ needs.prepare-release.outputs.version }}
         run: |
+          set -euo pipefail
           mkdir -p release-assets
-
-          # Copy SBOM files with versioned naming
-          for f in artifacts/sbom/*.json; do
-            if [ -f "$f" ]; then
-              BASENAME=$(basename "$f" .json)
-              cp "$f" "release-assets/${BASENAME}-v${VERSION}.json"
-            fi
-          done
-
-          # Copy wheel files
-          cp artifacts/wheels/* release-assets/ 2>/dev/null || true
-
-          echo "Release assets prepared:"
-          ls -lh release-assets/
+          cp artifacts/sbom/sbom.json NOTICE release-assets/
+          cp artifacts/wheels/* release-assets/
+          cd release-assets
+          sha256sum -- * > SHA256SUMS
+          cat SHA256SUMS
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
@@ -325,4 +315,4 @@ jobs:
           files: release-assets/*
           draft: false
           prerelease: ${{ contains(needs.prepare-release.outputs.version, '-') }}
-          fail_on_unmatched_files: false
+          fail_on_unmatched_files: true
