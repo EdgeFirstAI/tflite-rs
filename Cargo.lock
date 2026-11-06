@@ -84,7 +84,7 @@ dependencies = [
 
 [[package]]
 name = "async-pipeline"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -146,7 +146,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "basic-inference"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -238,7 +238,7 @@ checksum = "fc652a48c352aef3ea3aed32080501cf3ef6ed5da78602a020c991775b0aff04"
 
 [[package]]
 name = "camera-preprocessing"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -329,7 +329,7 @@ checksum = "460fbee9c2c2f33933d720630a6a0bac33ba7053db5344fac858d4b8952d77d5"
 
 [[package]]
 name = "delegate-bench"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
  "edgefirst-tflite-delegate",
@@ -337,7 +337,7 @@ dependencies = [
 
 [[package]]
 name = "delegate-options"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -354,7 +354,7 @@ dependencies = [
 
 [[package]]
 name = "dmabuf-zero-copy"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -584,7 +584,7 @@ dependencies = [
 
 [[package]]
 name = "edgefirst-tflite"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite-sys",
  "flatbuffers",
@@ -597,7 +597,7 @@ dependencies = [
 
 [[package]]
 name = "edgefirst-tflite-delegate"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-kernels",
  "edgefirst-tflite",
@@ -605,7 +605,7 @@ dependencies = [
 
 [[package]]
 name = "edgefirst-tflite-python"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
  "half",
@@ -615,7 +615,7 @@ dependencies = [
 
 [[package]]
 name = "edgefirst-tflite-sys"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "flate2",
  "libloading 0.9.0",
@@ -691,7 +691,7 @@ dependencies = [
 
 [[package]]
 name = "error-handling"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -1098,7 +1098,7 @@ checksum = "32a66949e030da00e8c7d4434b251670a91556f4144941d37452769c25d58a53"
 
 [[package]]
 name = "litert-compiled-model"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -1152,7 +1152,7 @@ checksum = "cf8baf1c55e62ffcace7a9f06f4bd9cd3f0c4beb022d3b367256b91b87513d98"
 
 [[package]]
 name = "metadata-extraction"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -1194,7 +1194,7 @@ dependencies = [
 
 [[package]]
 name = "multislot-throughput"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -1238,7 +1238,7 @@ dependencies = [
 
 [[package]]
 name = "neutron-multi-context"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -1610,7 +1610,7 @@ dependencies = [
 
 [[package]]
 name = "quantized-inference"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-tflite",
 ]
@@ -2622,7 +2622,7 @@ checksum = "7a5a4b21e1a62b67a2970e6831bc091d7b87e119e7f9791aef9702e3bef04448"
 
 [[package]]
 name = "yolov8"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-codec",
  "edgefirst-decoder",
@@ -2633,7 +2633,7 @@ dependencies = [
 
 [[package]]
 name = "yolov8-live"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "edgefirst-decoder",
  "edgefirst-image",
