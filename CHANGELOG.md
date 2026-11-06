@@ -7,18 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-06
+
 ### Added
 
 - **Custom delegates in Rust** — `Delegate::from_custom` runs a delegate's node selection and kernels as in-process Rust code, using the TFLite opaque delegate API (TFLite 2.17+; the i.MX BSP runtimes qualify, the `vendored` host library does not).
 - **`edgefirst-tflite-delegate` crate** — the EdgeFirst delegate runs the operators NPU delegates leave on the CPU with the `edgefirst-kernels` NEON kernels: int8/int16 `SOFTMAX`, `LOGISTIC`, `ADD`, `SUB`, `MUL`, `BATCH_MATMUL` and 1×1 `CONV_2D`, layout operators as strided views, and fused attention and DFL heads. Results match TFLite's: bit for bit on the scalar tier, NEON int8 `SOFTMAX` within ±1 LSB, and fused DFL heads within a few LSB (closer to the float model). Kernels use the interpreter's thread count. Median yolo26n latency is 14.1 ms instead of 33.8 ms on an i.MX 95 with Neutron (6 threads), and 105.7 ms instead of 114.2 ms on an i.MX 8M Plus with VX (4 threads).
 - **`delegate_bench` example** — runs a model with and without the EdgeFirst delegate and reports output differences, latency and per-operator time.
 - **`yolov8_live` example** (Rust and Python) — live libcamera capture → HAL letterbox into the delegate's input DMA-BUF → TFLite → HAL overlay → Wayland DMA-BUF display. The Rust version runs its stages on separate threads so consecutive frames overlap, and takes `--fullscreen`, `--nms`, `--class-colors`, `--line-width`, `--slots`, and `--exposure`/`--gain`/`--auto-exposure`. On an i.MX95 FRDM with Neutron and an os08a20 at 1080p, yolov8n runs at 60 FPS detection (the camera's rate) and ~53 FPS segmentation in Rust, and ~35 FPS detection and ~27 FPS segmentation in Python. Each frame is drawn into one of four canvases the compositor has released and committed at once, so the compositor shows the newest; the status line's `skip` counts frames left undrawn because no canvas was free.
+- **`profiling` build profile** — release code with symbols and line tables for perf and flamegraphs (`cargo build --profile profiling`).
 
 ### Changed
 
-- `yolov8` example (Rust and Python) updated to EdgeFirst HAL 0.38.1.
+- `yolov8` example (Rust and Python) updated to EdgeFirst HAL 0.40.0.
 - `zip` updated to 9. `ModelArchive` now decodes entry names when the archive
   is opened.
+
+### Fixed
+
+- `yolov8` example (Rust and Python) loads PNGs without alpha: their conversion runs on the CPU, so its destination now allows CPU writes.
+- `yolov8` example decodes detection models once per frame instead of twice.
 
 ## [0.10.3] - 2026-10-01
 
@@ -650,7 +658,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.3...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.3...v0.11.0
 [0.10.3]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.0...v0.10.1
