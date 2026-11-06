@@ -26,6 +26,10 @@
 //! The [`xnnpack_ffi`] module provides function pointer structs for the
 //! XNNPACK built-in delegate API, loaded from the main `TFLite` library.
 //!
+//! The [`kernel_ffi`] module mirrors the parameter structs custom delegate
+//! kernels read (`TfLiteOpaqueDelegateParams`, quantization, builtin operator
+//! parameters).
+//!
 //! The [`litert`] module provides soft-optional `LiteRT` Next function
 //! pointers (`LiteRt*`), loaded from the same shared library when present.
 
@@ -94,6 +98,7 @@ mod litert_ffi {
 pub mod discovery;
 pub mod experimental_ffi;
 pub mod hal_ffi;
+pub mod kernel_ffi;
 pub mod litert;
 pub mod vx_ffi;
 pub mod xnnpack_ffi;

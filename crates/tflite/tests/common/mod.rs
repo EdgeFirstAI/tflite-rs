@@ -19,13 +19,25 @@ pub fn tflite_available() -> bool {
     load_library().is_some()
 }
 
+/// Report a skipped test, or fail it when `TFLITE_TEST_NO_SKIP` is set to
+/// anything but `0`. Board CI sets it: the board runtime must have everything
+/// these tests need, and a skip there would pass without testing anything.
+pub fn skip(reason: impl std::fmt::Display) {
+    let no_skip = std::env::var_os("TFLITE_TEST_NO_SKIP").is_some_and(|v| v != "0");
+    assert!(
+        !no_skip,
+        "test would skip, but TFLITE_TEST_NO_SKIP is set: {reason}"
+    );
+    eprintln!("SKIPPED: {reason}");
+}
+
 /// Skip the calling test with a message if `TFLite` is not available.
 macro_rules! require_tflite {
     () => {
         if !$crate::common::tflite_available() {
-            eprintln!(
-                "SKIPPED: TFLite shared library not available. \
-                 Set TFLITE_TEST_LIB=/path/to/libtensorflowlite_c.so to enable."
+            $crate::common::skip(
+                "TFLite shared library not available. \
+                 Set TFLITE_TEST_LIB=/path/to/libtensorflowlite_c.so to enable.",
             );
             return;
         }

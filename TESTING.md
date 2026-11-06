@@ -68,6 +68,60 @@ RUST_LOG=debug cargo test --features vendored 2>&1 | grep "Found TFLite"
 # debug: Found TFLite library: /path/to/target/.../out/.../libtensorflowlite_c.so
 ```
 
+### Custom delegate tests
+
+`crates/tflite/tests/custom_delegate.rs` needs a runtime that exports the opaque delegate API. The vendored library does not (upstream's CMake build of `libtensorflowlite_c` leaves `c_api_opaque.cc` out), so on a host those tests print `SKIPPED` and pass. Run them on a board, where the BSP's `libtensorflow-lite.so` exports the API. Two of them stack the test delegate with the board's NPU delegate, named by `TFLITE_TEST_NPU_DELEGATE`, in both orders: after Neutron as on i.MX 95, and before VX as on i.MX 8M Plus.
+
+### EdgeFirst delegate tests
+
+`crates/tflite-delegate/tests/edgefirst_delegate.rs` runs models with and without the EdgeFirst delegate and compares every output. Like `custom_delegate`, these tests need the opaque delegate API and skip on a host.
+
+| Test | Model | Expectation |
+|------|-------|-------------|
+| `int8_region_*`, `int16_softmax_*` | `testdata/softmax_int8.tflite`, `testdata/softmax_int16.tflite` (from `testdata/generate_softmax.py`) | Scalar tier bit for bit with `TFLite`; NEON int8 within 1 LSB |
+| `yolov8_cpu_*` | the YOLOv8n `combined` export | Scalar tier bit for bit; NEON within 2 LSB (the softmax's 1 LSB, widened by the decode layers after it) |
+| `yolov8_after_npu_matches_npu_alone` | `yolov8n-det-int8.imx95.tflite` on Neutron, the `combined` export on VX | Bit for bit with the NPU delegate alone, except the boxes a fused DFL head feeds (within 8 LSB; up to 5 seen); on Neutron the delegate claims the decode tail |
+| `attention_after_neutron_matches_neutron_alone` | `yolo11n-det-int8.imx95.tflite`, `yolo26n-det-int8.imx95.tflite` | One and two fused attention blocks (and YOLO11's fused DFL head); bit for bit on the scalar tier and within 4 LSB on NEON, the DFL boxes aside |
+| `attention_before_npu_is_fused` | `yolo11n-det-int8.tflite` | With `Scope::Attention` before the NPU delegate, the delegate claims exactly the four attention nodes, fused |
+
+The last three need `TFLITE_TEST_NPU_DELEGATE`. The YOLO models are the model zoo's exports; the `.imx95` ones are compiled with Neutron 3.2.3. They are AGPL-3.0, so they are not in the repository. Download them before running the tests by hand. CI pins the same revisions and checks their SHA-256 (see `.github/workflows/test.yml`):
+
+```sh
+hf=https://huggingface.co/EdgeFirst
+curl -fsSL -o testdata/yolov8n-det-int8.imx95.tflite \
+    $hf/yolov8-det/resolve/7fb4413528af0e22c489e7b85839df6e21fa221f/imx95/yolov8n-det-int8.imx95.tflite
+curl -fsSL -o testdata/yolo11n-det-int8.imx95.tflite \
+    $hf/yolo11-det/resolve/6a09aa9c4b5e98370b84cacc97e79b2a9a7ae5cb/imx95/yolo11n-det-int8.imx95.tflite
+curl -fsSL -o testdata/yolo11n-det-int8.tflite \
+    $hf/yolo11-det/resolve/6a09aa9c4b5e98370b84cacc97e79b2a9a7ae5cb/tflite/yolo11n-det-int8.tflite
+curl -fsSL -o testdata/yolo26n-det-int8.imx95.tflite \
+    $hf/yolo26-det/resolve/1f764994a8805b5531c04c34dd4d7ded8a3bc864/imx95/yolo26n-det-int8.imx95.tflite
+```
+
+A model converted for a different Neutron driver still runs, but its output changes from one invoke to the next. The after-NPU tests therefore also check that Neutron alone repeats its results. The `testdata/*.imx95.tflite` exports in the repository were converted for Neutron 3.0.1 and fail that check on the current BSP.
+
+The delegate's unit tests (`cargo test -p edgefirst-tflite-delegate --lib`) need no runtime. They plan and run partitions on plain buffers, check the worker pool, and compare the fused attention and DFL steps with the op-by-op reference.
+
+### Board CI lane
+
+CI runs `custom_delegate`, `edgefirst_delegate` and `integration` on an i.MX 8M Plus EVK (VX) and an i.MX 95 EVK (Neutron) through `.github/scripts/board-tests.sh`. A skipped test passes, so the script sets `TFLITE_TEST_NO_SKIP=1`, which turns the runtime-capability skips into failures: no library, no opaque delegate API, no telemetry profiler, no NPU delegate. It also fails the run if either delegate test binary prints any skip, if `integration` could not load the library, or if any binary passes fewer tests than expected. Set `TFLITE_TEST_NO_SKIP=1` yourself when running these tests by hand on a board. The script runs a payload like this:
+
+```sh
+cargo zigbuild -p edgefirst-tflite --target aarch64-unknown-linux-gnu --test custom_delegate --test integration
+cargo zigbuild -p edgefirst-tflite-delegate --target aarch64-unknown-linux-gnu --test edgefirst_delegate
+mkdir -p board-payload/bin board-payload/testdata
+cp target/aarch64-unknown-linux-gnu/debug/deps/custom_delegate-<hash> board-payload/bin/custom_delegate
+cp target/aarch64-unknown-linux-gnu/debug/deps/edgefirst_delegate-<hash> board-payload/bin/edgefirst_delegate
+cp target/aarch64-unknown-linux-gnu/debug/deps/integration-<hash> board-payload/bin/integration
+cp testdata/minimal.tflite testdata/minimal_offset_buffers.tflite testdata/softmax_int8.tflite \
+    testdata/softmax_int16.tflite testdata/yolov8n-t-b86_quant-u8-i8_combined.tflite \
+    testdata/yolov8n-det-int8.imx95.tflite testdata/yolo11n-det-int8.imx95.tflite \
+    testdata/yolo11n-det-int8.tflite testdata/yolo26n-det-int8.imx95.tflite board-payload/testdata/
+cp .github/scripts/board-tests.sh board-payload/
+scp -r board-payload <board>:
+ssh <board> bash board-payload/board-tests.sh board-payload /usr/lib/libneutron_delegate.so  # or libvx_delegate.so
+```
+
 ## Pre-Built Models
 
 Pre-converted YOLOv8n models are available for download:

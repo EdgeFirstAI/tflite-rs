@@ -6,9 +6,15 @@
 //! Delegates provide hardware acceleration for `TFLite` inference. External
 //! delegates (e.g., `VxDelegate` for NPU) are loaded from shared libraries.
 //! Built-in delegates (e.g., XNNPACK for CPU SIMD) use symbols from the
-//! main `TFLite` library.
+//! main `TFLite` library. Delegates written in Rust are built with
+//! [`Delegate::from_custom`]; see [`custom`].
 
-use std::ffi::{c_void, CString};
+pub mod custom;
+
+use std::any::Any;
+#[cfg(feature = "dmabuf")]
+use std::ffi::c_void;
+use std::ffi::CString;
 use std::path::Path;
 use std::ptr::{self, NonNull};
 
@@ -108,6 +114,9 @@ impl DelegateOptions {
 pub struct Delegate {
     delegate: NonNull<TfLiteDelegate>,
     free: unsafe extern "C" fn(*mut TfLiteDelegate),
+    // State of a Rust custom delegate, referenced by the C delegate's
+    // callbacks. Dropped after `free` deletes the C delegate.
+    _custom: Option<Box<dyn Any + Send + Sync>>,
     // Keeps the delegate .so loaded for the delegate's lifetime.
     _lib: libloading::Library,
 
@@ -286,6 +295,7 @@ impl Delegate {
         Ok(Self {
             delegate,
             free,
+            _custom: None,
             _lib: lib,
             #[cfg(feature = "dmabuf")]
             hal_dmabuf_fns,
@@ -365,6 +375,7 @@ impl Delegate {
         Ok(Self {
             delegate,
             free,
+            _custom: None,
             _lib: tflite_lib,
             #[cfg(feature = "dmabuf")]
             hal_dmabuf_fns: None,
@@ -484,9 +495,11 @@ impl Drop for Delegate {
     fn drop(&mut self) {
         // SAFETY: The delegate pointer was created by the matching create
         // function (`tflite_plugin_create_delegate` for external delegates,
-        // `TfLiteXNNPackDelegateCreate` for XNNPACK) and `free` is the
-        // corresponding destroy function from the same library, which is
-        // still loaded (held by `_lib`).
+        // `TfLiteXNNPackDelegateCreate` for XNNPACK,
+        // `TfLiteOpaqueDelegateCreate` for custom delegates) and `free` is
+        // the corresponding destroy function from the same library, which is
+        // still loaded (held by `_lib`). A custom delegate's state in
+        // `_custom` is dropped after this, once nothing can call into it.
         unsafe { (self.free)(self.delegate.as_ptr()) };
     }
 }

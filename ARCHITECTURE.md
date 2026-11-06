@@ -7,6 +7,8 @@ graph TD
     examples["examples/*<br/>(basic_inference, litert_compiled_model, yolov8, ...)"]
     python["edgefirst-tflite<br/>(Python / PyO3)<br/>crates/python/"]
     tflite["edgefirst-tflite<br/>(safe Rust API)<br/>crates/tflite/"]
+    efdelegate["edgefirst-tflite-delegate<br/>(EdgeFirst delegate)<br/>crates/tflite-delegate/"]
+    kernels["edgefirst-kernels<br/>(HAL CPU kernels)"]
     sys["edgefirst-tflite-sys<br/>(FFI bindings)<br/>crates/tflite-sys/"]
     libloading["libloading"]
     pyo3["PyO3"]
@@ -14,6 +16,8 @@ graph TD
     examples --> tflite
     python --> tflite
     python --> pyo3
+    efdelegate --> tflite
+    efdelegate --> kernels
     tflite --> sys
     sys --> libloading
 ```
@@ -30,6 +34,10 @@ edgefirst-tflite          (safe API — Interpreter + litert::CompiledModel)
 edgefirst-tflite          (Python bindings, crates/python/)
   └─ edgefirst-tflite     (safe API, re-used)
   └─ pyo3
+
+edgefirst-tflite-delegate (EdgeFirst delegate, crates/tflite-delegate/)
+  ├─ edgefirst-tflite     (Delegate::from_custom)
+  └─ edgefirst-kernels    (plan/run CPU kernels from the HAL)
 ```
 
 ### `edgefirst-tflite-sys`
@@ -56,6 +64,7 @@ Low-level FFI plumbing. No safe wrappers.
 - **`vx_ffi.rs`** -- Function pointer structs for the legacy `VxDelegate`
   DMA-BUF and `CameraAdaptor` C APIs. These are probed as a fallback for
   delegates that have not yet adopted the HAL API.
+- **`kernel_ffi.rs`** -- Hand-written mirrors of structs custom delegate kernels read but no bound function names, so bindgen does not emit them: `TfLiteOpaqueDelegateParams`, `TfLiteAffineQuantization`, and the builtin operator parameter structs. Layouts are asserted at compile time.
 
 ### `edgefirst-tflite`
 
@@ -71,6 +80,7 @@ Ergonomic, safe Rust API. This is the primary user-facing crate.
 - **`tensor.rs`** -- `Tensor` / `TensorMut` for type-safe tensor access.
 - **`delegate.rs`** -- `Delegate` loads hardware acceleration delegates and
   probes for HAL Delegate and legacy `VxDelegate` extension APIs.
+- **`delegate/custom.rs`** -- `Delegate::from_custom` wraps a Rust `CustomDelegate` (node selection plus partition kernels) on the opaque delegate API.
 - **`dmabuf.rs`** -- `DmaBuf` for zero-copy DMA-BUF operations (feature-gated).
 - **`camera_adaptor.rs`** -- `CameraAdaptor` for NPU preprocessing (feature-gated).
 - **`metadata.rs`** -- `Metadata` extraction from model files (feature-gated).
@@ -234,6 +244,7 @@ Each C object has a corresponding RAII wrapper with `impl Drop`:
 | `TfLiteInterpreterOptions*` | `InterpreterBuilder` | `TfLiteInterpreterOptionsDelete` |
 | `TfLiteInterpreter*` | `Interpreter` | `TfLiteInterpreterDelete` |
 | `TfLiteDelegate*` | `Delegate` | `tflite_plugin_destroy_delegate` |
+| `TfLiteOpaqueDelegate*` (custom) | `Delegate` | `TfLiteOpaqueDelegateDelete` |
 | `LiteRtEnvironment*` | `litert::Environment` | `LiteRtDestroyEnvironment` |
 | `LiteRtModel*` | `litert::Model` | `LiteRtDestroyModel` |
 | `LiteRtCompiledModel*` | `litert::CompiledModel` | `LiteRtDestroyCompiledModel` |
@@ -336,6 +347,50 @@ example.
 The `xnnpack_ffi` module in `edgefirst-tflite-sys` follows the same
 `try_load` pattern as `vx_ffi` and `hal_ffi`, with function pointers
 stored in an `XnnPackFunctions` struct.
+
+## Custom Delegates (Rust)
+
+`Delegate::from_custom(&Library, impl CustomDelegate)` builds a delegate whose node selection and kernels are Rust code running in-process. It uses the ABI-stable opaque delegate API (`TfLiteOpaqueDelegateCreate`, `TfLiteOperator`), not the version-dependent `TfLiteDelegate`/`TfLiteRegistration` structs.
+
+```
+InterpreterBuilder::build
+  └── TfLiteInterpreterCreate → ModifyGraphWithDelegate
+        └── delegate_prepare::<D>          CustomDelegate::select_nodes(&GraphView)
+              └── ReplaceNodeSubsetsWithDelegateKernels(TfLiteOperator)
+                    ├── kernel_init::<D>     CustomDelegate::create_kernel(&Partition) → Box<KernelState>
+                    ├── kernel_prepare::<D>  PartitionKernel::prepare(&mut KernelIo)
+                    ├── kernel_invoke::<D>   PartitionKernel::invoke(&mut KernelIo)   (every inference)
+                    └── kernel_free::<D>     drops the KernelState
+```
+
+- **State and lifetime.** `from_custom` boxes the delegate value together with its own `tensorflowlite_c` function table (loaded from a `Library::reopen()` handle) and passes the box as the builder's `data` and as the `TfLiteOperator` user data, so every callback uses the `*WithData` variants and no global state. `Delegate` keeps the box in `_custom`; `Drop` deletes the opaque delegate first, then the box.
+- **Symbols.** The opaque API is part of the bindgen table, but `from_custom` checks every symbol it calls before creating anything and returns `Error::is_unsupported` naming the first missing one. The upstream CMake build of `libtensorflowlite_c` (used by the `vendored` feature) does not link `c_api_opaque.cc`, so custom delegates need a runtime built with Bazel or a BSP build such as NXP's (`libtensorflow-lite.so` 2.19 on i.MX 8M Plus and i.MX 95).
+- **Errors and panics.** Every callback runs under `catch_unwind`. Errors and panics are reported through `TfLiteOpaqueContextReportError` prefixed with the delegate name, and return `kTfLiteError`, so they surface as a failed build or invoke.
+- **Kernel I/O.** `KernelIo` reads the partition's boundary tensors straight from the `TFLite` arena (no buffer handles, no copies). Inputs can be borrowed repeatedly; each output once per call, tracked by a per-kernel flag array allocated at init, so `invoke` does not allocate. Tensors internal to a partition are not allocated by `TFLite`; their metadata is read from `Partition::graph` when the kernel is created.
+- **Profiling.** The telemetry profiler labels opaque-delegate partitions `DELEGATE`: `TFLite` 2.19 reads the op name from the legacy `TfLiteRegistration::custom_name`, which the opaque path leaves unset.
+
+## The EdgeFirst Delegate
+
+`edgefirst-tflite-delegate` is a `CustomDelegate` that runs CPU-fallback operators with the HAL's `edgefirst-kernels`. Those kernels take slices with shapes, strides and per-tensor quantization through a plan/run API, and know nothing about `TFLite`.
+
+```
+select_nodes(&GraphView)
+  ├── graph.rs      owned snapshot: tensors (shape, type, quantization, constants), nodes, ops
+  └── select.rs     per node: plan its kernel (compute) or check it only rearranges (view);
+                    claim connected regions that hold at least one compute node
+create_kernel(&Partition)
+  ├── plan.rs       lower the partition to steps over strided locations (views.rs); fuse
+  │                 attention (attention.rs) and DFL heads (softmax_dot.rs); assign scratch
+  └── exec.rs       EdgeFirstKernel: prepare checks shapes; invoke runs the steps
+```
+
+- **Node selection doubles as a capability check.** For each candidate node, the delegate builds the kernel plan from the node's types, quantization and parameters. A plan's constructor returns `Unsupported` for any configuration the kernel does not reproduce, and the node then stays with `TFLite`. `TfliteKernels` in `Options` names the runtime build whose rounding to reproduce (ruy or gemmlowp requantization, NEON blocks or scalar loops in int8 `ADD`/`MUL`).
+- **Regions, not single nodes.** Supported nodes joined by tensors form regions. A region is claimed only if it does some computation: one made only of view operators would just trade `TFLite`'s copies for the delegate's. With `Scope::Attention`, only attention blocks are claimed.
+- **Views instead of copies.** `TRANSPOSE`, `RESHAPE` and `SLICE` only transform a location (offset, shape, strides). `CONCATENATION` becomes a list of parts that elementwise and row operators consume part by part. A compute step writes straight into where its result is finally needed when that is reachable through invertible views (a partition output, or a slot of a concatenation); otherwise it writes to scratch. Copies happen only where a location cannot be expressed as a view.
+- **Fused blocks.** An attention block (`[MUL] → BATCH_MATMUL → SOFTMAX → BATCH_MATMUL`) becomes one `AttentionI8Plan` step with its own packing scratch, and keeps every int8 rounding of the chain. A DFL head (`SOFTMAX → [RESHAPE…] → CONV_2D`, one output channel) becomes one `SoftmaxDotI8Plan` step.
+- **No allocation per invoke.** Plans and scratch are built in `create_kernel`, and shapes are checked in `prepare`. `invoke` records each boundary tensor's address, length and element size, then runs the steps. Every step checks that its views lie in their buffers with the expected element type, and debug builds also assert that no step writes memory it reads.
+- **Threads.** The kernels split work across a `Pool` sized from `TfLiteContext::recommended_num_threads` (the interpreter's thread count, capped at the CPUs available). The delegate keeps one set of workers across its partitions and invokes. Workers poll for the next job between the kernels of an invoke, and are sent to sleep when the invoke ends, so they leave the CPUs to the operators between partitions.
+- **CPU tier.** `EdgeFirstDelegate::new` reads `EDGEFIRST_KERNELS_FORCE_TIER`. `with_cpu_features` takes the tier explicitly, which the tests use to check the scalar tier bit for bit against `TFLite`.
 
 ## DMA-BUF Zero-Copy Data Flow
 

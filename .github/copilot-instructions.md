@@ -49,6 +49,7 @@ edgefirst-tflite/
 │   │       ├── dmabuf.rs       # [feature = "dmabuf"]  DMA-BUF zero-copy API
 │   │       ├── camera_adaptor.rs  # [feature = "camera_adaptor"]  NPU preprocessing
 │   │       └── metadata.rs     # [feature = "metadata"]  Model metadata extraction
+│   ├── tflite-delegate/        # edgefirst-tflite-delegate — EdgeFirst delegate (CPU fallback ops on edgefirst-kernels)
 │   └── tflite-sys/             # edgefirst-tflite-sys  — raw FFI bindings
 │       └── src/
 │           ├── lib.rs
@@ -62,6 +63,7 @@ edgefirst-tflite/
 │   ├── basic_inference/        # cargo run -p basic-inference -- model.tflite
 │   ├── litert_compiled_model/  # cargo run -p litert-compiled-model -- model.tflite
 │   ├── dmabuf_zero_copy/       # cargo run -p dmabuf-zero-copy -- model.tflite
+│   ├── delegate_bench/         # cargo run -p delegate-bench -- model.tflite (EdgeFirst delegate vs TFLite)
 │   └── yolov8_live/            # libcamera + Wayland live demo (needs libcamera >= 0.4;
 │                               #   excluded from workspace-wide CI/zigbuild, see TESTING.md)
 └── testdata/
@@ -75,7 +77,7 @@ edgefirst-tflite/
 | Setting | Value |
 |---------|-------|
 | Rust edition | 2021 |
-| MSRV | 1.88 |
+| MSRV | 1.88 (`edgefirst-tflite-delegate`: 1.94, as `edgefirst-kernels`) |
 | Resolver | v2 |
 | License | Apache-2.0 |
 | Authors | Au-Zone Technologies `<support@au-zone.com>` |
@@ -247,6 +249,7 @@ Every C object has a corresponding Rust wrapper with `impl Drop`:
 | `TfLiteInterpreterOptions*` | `InterpreterBuilder` | `TfLiteInterpreterOptionsDelete` |
 | `TfLiteInterpreter*` | `Interpreter` | `TfLiteInterpreterDelete` |
 | `TfLiteDelegate*` | `Delegate` | `tflite_plugin_destroy_delegate` |
+| `TfLiteOpaqueDelegate*` (Rust custom delegate) | `Delegate` | `TfLiteOpaqueDelegateDelete` |
 
 `Delegate` also owns the `libloading::Library` that the delegate `.so` was
 loaded from (`_lib`), keeping the library resident for the delegate's lifetime.

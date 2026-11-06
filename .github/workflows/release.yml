@@ -222,6 +222,18 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
 
+      - name: Wait for crates.io index update
+        run: sleep 30
+
+      # Depends on the edgefirst-tflite just published. Trusted publishing covers only crates
+      # that exist: on the crate's first release this step fails, the crate is published by
+      # hand with a token (`cargo publish -p edgefirst-tflite-delegate`, at the tag), and its
+      # trusted publisher is then added as above.
+      - name: Publish edgefirst-tflite-delegate
+        run: cargo publish -p edgefirst-tflite-delegate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
+
   publish-pypi:
     name: Publish to PyPI
     needs: build-wheels
@@ -308,7 +320,7 @@ jobs:
 
             ---
 
-            **crates.io**: [edgefirst-tflite](https://crates.io/crates/edgefirst-tflite) | [edgefirst-tflite-sys](https://crates.io/crates/edgefirst-tflite-sys)
+            **crates.io**: [edgefirst-tflite](https://crates.io/crates/edgefirst-tflite) | [edgefirst-tflite-sys](https://crates.io/crates/edgefirst-tflite-sys) | [edgefirst-tflite-delegate](https://crates.io/crates/edgefirst-tflite-delegate)
             **PyPI**: [edgefirst-tflite](https://pypi.org/project/edgefirst-tflite/)
           files: release-assets/*
           draft: false
