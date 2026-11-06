@@ -1,5 +1,13 @@
 # SPDX-License-Identifier: Apache-2.0
 # Copyright 2025 Au-Zone Technologies
+#
+# SBOM and license policy, through the org's shared workflow: cargo-cyclonedx for
+# the dependency graph, scancode over the sources, the org license policy, and
+# the check that NOTICE names every component. A failure uploads the NOTICE the
+# SBOM calls for as the `sbom-notice` artifact, to review and commit.
+#
+# release.yml waits for this check on the tag's commit and attaches the run's
+# `sbom` artifact (sbom.json) to the GitHub Release.
 
 name: SBOM
 
@@ -9,55 +17,25 @@ on:
   pull_request:
     branches: [main]
 
-env:
-  CARGO_TERM_COLOR: always
-
 jobs:
   sbom:
-    name: Generate SBOM
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          lfs: true
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
-        with:
-          toolchain: stable
-
-      - name: Install cargo-cyclonedx
-        run: cargo install cargo-cyclonedx
-
-      - name: Generate CycloneDX SBOM
-        run: cargo cyclonedx --format json --override-filename bom
-
-      - name: Upload SBOM
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
-        with:
-          name: sbom
-          path: crates/*/bom.json
-
-  license-check:
-    name: License Compliance
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          lfs: true
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@efa25f7f19611383d5b0ccf2d1c8914531636bf9 # master (2026-03-20)
-        with:
-          toolchain: stable
-
-      - name: Install cargo-deny
-        uses: taiki-e/install-action@c12d62a803cbdfe2e7263af15f5a9548065cb4f2 # v2.69.3
-        with:
-          tool: cargo-deny
-
-      - name: Check licenses
-        run: cargo deny check licenses
-        continue-on-error: true
+    name: SBOM
+    permissions:
+      contents: read
+    uses: EdgeFirstAI/.github/.github/workflows/sbom.yml@0cbb8f91f0d3e7d15726329f3fa651450bfdbbf0 # v5.1.0
+    with:
+      mode: full
+      project-name: tflite-rs
+      project-type: library
+      version-file: Cargo.toml
+      source-dirs: crates examples
+      # A graph is resolved per target, so a Linux runner alone misses the
+      # target-conditional dependencies of the wheels built for Windows and macOS.
+      targets: >-
+        x86_64-unknown-linux-gnu
+        aarch64-unknown-linux-gnu
+        x86_64-pc-windows-msvc
+        aarch64-apple-darwin
+      # The release reads this artifact after the release PR merges, which is
+      # human-paced; the full-mode default is 7 days.
+      retention-days: '30'
