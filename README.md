@@ -303,7 +303,7 @@ classification.
 
 ### Live camera
 
-`yolov8_live` runs the same models on a live camera: libcamera captures NV12 or YUYV DMA-BUFs, the HAL letterboxes each frame into the delegate's input buffer, and the decoded overlay is composited onto the frame and handed to the Wayland compositor as a DMA-BUF. It needs libcamera >= 0.4 and a compositor offering `zwp_linux_dmabuf_v1` (Weston on the NXP BSPs).
+`yolov8_live` runs the same models on a live camera: libcamera captures NV12 or YUYV DMA-BUFs, the HAL letterboxes each frame into the delegate's input buffer, and the decoded overlay is composited onto the frame and handed to the Wayland compositor as a DMA-BUF. It needs libcamera >= 0.4 and a compositor offering `zwp_linux_dmabuf_v1` (Weston on the NXP BSPs). Cross-build it with a GCC toolchain rather than `cargo zigbuild` (see [Building](#building)). On the i.MX 95 EVK the board must boot a device tree that includes the sensor and the ISP, for example `imx95-19x19-evk-os08a20-isp-adv7535.dtb` for the os08a20; with the default `imx95-19x19-evk.dtb` libcamera lists no cameras.
 
 ```sh
 # i.MX95: route the sensor through the NeoISP to get NV12/YUYV
@@ -353,9 +353,11 @@ cargo build --workspace
 # All features
 cargo build --workspace --features full
 
-# Cross-compile for i.MX devices
-cargo zigbuild --workspace --all-features --target aarch64-unknown-linux-gnu
+# Cross-compile for i.MX devices (every member except yolov8-live)
+cargo zigbuild --workspace --exclude yolov8-live --all-features --target aarch64-unknown-linux-gnu
 ```
+
+`yolov8-live` cannot be built with `cargo zigbuild`. It compiles a C++ shim around libcamera, and zigbuild compiles that shim with zig's bundled libc++ (`std::__1`), while the board's `libcamera.so` is built with GCC's libstdc++. The two are not ABI-compatible, so linking fails with errors such as `undefined symbol: libcamera::BoundMethodBase::activatePack(std::__1::shared_ptr<...>)`. Build it with a GCC aarch64 cross toolchain instead (a Yocto SDK, or the cross compiler of an EdgeFirst Yocto build) and with libcamera headers and libraries of the same version as the board's libcamera, using plain `cargo build --release -p yolov8-live --target aarch64-unknown-linux-gnu`. The environment it needs is in [TESTING.md](TESTING.md#cross-compiling-yolov8-live).
 
 ## Testing
 
