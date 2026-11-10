@@ -203,7 +203,7 @@ jobs:
       matrix:
         include:
           - board: imx8mp-evk
-            runs-on: [imx8mp-evk, imx8mp-evk-6.18.20-2.0.0]
+            runs-on: [imx8mp-evk]
             npu-delegate: /usr/lib/libvx_delegate.so
           - board: imx95-evk
             runs-on: [imx95-evk]

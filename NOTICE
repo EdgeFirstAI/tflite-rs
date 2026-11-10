@@ -66,6 +66,7 @@ license the release license check applies to it:
     cfg-if                                MIT OR Apache-2.0
     cfg_aliases                           MIT
     clang-sys                             Apache-2.0
+    constant_time_eq                      CC0-1.0 OR MIT-0 OR Apache-2.0
     crc32fast                             MIT OR Apache-2.0
     crossbeam-deque                       MIT OR Apache-2.0
     crossbeam-epoch                       MIT OR Apache-2.0
@@ -158,6 +159,8 @@ license the release license check applies to it:
     miniz_oxide                           MIT OR Zlib OR Apache-2.0
     moxcms                                BSD-3-Clause OR Apache-2.0
     multislot-throughput                  Apache-2.0
+    multiversion                          MIT OR Apache-2.0
+    multiversion-macros                   MIT OR Apache-2.0
     mutate_once                           BSD-2-Clause
     ndarray                               MIT OR Apache-2.0
     ndarray-stats                         MIT OR Apache-2.0
@@ -191,8 +194,6 @@ license the release license check applies to it:
     proc-macro2                           MIT OR Apache-2.0
     profiling                             MIT OR Apache-2.0
     profiling-procmacros                  MIT OR Apache-2.0
-    pulp                                  MIT
-    pulp-wasm-simd-flag                   MIT
     pxfm                                  BSD-3-Clause OR Apache-2.0
     pyo3                                  MIT OR Apache-2.0
     pyo3-build-config                     MIT OR Apache-2.0
@@ -208,11 +209,9 @@ license the release license check applies to it:
     rand_core                             MIT OR Apache-2.0
     rav1e                                 BSD-2-Clause
     ravif                                 BSD-3-Clause
-    raw-cpuid                             MIT
     rawpointer                            MIT OR Apache-2.0
     rayon                                 MIT OR Apache-2.0
     rayon-core                            MIT OR Apache-2.0
-    reborrow                              MIT
     regex                                 MIT OR Apache-2.0
     regex-automata                        MIT OR Apache-2.0
     regex-syntax                          MIT OR Apache-2.0
@@ -243,6 +242,7 @@ license the release license check applies to it:
     syn                                   MIT OR Apache-2.0
     syn                                   MIT OR Apache-2.0
     tar                                   MIT OR Apache-2.0
+    target-features                       MIT OR Apache-2.0
     target-lexicon                        Apache-2.0 WITH LLVM-exception
     thiserror                             MIT OR Apache-2.0
     thiserror                             MIT OR Apache-2.0
@@ -263,7 +263,6 @@ license the release license check applies to it:
     utf8-zero                             MIT OR Apache-2.0
     uuid                                  Apache-2.0 OR MIT
     v_frame                               BSD-2-Clause
-    version_check                         MIT OR Apache-2.0
     wasm-bindgen                          MIT OR Apache-2.0
     wasm-bindgen-macro                    MIT OR Apache-2.0
     wasm-bindgen-macro-support            MIT OR Apache-2.0
@@ -296,6 +295,7 @@ license the release license check applies to it:
     zerocopy                              BSD-2-Clause OR Apache-2.0 OR MIT
     zerocopy-derive                       BSD-2-Clause OR Apache-2.0 OR MIT
     zeroize                               Apache-2.0 OR MIT
+    zeroize_derive                        Apache-2.0 OR MIT
     zip                                   MIT
     zlib-rs                               Zlib
     zmij                                  MIT
