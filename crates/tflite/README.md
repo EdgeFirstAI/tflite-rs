@@ -86,7 +86,7 @@ The main entry points are:
 
 | Feature | Description |
 |---------|-------------|
-| `dmabuf` | DMA-BUF zero-copy inference via `VxDelegate` |
+| `dmabuf` | DMA-BUF zero-copy inference with the VX and Neutron delegates |
 | `camera_adaptor` | NPU-accelerated format conversion |
 | `metadata` | TFLite model metadata extraction |
 | `full` | Enables all optional features |
