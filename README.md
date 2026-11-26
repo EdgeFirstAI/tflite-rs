@@ -97,7 +97,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 | Feature | Description |
 |---------|-------------|
-| `dmabuf` | DMA-BUF zero-copy inference via HAL / VxDelegate |
+| `dmabuf` | DMA-BUF zero-copy inference with the VX and Neutron delegates |
 | `camera_adaptor` | NPU-accelerated format conversion |
 | `metadata` | TFLite model metadata extraction (FlatBuffers) |
 | `archive` | Embedded ZIP-footer metadata (`edgefirst.json`, `labels.txt`) |
@@ -209,28 +209,29 @@ The package version matches the TFLite version it ships (e.g.,
 |--------|-----|----------|---------|---------------|
 | i.MX 8M Plus | Vivante GC | `libvx_delegate.so` | Yes | Yes |
 | i.MX 93 | Ethos-U65 | `libethosu_delegate.so` | No | No |
-| i.MX 95 | Neutron | `libneutron_delegate.so` | No | No |
+| i.MX 95 | Neutron | `libneutron_delegate.so` | Yes | No |
 
-DMA-BUF zero-copy and CameraAdaptor preprocessing require the Vivante VxDelegate
-(`features = ["dmabuf"]` and `features = ["camera_adaptor"]`). On i.MX 93 and
-i.MX 95, inference uses standard tensor I/O. Current i.MX BSPs export classic
-`TfLite*` only — use `Interpreter`, not `litert::CompiledModel`.
+DMA-BUF zero-copy (`features = ["dmabuf"]`) works with the VX delegate on the i.MX 8M Plus and the Neutron delegate on the i.MX 95. Both export the same `hal_dmabuf_*` interface, so one code path serves both. CameraAdaptor preprocessing (`features = ["camera_adaptor"]`) needs the VX delegate; the Neutron delegate reports it as unsupported. On i.MX 93, inference uses standard tensor I/O.
 
-## VxDelegate Extensions
+The delegates that [meta-edgefirst](https://github.com/EdgeFirstAI/meta-edgefirst) builds export these interfaces. A delegate without them still loads and runs with standard tensor I/O, and `Delegate::has_dmabuf()` returns `false`.
 
-When using the i.MX 8M Plus NPU delegate (`libvx_delegate.so`), two optional APIs
-are available:
+Current i.MX BSPs export classic `TfLite*` only — use `Interpreter`, not `litert::CompiledModel`.
+
+## Delegate Extensions
+
+The NXP NPU delegates add two optional APIs:
 
 ### DMA-BUF Zero-Copy
 
-Bind DMA-BUF file descriptors (from V4L2, DRM, etc.) directly to TFLite
-tensors, avoiding CPU-side memory copies. Enable with `features = ["dmabuf"]`.
+The delegate allocates its input and output tensors as DMA-BUFs. `DmaBuf::tensor_info` returns a tensor's file descriptor, size, shape and type, so a GPU preprocessing stage can render straight into the NPU's input buffer. `DmaBuf::sync_for_device` and `DmaBuf::sync_for_cpu` keep the caches coherent around `invoke()`. Available with the VX delegate (`libvx_delegate.so`) and the Neutron delegate (`libneutron_delegate.so`). Enable with `features = ["dmabuf"]`.
+
+The VX delegate also has an older API that binds a caller's DMA-BUF to a tensor (`register`, `bind_to_tensor`). It is deprecated in favour of the one above.
 
 ### CameraAdaptor
 
 Configure the delegate to inject format conversion (e.g., RGBA to RGB),
 resize, and letterbox operations into the TIM-VX graph, running them on the
-NPU instead of the CPU. Enable with `features = ["camera_adaptor"]`.
+NPU instead of the CPU. Available with the VX delegate only. Enable with `features = ["camera_adaptor"]`.
 
 ## XNNPACK (CPU Acceleration)
 
@@ -261,7 +262,7 @@ interpreter.invoke()?;
 |---------|-------------|----------|
 | [`basic_inference`](examples/basic_inference/) | Load a model and run inference | default |
 | [`litert_compiled_model`](examples/litert_compiled_model/) | LiteRT `CompiledModel` path | default (needs LiteRT `.so`) |
-| [`dmabuf_zero_copy`](examples/dmabuf_zero_copy/) | DMA-BUF zero-copy with VxDelegate | `dmabuf` |
+| [`dmabuf_zero_copy`](examples/dmabuf_zero_copy/) | DMA-BUF zero-copy with the VX or Neutron delegate | `dmabuf` |
 | [`quantized_inference`](examples/quantized_inference/) | Quantized model I/O with dequantization | default |
 | [`error_handling`](examples/error_handling/) | Error classification and graceful fallbacks | `dmabuf` |
 | [`metadata_extraction`](examples/metadata_extraction/) | Extract model metadata | `metadata` |

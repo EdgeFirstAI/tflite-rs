@@ -117,9 +117,27 @@ interp.invoke()
 
 ### DMA-BUF Zero-Copy Inference
 
-DMA-BUF enables zero-copy data transfer between camera, CPU, and NPU
-by binding DMA-BUF file descriptors directly to TFLite tensors. This
-eliminates memory copies in the inference pipeline.
+DMA-BUF enables zero-copy data transfer between camera, GPU, and NPU. This eliminates memory copies in the inference pipeline. It works with the VX delegate on the i.MX 8M Plus and the Neutron delegate on the i.MX 95.
+
+**Delegate-owned buffers** — the delegate allocates its tensors as DMA-BUFs, and `tensor_info` returns the file descriptor to write into:
+
+```python
+from edgefirst_tflite import Interpreter, load_delegate
+
+delegate = load_delegate("libneutron_delegate.so")  # or libvx_delegate.so
+interp = Interpreter(model_path="model.tflite", experimental_delegates=[delegate])
+
+dmabuf = interp.dmabuf()
+if dmabuf and dmabuf.is_supported():
+    info = dmabuf.tensor_info(0)  # fd, size, offset, shape, dtype
+    # ... render the frame into info["fd"] on the GPU ...
+    dmabuf.sync_for_device(0)     # before the NPU reads the input
+    interp.invoke()
+```
+
+`sync_for_cpu(tensor_index)` does the reverse before the CPU reads a buffer the NPU wrote. The [`yolov8_live`](https://github.com/EdgeFirstAI/tflite-rs/tree/main/examples/yolov8_live) example runs this path end to end.
+
+The modes below are an older API of the VX delegate. They are deprecated and work only with `libvx_delegate.so`.
 
 **Import mode** — register an externally-allocated DMA-BUF (e.g., from
 V4L2 camera capture):
@@ -176,8 +194,8 @@ dmabuf.begin_cpu_access(handle, mode="read")
 # ... read tensor data on CPU ...
 dmabuf.end_cpu_access(handle, mode="read")
 
-dmabuf.sync_for_device(handle)  # Before NPU access
-dmabuf.sync_for_cpu(handle)     # Before CPU access
+dmabuf.sync_for_device_by_handle(handle)  # Before NPU access
+dmabuf.sync_for_cpu_by_handle(handle)     # Before CPU access
 ```
 
 ### CameraAdaptor — NPU-Accelerated Preprocessing
@@ -402,7 +420,7 @@ except TfLiteError as e:
 | Platform | Architecture | Delegate | DMA-BUF | CameraAdaptor |
 |----------|-------------|----------|---------|---------------|
 | i.MX 8M Plus | aarch64 | VxDelegate | Yes | Yes |
-| i.MX 95 | aarch64 | Neutron | No | No |
+| i.MX 95 | aarch64 | Neutron | Yes | No |
 | Linux | x86_64 | CPU only | No | No |
 | macOS | arm64 | CPU only | No | No |
 | Windows | x86_64 | CPU only | No | No |

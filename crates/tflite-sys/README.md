@@ -15,7 +15,9 @@ This crate provides:
   generated from vendored LiteRT **v2.1.6** headers (`litert/`), plus
   `LiteRtFunctions::try_load` for Spec 3 symbol probing.
 - Library version probing (`discovery` module).
-- `VxDelegate` DMA-BUF and `CameraAdaptor` function pointer structs
+- Delegate DMA-BUF and `CameraAdaptor` function pointer structs: the
+  `hal_dmabuf_*` and `hal_camera_adaptor_*` interface shared by the VX and
+  Neutron delegates (`hal_ffi` module), and the older `VxDelegate` one
   (`vx_ffi` module) -- loaded at runtime from the delegate shared library
   for NPU acceleration, zero-copy inference, and camera preprocessing.
 
