@@ -928,7 +928,7 @@ impl Planner<'_> {
         // B = adj_y ? Kᵀ : K is `[.., dk, tokens]`; K itself is its transpose.
         let k = if adj_y { Some(kt) } else { kt.swap_last2() };
         let (p_pos, v_pos) = if a.p_right { (1, 0) } else { (0, 1) };
-        debug_assert_eq!(b2.input(p_pos), Some(tp));
+        debug_assert_eq!(b2.input(p_pos), a.p_operand(g));
         let vt = self.input(b2.input(v_pos).ok_or_else(|| err("values"))?)?;
         let vt = self.materialize(vt, Elem::I8)?;
         let v = if a.p_right {
@@ -1047,7 +1047,7 @@ impl Planner<'_> {
         if let Some(last) = rows.last_mut() {
             *last = 1;
         }
-        let src = self.input(x)?;
+        let mut src = self.input(x)?;
         let unit_rows = match &src {
             Place::View(l) => l.strides.last() == Some(&1),
             Place::Parts { axis, parts } => {
@@ -1055,7 +1055,18 @@ impl Planner<'_> {
             }
         };
         if !unit_rows {
-            return Ok(false);
+            // The fused kernel reads each row of bins contiguously. An NCHW head transposes
+            // the bins onto a strided axis, so gather them once into a dense copy.
+            let dense = self.new_scratch(Elem::I8, &xs);
+            match src {
+                Place::View(l) => self.steps.push(Step::Copy {
+                    elem: Elem::I8,
+                    src: l,
+                    dst: dense.clone(),
+                }),
+                Place::Parts { axis, parts } => self.copy_parts(Elem::I8, axis, &parts, &dense)?,
+            }
+            src = Place::View(dense);
         }
         let Some(dst) = self.output(out)?.reshape(&rows) else {
             return Ok(false);
@@ -1132,19 +1143,13 @@ pub(crate) fn plan(
     let in_part = |i: usize| p.nodes.contains(&i);
     let blocks: Vec<Attention> = attention::find(g, &in_part)
         .into_iter()
-        .filter(|a| {
-            !outputs.iter().any(|t| {
-                g.nodes[a.scores].output() == Some(*t)
-                    || g.nodes[a.softmax].output() == Some(*t)
-                    || a.mul.is_some_and(|m| g.nodes[m].output() == Some(*t))
-            })
-        })
+        .filter(|a| !a.inner_tensors(g).any(|t| outputs.contains(&t)))
         .collect();
     let mut deferred: HashMap<usize, Attention> = HashMap::new();
     let mut skip: HashSet<usize> = HashSet::new();
-    for a in &blocks {
-        deferred.insert(a.output, *a);
-        skip.extend(a.mul.into_iter().chain([a.scores, a.softmax]));
+    for a in blocks {
+        skip.extend(a.nodes().filter(|&n| n != a.output));
+        deferred.insert(a.output, a);
     }
     let dots: Vec<SoftmaxDot> = softmax_dot::find(g, &in_part)
         .into_iter()
@@ -1173,7 +1178,7 @@ pub(crate) fn plan(
             }
             continue;
         }
-        if let Some(a) = deferred.get(&ni).copied() {
+        if let Some(a) = deferred.get(&ni).cloned() {
             if p.try_attention(&a)? {
                 continue;
             }
@@ -1527,6 +1532,84 @@ mod tests {
         }
     }
 
+    /// `yolo26_block` as Ultralytics' `LiteRT` export writes it: the scores reach the softmax
+    /// through a batch reshape, and the probabilities are transposed and reshaped ahead of a
+    /// second matmul without `adj_y`.
+    fn ultralytics_attention_block() -> (Graph, Vec<usize>, Vec<usize>) {
+        let (mut g, mut inputs, outputs) = yolo26_block();
+        let scores = g.tensor(4).unwrap().quant.map(|q| (q.scale, q.zero_point));
+        let probs = g.tensor(5).unwrap().quant.map(|q| (q.scale, q.zero_point));
+        g.tensors.extend([
+            (101, c32(&[2, 400, 400])),
+            (100, t(&[2, 400, 400], scores)),
+            (102, t(&[2, 400, 400], probs)),
+            (103, c32(&[0, 2, 1])),
+            (104, t(&[2, 400, 400], probs)),
+            (105, c32(&[1, 2, 400, 400])),
+            (106, t(&[1, 2, 400, 400], probs)),
+        ]);
+        let si = g.nodes.iter().position(|n| n.index == 11).unwrap();
+        g.nodes.splice(
+            si..=si + 1,
+            [
+                node(20, Op::Reshape, &[4, 101], 100),
+                node(11, Op::Softmax { beta: 1.0 }, &[100], 102),
+                node(21, Op::Transpose, &[102, 103], 104),
+                node(22, Op::Reshape, &[104, 105], 106),
+                node(
+                    12,
+                    Op::BatchMatMul {
+                        adj_x: false,
+                        adj_y: false,
+                    },
+                    &[26, 106],
+                    6,
+                ),
+            ],
+        );
+        inputs.extend([101, 103, 105]);
+        (g, inputs, outputs)
+    }
+
+    #[test]
+    fn ultralytics_attention_block_fuses_and_matches_the_operators_one_by_one() {
+        let (reference_graph, _, _) = yolo26_block();
+        let (g, inputs, outputs) = ultralytics_attention_block();
+        let blocks = attention::find(&g, &|_| true);
+        assert_eq!(blocks.len(), 1, "{blocks:?}");
+        assert!(blocks[0].p_right);
+        assert_eq!((blocks[0].pre.len(), blocks[0].post.len()), (1, 2));
+
+        let mut s = 11u32;
+        let x: Vec<i8> = (0..400 * 256)
+            .map(|_| {
+                s ^= s << 13;
+                s ^= s >> 17;
+                s ^= s << 5;
+                (s % 81) as i8 - 40
+            })
+            .collect();
+        let (want76, want78) = reference(&reference_graph, &x);
+        let nodes: Vec<usize> = (0..g.nodes.len()).collect();
+        let p = plan(&g, &nodes, &inputs, &outputs, opts()).unwrap();
+        assert_eq!(p.fused_attention, 1);
+        let consts: Vec<Vec<i8>> = inputs.iter().skip(1).map(|_| vec![127i8; 4]).collect();
+        let mut ins: Vec<&[i8]> = vec![&x];
+        ins.extend(consts.iter().map(Vec::as_slice));
+        let (mut o76, mut o78) = (vec![0i8; 400 * 128], vec![0i8; 400 * 128]);
+        crate::exec::run_buffers(p, &ins, &mut [&mut o76, &mut o78]).unwrap();
+        assert_eq!(o76, want76, "value path");
+        assert_eq!(o78, want78, "attention output");
+    }
+
+    /// A transpose that is not a swap of the last two axes is not a view of `P`.
+    #[test]
+    fn attention_rejects_other_transposes_of_the_probabilities() {
+        let (mut g, _, _) = ultralytics_attention_block();
+        g.tensors.insert(103, c32(&[1, 0, 2]));
+        assert_eq!(attention::find(&g, &|_| true), Vec::new());
+    }
+
     /// A two-level YOLO DFL head: NHWC box logits of 16 and 4 anchors, concatenated, split
     /// into four sides of 16 bins, softmax over the bins, then the 1×1 one-channel projection.
     fn dfl_head() -> (Graph, Vec<usize>, Vec<usize>) {
@@ -1635,6 +1718,97 @@ mod tests {
             );
         }
         assert!(got != want, "the fused kernel ran");
+    }
+
+    /// A DFL head in NCHW, as Ultralytics' `LiteRT` export writes it: 4 sides × 16 bins on the
+    /// channel axis of 20 anchors, so the transpose leaves the bins 20 elements apart.
+    fn nchw_dfl_head() -> (Graph, Vec<usize>, Vec<usize>) {
+        let x = Some((0.0947, -20));
+        let probs = Some((1.0 / 256.0, -128));
+        let filter = Tensor {
+            constant: Some(Const::I8(
+                (0..16i32)
+                    .map(|i| i8::try_from((i * 127 + 7) / 15).unwrap())
+                    .collect(),
+            )),
+            ..t(&[1, 1, 1, 16], Some((15.0 / 127.0, 0)))
+        };
+        let tensors = [
+            (0, t(&[1, 64, 20], x)),
+            (1, c32(&[4, 16, 20])),
+            (2, t(&[4, 16, 20], x)),
+            (3, c32(&[0, 2, 1])),
+            (4, t(&[4, 20, 16], x)),
+            (5, c32(&[1, 4, 20, 16])),
+            (6, t(&[1, 4, 20, 16], x)),
+            (7, t(&[1, 4, 20, 16], probs)),
+            (8, filter),
+            (9, c32(&[0])),
+            (10, t(&[1, 4, 20, 1], Some((0.0579, -128)))),
+        ]
+        .into_iter()
+        .collect();
+        let nodes = vec![
+            node(0, Op::Reshape, &[0, 1], 2),
+            node(1, Op::Transpose, &[2, 3], 4),
+            node(2, Op::Reshape, &[4, 5], 6),
+            node(3, Op::Softmax { beta: 1.0 }, &[6], 7),
+            node(
+                4,
+                Op::Conv2d {
+                    unit: true,
+                    act: Activation::None,
+                },
+                &[7, 8, 9],
+                10,
+            ),
+        ];
+        let g = Graph {
+            tensors,
+            nodes,
+            outputs: vec![10],
+            ..Graph::default()
+        };
+        (g, vec![0, 1, 3, 5, 8, 9], vec![10])
+    }
+
+    #[test]
+    fn nchw_dfl_head_gathers_its_bins_and_fuses() {
+        let (g, inputs, outputs) = nchw_dfl_head();
+        let mut s = 5u32;
+        let x: Vec<i8> = (0..64 * 20)
+            .map(|_| {
+                s ^= s << 13;
+                s ^= s >> 17;
+                s ^= s << 5;
+                (s % 121) as i8 - 60
+            })
+            .collect();
+        let filter: Vec<i8> = (0..16i32)
+            .map(|i| i8::try_from((i * 127 + 7) / 15).unwrap())
+            .collect();
+        let consts: Vec<Vec<i8>> = vec![vec![0; 12], vec![0; 12], vec![0; 16], filter, vec![0; 4]];
+        let mut ins: Vec<&[i8]> = vec![&x];
+        ins.extend(consts.iter().map(Vec::as_slice));
+        let nodes: Vec<usize> = (0..g.nodes.len()).collect();
+
+        let fused = plan(&g, &nodes, &inputs, &outputs, opts()).unwrap();
+        assert_eq!(fused.fused_softmax_dot, 1);
+        assert_eq!(fused.scratch.len(), 1, "one dense copy of the bins");
+        let mut got = vec![0i8; 4 * 20];
+        crate::exec::run_buffers(fused, &ins, &mut [&mut got]).unwrap();
+
+        let unfused_outputs = vec![10, 7];
+        let p = plan(&g, &nodes, &inputs, &unfused_outputs, opts()).unwrap();
+        assert_eq!(p.fused_softmax_dot, 0);
+        let (mut want, mut probs) = (vec![0i8; 4 * 20], vec![0i8; 4 * 20 * 16]);
+        crate::exec::run_buffers(p, &ins, &mut [&mut want, &mut probs]).unwrap();
+        for (i, (&g, &w)) in got.iter().zip(&want).enumerate() {
+            assert!(
+                (i32::from(g) - i32::from(w)).abs() <= 3,
+                "output {i}: {g} vs {w}"
+            );
+        }
     }
 
     /// In `BATCH_MATMUL → SOFTMAX → BATCH_MATMUL → SOFTMAX → BATCH_MATMUL` the middle matmul

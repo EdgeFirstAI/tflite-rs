@@ -158,7 +158,8 @@ fn load_model<'lib>(lib: &'lib Library, path: &str) -> Model<'lib> {
     Model::from_file(lib, path).unwrap_or_else(|e| panic!("{path}: {e} (see TESTING.md)"))
 }
 
-/// Compare `model` run by `TFLite` alone and with the delegate added last.
+/// Compare `model` run by `TFLite` alone and with the delegate added last, within
+/// `tolerance` LSB besides the boxes of a fused DFL head.
 /// Returns the delegate's stats, or `None` if the test was skipped.
 fn compare(path: &str, kernels: Kernels, width: usize, tolerance: u32) -> Option<Stats> {
     let lib = common::require_library()?;
@@ -169,12 +170,16 @@ fn compare(path: &str, kernels: Kernels, width: usize, tolerance: u32) -> Option
 
     let mut reference = build(&lib, &model, Vec::new());
     let mut delegated = build(&lib, &model, vec![edgefirst]);
+    let mut tolerances = vec![tolerance; BOXES + 2];
+    if stats.fused_softmax_dot() > 0 {
+        tolerances[BOXES] = tolerance.max(DFL_BOXES_LSB);
+    }
     for seed in [1, 2] {
         assert_matches(
             &run(&mut reference, seed),
             &run(&mut delegated, seed),
             width,
-            &[tolerance],
+            &tolerances,
             &format!("{path} {kernels:?} seed {seed}"),
         );
     }
@@ -216,8 +221,10 @@ fn yolov8_cpu_scalar_matches_tflite() {
     let Some(stats) = compare(YOLOV8, Kernels::Scalar, 1, 0) else {
         return;
     };
-    // The backbone's SiLU LOGISTIC and MUL, and the decode tail.
+    // The backbone's SiLU LOGISTIC and MUL, and the decode tail, whose DFL head fuses with
+    // its strided bins gathered.
     assert!(stats.claimed_nodes() > 100, "{}", stats.claimed_nodes());
+    assert_eq!(stats.fused_softmax_dot(), 1);
 }
 
 /// NEON int8 `SOFTMAX` is within 1 LSB; the decode layers after it widen that to 2.

@@ -2,19 +2,32 @@
 // Copyright (c) 2026 Au-Zone Technologies. All Rights Reserved.
 
 //! Finds scaled dot-product attention blocks: `[MUL] → BATCH_MATMUL → SOFTMAX → BATCH_MATMUL`.
+//!
+//! The scores and the probabilities may pass through views on the way: reshapes that only
+//! regroup the batch axes, and on the probabilities one transpose of the last two axes, as
+//! Ultralytics' `LiteRT` export writes `Pᵀ` ahead of the second matmul instead of setting
+//! `adj_y`. They are part of the block, so none of them is materialized.
 
 use edgefirst_kernels::AttentionI8Plan;
 
 use crate::graph::{Graph, Op, Tid};
 
+/// Views allowed on either side of the softmax.
+const MAX_VIEWS: usize = 4;
+
 /// One attention block, as node indices into `Graph::nodes`.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Attention {
     /// The scalar `MUL` on the first operand of `scores`, if it can be folded.
     pub(crate) mul: Option<usize>,
     /// `BATCH_MATMUL` producing the scores `S = A·B` (`[.., queries, tokens]`).
     pub(crate) scores: usize,
+    /// Reshapes from the scores to the softmax, in graph order.
+    pub(crate) pre: Vec<usize>,
     pub(crate) softmax: usize,
+    /// Reshapes and at most one last-two-axes transpose from the softmax to `output`, in graph
+    /// order.
+    pub(crate) post: Vec<usize>,
     /// `BATCH_MATMUL` applying the probabilities `P` to the values.
     pub(crate) output: usize,
     /// `P` is the second operand of `output`, transposed (`O' = V'·Pᵀ`, `[.., dv, queries]`);
@@ -23,11 +36,61 @@ pub(crate) struct Attention {
 }
 
 impl Attention {
-    pub(crate) fn nodes(&self) -> impl Iterator<Item = usize> {
+    /// Every node of the block, in graph order.
+    pub(crate) fn nodes(&self) -> impl Iterator<Item = usize> + '_ {
         self.mul
             .into_iter()
-            .chain([self.scores, self.softmax, self.output])
+            .chain(std::iter::once(self.scores))
+            .chain(self.pre.iter().copied())
+            .chain(std::iter::once(self.softmax))
+            .chain(self.post.iter().copied())
+            .chain(std::iter::once(self.output))
     }
+
+    /// Every tensor written inside the block, the output matmul's excluded.
+    pub(crate) fn inner_tensors<'g>(&'g self, g: &'g Graph) -> impl Iterator<Item = Tid> + 'g {
+        self.nodes()
+            .filter(move |&n| n != self.output)
+            .filter_map(|n| g.nodes[n].output())
+    }
+
+    /// The tensor `output` reads the probabilities from.
+    pub(crate) fn p_operand(&self, g: &Graph) -> Option<Tid> {
+        g.nodes[*self.post.last().unwrap_or(&self.softmax)].output()
+    }
+}
+
+/// Whether reshape node `n` keeps its last two axes, regrouping only the batch axes.
+fn batch_reshape(g: &Graph, n: usize) -> bool {
+    let node = &g.nodes[n];
+    let (Some(i), Some(o)) = (
+        node.input(0).and_then(|t| g.tensor(t)),
+        node.output().and_then(|t| g.tensor(t)),
+    ) else {
+        return false;
+    };
+    i.shape.len() >= 2
+        && o.shape.len() >= 2
+        && i.shape[i.shape.len() - 2..] == o.shape[o.shape.len() - 2..]
+}
+
+/// Whether transpose node `n` swaps the last two axes and keeps the others in place.
+fn swaps_last_two(g: &Graph, n: usize) -> bool {
+    let Some(perm) = g.nodes[n]
+        .input(1)
+        .and_then(|t| g.tensor(t))
+        .and_then(|t| t.i32s())
+    else {
+        return false;
+    };
+    let r = perm.len();
+    r >= 2
+        && perm[..r - 2]
+            .iter()
+            .enumerate()
+            .all(|(i, &p)| usize::try_from(p).is_ok_and(|p| p == i))
+        && usize::try_from(perm[r - 2]).is_ok_and(|p| p == r - 1)
+        && usize::try_from(perm[r - 1]).is_ok_and(|p| p == r - 2)
 }
 
 /// The only node reading `t`, when `t` is not a graph output.
@@ -51,18 +114,53 @@ pub(crate) fn find(g: &Graph, ok: &dyn Fn(usize) -> bool) -> Vec<Attention> {
         }
         let Some(a) = (|| {
             let ts = s.input(0)?;
-            let tp = s.output()?;
-            let b1 = g.producer(ts)?;
-            if !ok(b1) || sole_consumer(g, ts)? != si {
-                return None;
-            }
+            // Back from the softmax through batch reshapes to the scores.
+            let mut pre = Vec::new();
+            let (mut t, mut next) = (ts, si);
+            let b1 = loop {
+                let p = g.producer(t)?;
+                if !ok(p) || sole_consumer(g, t)? != next {
+                    return None;
+                }
+                match g.nodes[p].op {
+                    Op::BatchMatMul { .. } => break p,
+                    Op::Reshape if pre.len() < MAX_VIEWS && batch_reshape(g, p) => {
+                        pre.push(p);
+                        next = p;
+                        t = g.nodes[p].input(0)?;
+                    }
+                    _ => return None,
+                }
+            };
+            pre.reverse();
             let Op::BatchMatMul { adj_x, .. } = g.nodes[b1].op else {
                 return None;
             };
-            let b2 = sole_consumer(g, tp)?;
-            if !ok(b2) {
-                return None;
-            }
+            // Forward from the softmax through views to the output matmul.
+            let mut post = Vec::new();
+            let mut transposed = false;
+            let mut tp = s.output()?;
+            let b2 = loop {
+                let c = sole_consumer(g, tp)?;
+                if !ok(c) {
+                    return None;
+                }
+                match g.nodes[c].op {
+                    Op::BatchMatMul { .. } => break c,
+                    Op::Reshape if post.len() < MAX_VIEWS && batch_reshape(g, c) => {}
+                    Op::Transpose
+                        if post.len() < MAX_VIEWS
+                            && !transposed
+                            && g.nodes[c].input(0) == Some(tp)
+                            && swaps_last_two(g, c) =>
+                    {
+                        transposed = true;
+                    }
+                    _ => return None,
+                }
+                post.push(c);
+                tp = g.nodes[c].output()?;
+            };
             let n2 = &g.nodes[b2];
             let Op::BatchMatMul {
                 adj_x: x2,
@@ -71,9 +169,11 @@ pub(crate) fn find(g: &Graph, ok: &dyn Fn(usize) -> bool) -> Vec<Attention> {
             else {
                 return None;
             };
-            let p_right = if n2.input(0) == Some(tp) && n2.input(1) != Some(tp) && !x2 {
+            // With `Pᵀ` read, an adjoint flag cancels the transpose instead of adding one.
+            let p_right = if n2.input(0) == Some(tp) && n2.input(1) != Some(tp) && x2 == transposed
+            {
                 false
-            } else if n2.input(1) == Some(tp) && n2.input(0) != Some(tp) && y2 {
+            } else if n2.input(1) == Some(tp) && n2.input(0) != Some(tp) && y2 != transposed {
                 true
             } else {
                 return None;
@@ -108,7 +208,9 @@ pub(crate) fn find(g: &Graph, ok: &dyn Fn(usize) -> bool) -> Vec<Attention> {
             Some(Attention {
                 mul,
                 scores: b1,
+                pre,
                 softmax: si,
+                post,
                 output: b2,
                 p_right,
             })

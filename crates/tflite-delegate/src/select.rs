@@ -222,9 +222,10 @@ pub(crate) fn select(
 ) -> Vec<usize> {
     let roles: Vec<Option<Role>> = g.nodes.iter().map(|n| support(g, n, f, kernels)).collect();
     if scope == Scope::Attention {
-        let mut picked: Vec<usize> = attention::find(g, &|i| roles[i] == Some(Role::Compute))
+        // The matcher checks each node's operator; views inside a block come with it.
+        let mut picked: Vec<usize> = attention::find(g, &|i| roles[i].is_some())
             .into_iter()
-            .flat_map(|a| a.nodes())
+            .flat_map(|a| a.nodes().collect::<Vec<_>>())
             .collect();
         picked.sort_unstable();
         picked.dedup();

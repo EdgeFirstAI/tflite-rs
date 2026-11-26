@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.11.2] - 2026-11-10
+
+### Changed
+
+- **The EdgeFirst delegate fuses the attention blocks and DFL heads of Ultralytics `LiteRT` exports.** Attention whose probabilities pass through batch reshapes and a last-two-axes transpose, and DFL heads with NCHW (strided) bins, now run as one kernel. On an i.MX 95 with Neutron and XNNPACK, Ultralytics yolo26n runs 15.0 ms faster per invoke. `delegate_bench` gains `--xnnpack` and `--scope`.
+
 ## [0.11.1] - 2026-11-06
 
 ### Fixed
@@ -664,7 +670,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `edgefirst-tflite`: `Metadata` extraction from TFLite model files
   (`metadata` feature).
 
-[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.11.1...HEAD
+[Unreleased]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.11.2...HEAD
+[0.11.2]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.11.1...v0.11.2
 [0.11.1]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.11.0...v0.11.1
 [0.11.0]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.3...v0.11.0
 [0.10.3]: https://github.com/EdgeFirstAI/tflite-rs/compare/v0.10.2...v0.10.3

@@ -29,6 +29,10 @@
 //! * `--threads N`: interpreter threads, which `TFLite` and the `EdgeFirst` delegate both use
 //!   (default 1);
 //! * `--before`: attention blocks only, before the NPU delegate;
+//! * `--scope attention|everything`: what the `EdgeFirst` delegate claims (default
+//!   `everything`, or `attention` with `--before`);
+//! * `--xnnpack`: add XNNPACK last to both interpreters, for the operators the other
+//!   delegates leave, as stock `TFLite` applies it by default;
 //! * `--image PATH`: raw interleaved 8-bit RGB for every input of that byte size (int8
 //!   inputs take it shifted by 128), so the outputs compare on a real image rather than the
 //!   default fill;
@@ -53,6 +57,10 @@ struct Args {
     warmup: usize,
     threads: i32,
     before: bool,
+    /// `Scope::Attention` with `--before` unless `--scope` says otherwise.
+    scope: Option<Scope>,
+    /// XNNPACK last in both interpreters.
+    xnnpack: bool,
     /// Raw interleaved 8-bit RGB pixels for every input of that byte size.
     image: Option<String>,
 }
@@ -67,6 +75,8 @@ fn parse_args() -> Result<Args, String> {
         warmup: 20,
         threads: 1,
         before: false,
+        scope: None,
+        xnnpack: false,
         image: None,
     };
     let number = |v: Option<String>, flag: &str| -> Result<usize, String> {
@@ -85,6 +95,14 @@ fn parse_args() -> Result<Args, String> {
                     .map_err(|e| format!("--threads: {e}"))?;
             }
             "--before" => parsed.before = true,
+            "--scope" => {
+                parsed.scope = Some(match args.next().as_deref() {
+                    Some("attention") => Scope::Attention,
+                    Some("everything") => Scope::Everything,
+                    _ => return Err("--scope needs attention or everything".into()),
+                });
+            }
+            "--xnnpack" => parsed.xnnpack = true,
             "--image" => parsed.image = Some(args.next().ok_or("--image needs a path")?),
             _ if arg.starts_with("--") => return Err(format!("unknown option {arg}")),
             _ if parsed.model.is_empty() => parsed.model = arg,
@@ -92,17 +110,17 @@ fn parse_args() -> Result<Args, String> {
         }
     }
     if parsed.model.is_empty() {
-        return Err(
-            "usage: delegate-bench <model> [--npu PATH] [--before] [--iters N] \
-                    [--warmup N] [--threads N] [--lib PATH]"
-                .into(),
-        );
+        return Err("usage: delegate-bench <model> [--npu PATH] [--before] \
+                    [--scope attention|everything] [--xnnpack] [--iters N] [--warmup N] \
+                    [--threads N] [--image PATH] [--lib PATH]"
+            .into());
     }
     Ok(parsed)
 }
 
 /// Build an interpreter: the NPU delegate if any, plus the `EdgeFirst`
-/// delegate before or after it when `edgefirst` is set.
+/// delegate before or after it when `edgefirst` is set, and XNNPACK last with
+/// `--xnnpack`.
 fn build<'lib>(
     lib: &'lib Library,
     model: &Model<'lib>,
@@ -117,11 +135,7 @@ fn build<'lib>(
     let mut stats = None;
     if edgefirst {
         let delegate =
-            EdgeFirstDelegate::new()?.with_options(Options::default().scope(if args.before {
-                Scope::Attention
-            } else {
-                Scope::Everything
-            }));
+            EdgeFirstDelegate::new()?.with_options(Options::default().scope(scope(args)));
         stats = Some(delegate.stats());
         let delegate = delegate.into_delegate(lib)?;
         if args.before {
@@ -129,6 +143,9 @@ fn build<'lib>(
         } else {
             delegates.push(delegate);
         }
+    }
+    if args.xnnpack {
+        delegates.push(Delegate::xnnpack(lib, args.threads)?);
     }
     let mut builder = Interpreter::builder(lib)?.num_threads(args.threads);
     if let Some(profiler) = profiler {
@@ -138,6 +155,14 @@ fn build<'lib>(
         builder = builder.delegate(d);
     }
     Ok((builder.build(model)?, stats))
+}
+
+fn scope(args: &Args) -> Scope {
+    args.scope.unwrap_or(if args.before {
+        Scope::Attention
+    } else {
+        Scope::Everything
+    })
 }
 
 /// Fill every input with the same deterministic bytes (xorshift32), then copy `rgb` into each
@@ -222,13 +247,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let stats = stats.expect("EdgeFirst interpreter has stats");
     println!("model:      {}", args.model);
     println!(
-        "stack:      {}{}",
+        "stack:      {}{}, EdgeFirst scope {}{}",
         args.npu.as_deref().unwrap_or("CPU only"),
         if args.before {
             " (EdgeFirst before it)"
         } else {
             " (EdgeFirst after it)"
-        }
+        },
+        if scope(&args) == Scope::Attention {
+            "attention"
+        } else {
+            "everything"
+        },
+        if args.xnnpack { ", XNNPACK last" } else { "" }
     );
     println!(
         "edgefirst:  {} nodes claimed in {} partitions, {} fused attention, {} fused DFL, tier {}",
